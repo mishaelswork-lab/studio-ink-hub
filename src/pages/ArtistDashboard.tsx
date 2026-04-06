@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { CalendarDays, ImagePlus, DollarSign, Clock, Check, X, LogOut } from "lucide-react";
+import { CalendarDays, ImagePlus, DollarSign, Clock, Check, X, LogOut, Film, Upload } from "lucide-react";
 import { bookings, artists } from "@/data/mockData";
+import { reels } from "@/data/mockReels";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -10,6 +11,7 @@ const artist = artists[0]; // Mock logged-in artist
 const tabs = [
   { id: "bookings", label: "Bookings", icon: CalendarDays },
   { id: "portfolio", label: "Portfolio", icon: ImagePlus },
+  { id: "reels", label: "Reels", icon: Film },
   { id: "availability", label: "Availability", icon: Clock },
   { id: "earnings", label: "Earnings", icon: DollarSign },
 ] as const;
