@@ -7,7 +7,10 @@ import { Navbar } from "@/components/layout/Navbar";
 
 const Hero = () => (
   <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
-    <div className="absolute inset-0 bg-gradient-to-b from-background via-background to-surface" />
+    <div className="absolute inset-0">
+      <img src={heroBg} alt="" className="w-full h-full object-cover opacity-30" width={1920} height={1080} />
+    </div>
+    <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-background/80 to-background" />
     <div className="absolute inset-0 opacity-10">
       <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-gold/20 blur-[120px]" />
       <div className="absolute bottom-1/4 right-1/4 w-72 h-72 rounded-full bg-gold/10 blur-[100px]" />
