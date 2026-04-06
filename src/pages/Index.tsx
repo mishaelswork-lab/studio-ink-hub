@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { MapPin, Star, Users } from "lucide-react";
 import { studios, artists } from "@/data/mockData";
 import { Button } from "@/components/ui/button";
+import heroBg from "@/assets/hero-bg.jpg";
 import { Navbar } from "@/components/layout/Navbar";
 
 const Hero = () => (
