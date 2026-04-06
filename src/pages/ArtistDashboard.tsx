@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { CalendarDays, ImagePlus, DollarSign, Clock, Check, X, LogOut } from "lucide-react";
+import { CalendarDays, ImagePlus, DollarSign, Clock, Check, X, LogOut, Film, Upload } from "lucide-react";
 import { bookings, artists } from "@/data/mockData";
+import { reels } from "@/data/mockReels";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -10,6 +11,7 @@ const artist = artists[0]; // Mock logged-in artist
 const tabs = [
   { id: "bookings", label: "Bookings", icon: CalendarDays },
   { id: "portfolio", label: "Portfolio", icon: ImagePlus },
+  { id: "reels", label: "Reels", icon: Film },
   { id: "availability", label: "Availability", icon: Clock },
   { id: "earnings", label: "Earnings", icon: DollarSign },
 ] as const;
@@ -121,6 +123,35 @@ const ArtistDashboard = () => {
               ))}
               <div className="aspect-square rounded-lg border-2 border-dashed border-border flex items-center justify-center hover:border-gold/30 transition-colors cursor-pointer">
                 <ImagePlus className="w-8 h-8 text-muted-foreground" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "reels" && (
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="font-heading text-2xl font-bold text-foreground">Reels</h2>
+              <Button variant="gold" size="sm" className="gap-1"><Upload className="w-4 h-4" /> Upload Reel</Button>
+            </div>
+            <p className="text-muted-foreground text-sm mb-6">Upload short videos showcasing your work to get discovered by clients.</p>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {reels.filter(r => r.artistId === artist.id).map(reel => (
+                <div key={reel.id} className="relative aspect-[9/16] rounded-lg overflow-hidden border border-border group">
+                  <video src={reel.videoUrl} poster={reel.thumbnail} className="w-full h-full object-cover" muted />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+                  <div className="absolute bottom-3 left-3 right-3">
+                    <p className="text-white text-xs line-clamp-2">{reel.caption}</p>
+                    <div className="flex items-center gap-3 mt-1.5 text-white/70 text-xs">
+                      <span>❤️ {reel.likes}</span>
+                      <span>👁 {(reel.views / 1000).toFixed(1)}K</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <div className="aspect-[9/16] rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center hover:border-gold/30 transition-colors cursor-pointer gap-2">
+                <Film className="w-8 h-8 text-muted-foreground" />
+                <span className="text-muted-foreground text-xs">Upload Reel</span>
               </div>
             </div>
           </div>
