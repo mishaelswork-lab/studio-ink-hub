@@ -10,6 +10,7 @@ export const Navbar = () => {
   const links = [
     { to: "/", label: "Home" },
     { to: "/studios", label: "Studios" },
+    { to: "/discover", label: "Discover" },
     { to: "/ai-consultant", label: "AI Consultant" },
   ];
 

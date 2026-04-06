@@ -8,6 +8,7 @@ import StudiosPage from "./pages/StudiosPage";
 import ArtistProfile from "./pages/ArtistProfile";
 import BookingPage from "./pages/BookingPage";
 import AIConsultant from "./pages/AIConsultant";
+import DiscoverPage from "./pages/DiscoverPage";
 import LoginPage from "./pages/LoginPage";
 import ArtistLogin from "./pages/ArtistLogin";
 import ArtistDashboard from "./pages/ArtistDashboard";
@@ -29,6 +30,7 @@ const App = () => (
           <Route path="/artist/:id" element={<ArtistProfile />} />
           <Route path="/book/:artistId" element={<BookingPage />} />
           <Route path="/ai-consultant" element={<AIConsultant />} />
+          <Route path="/discover" element={<DiscoverPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/artist-login" element={<ArtistLogin />} />
           <Route path="/artist-dashboard" element={<ArtistDashboard />} />
