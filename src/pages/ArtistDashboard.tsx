@@ -157,6 +157,7 @@ const ArtistDashboard = () => {
           </div>
         )}
 
+        {activeTab === "availability" && (
           <div>
             <h2 className="font-heading text-2xl font-bold text-foreground mb-6">Availability</h2>
             <div className="bg-card rounded-lg border border-border p-6 space-y-4">
