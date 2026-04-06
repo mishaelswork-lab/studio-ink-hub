@@ -1,10 +1,20 @@
 import { useState } from "react";
-import { CalendarDays, ImagePlus, DollarSign, Clock, Check, X, LogOut, Film, Upload } from "lucide-react";
+import { CalendarDays, ImagePlus, DollarSign, Clock, Check, X, LogOut, Film, Upload, Link2, Instagram } from "lucide-react";
 import { bookings, artists } from "@/data/mockData";
 import { reels } from "@/data/mockReels";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 const artist = artists[0]; // Mock logged-in artist
 
@@ -18,9 +28,124 @@ const tabs = [
 
 type Tab = typeof tabs[number]["id"];
 
+const InstagramImportDialog = ({ onImport }: { onImport: (url: string, caption: string) => void }) => {
+  const [igUrl, setIgUrl] = useState("");
+  const [caption, setCaption] = useState("");
+  const [open, setOpen] = useState(false);
+
+  const handleImport = () => {
+    if (!igUrl.trim()) { toast.error("Please enter an Instagram URL"); return; }
+    if (!igUrl.includes("instagram.com")) { toast.error("Please enter a valid Instagram URL"); return; }
+    onImport(igUrl.trim(), caption.trim());
+    setIgUrl("");
+    setCaption("");
+    setOpen(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="gap-1 border-border text-foreground">
+          <Instagram className="w-4 h-4" /> Import from Instagram
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="bg-card border-border">
+        <DialogHeader>
+          <DialogTitle className="font-heading text-foreground">Import Instagram Reel</DialogTitle>
+          <DialogDescription className="text-muted-foreground">
+            Paste the URL of your Instagram reel to import it to your ArtSpace profile.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 mt-2">
+          <div>
+            <label className="text-sm text-muted-foreground mb-1.5 block">Instagram Reel URL</label>
+            <div className="relative">
+              <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="https://www.instagram.com/reel/..."
+                value={igUrl}
+                onChange={(e) => setIgUrl(e.target.value)}
+                className="pl-10 bg-secondary border-border text-foreground"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="text-sm text-muted-foreground mb-1.5 block">Caption (optional)</label>
+            <Textarea
+              placeholder="Add a caption for your ArtSpace audience..."
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              className="bg-secondary border-border text-foreground resize-none"
+              rows={3}
+            />
+          </div>
+          <Button variant="gold" className="w-full gap-2" onClick={handleImport}>
+            <Instagram className="w-4 h-4" /> Import Reel
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+const UploadReelDialog = ({ onUpload }: { onUpload: (caption: string) => void }) => {
+  const [caption, setCaption] = useState("");
+  const [open, setOpen] = useState(false);
+
+  const handleUpload = () => {
+    toast.success("Reel uploaded successfully!");
+    onUpload(caption.trim());
+    setCaption("");
+    setOpen(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="gold" size="sm" className="gap-1">
+          <Upload className="w-4 h-4" /> Upload Reel
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="bg-card border-border">
+        <DialogHeader>
+          <DialogTitle className="font-heading text-foreground">Upload Reel</DialogTitle>
+          <DialogDescription className="text-muted-foreground">
+            Upload a short video showcasing your tattoo work.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 mt-2">
+          <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-gold/30 transition-colors cursor-pointer">
+            <Film className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+            <p className="text-muted-foreground text-sm">Click or drag to upload video</p>
+            <p className="text-muted-foreground text-xs mt-1">MP4, MOV up to 50MB · Max 60 seconds</p>
+          </div>
+          <div>
+            <label className="text-sm text-muted-foreground mb-1.5 block">Caption</label>
+            <Textarea
+              placeholder="Describe your work..."
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              className="bg-secondary border-border text-foreground resize-none"
+              rows={3}
+            />
+          </div>
+          <Button variant="gold" className="w-full gap-2" onClick={handleUpload}>
+            <Upload className="w-4 h-4" /> Upload
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 const ArtistDashboard = () => {
   const [activeTab, setActiveTab] = useState<Tab>("bookings");
-  const artistBookings = bookings.filter(b => b.artistId === artist.id);
+  const artistBookings = bookings.filter((b) => b.artistId === artist.id);
+  const artistReels = reels.filter((r) => r.artistId === artist.id);
+
+  const handleInstagramImport = (url: string, caption: string) => {
+    toast.success("Instagram reel imported successfully!", { description: url });
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -42,11 +167,11 @@ const ArtistDashboard = () => {
         </div>
 
         <nav className="space-y-1 flex-1">
-          {tabs.map(tab => (
+          {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors ${activeTab === tab.id ? "bg-gold/10 text-gold" : "text-muted-foreground hover:text-foreground hover:bg-surface-hover"}`}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors ${activeTab === tab.id ? "bg-gold/10 text-gold" : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"}`}
             >
               <tab.icon className="w-4 h-4" />
               {tab.label}
@@ -62,12 +187,18 @@ const ArtistDashboard = () => {
       {/* Mobile header */}
       <div className="md:hidden bg-card border-b border-border p-4">
         <div className="flex items-center justify-between mb-3">
-          <h1 className="font-heading text-lg font-bold">Art<span className="text-gradient-gold">Space</span></h1>
+          <h1 className="font-heading text-lg font-bold">
+            Art<span className="text-gradient-gold">Space</span>
+          </h1>
           <Link to="/" className="text-muted-foreground text-sm">Logout</Link>
         </div>
         <div className="flex gap-1 overflow-x-auto">
-          {tabs.map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-xs whitespace-nowrap ${activeTab === tab.id ? "bg-gold/10 text-gold" : "text-muted-foreground"}`}>
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-xs whitespace-nowrap ${activeTab === tab.id ? "bg-gold/10 text-gold" : "text-muted-foreground"}`}
+            >
               <tab.icon className="w-3.5 h-3.5" /> {tab.label}
             </button>
           ))}
@@ -81,7 +212,7 @@ const ArtistDashboard = () => {
             <h2 className="font-heading text-2xl font-bold text-foreground mb-6">Bookings</h2>
             <div className="space-y-4">
               {artistBookings.length === 0 && <p className="text-muted-foreground">No bookings yet.</p>}
-              {artistBookings.map(booking => (
+              {artistBookings.map((booking) => (
                 <div key={booking.id} className="bg-card rounded-lg border border-border p-5">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
                     <div>
@@ -99,8 +230,12 @@ const ArtistDashboard = () => {
                   <p className="text-muted-foreground text-sm mb-4">{booking.description}</p>
                   {booking.status === "pending" && (
                     <div className="flex gap-2">
-                      <Button size="sm" variant="gold" onClick={() => toast.success("Booking accepted!")} className="gap-1"><Check className="w-3.5 h-3.5" /> Accept</Button>
-                      <Button size="sm" variant="outline" onClick={() => toast.info("Booking rejected")} className="gap-1"><X className="w-3.5 h-3.5" /> Reject</Button>
+                      <Button size="sm" variant="gold" onClick={() => toast.success("Booking accepted!")} className="gap-1">
+                        <Check className="w-3.5 h-3.5" /> Accept
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => toast.info("Booking rejected")} className="gap-1">
+                        <X className="w-3.5 h-3.5" /> Reject
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -130,16 +265,26 @@ const ArtistDashboard = () => {
 
         {activeTab === "reels" && (
           <div>
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-4">
               <h2 className="font-heading text-2xl font-bold text-foreground">Reels</h2>
-              <Button variant="gold" size="sm" className="gap-1"><Upload className="w-4 h-4" /> Upload Reel</Button>
+              <div className="flex gap-2">
+                <InstagramImportDialog onImport={handleInstagramImport} />
+                <UploadReelDialog onUpload={() => {}} />
+              </div>
             </div>
-            <p className="text-muted-foreground text-sm mb-6">Upload short videos showcasing your work to get discovered by clients.</p>
+            <p className="text-muted-foreground text-sm mb-6">
+              Upload short videos or import directly from Instagram to showcase your work and get discovered.
+            </p>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {reels.filter(r => r.artistId === artist.id).map(reel => (
-                <div key={reel.id} className="relative aspect-[9/16] rounded-lg overflow-hidden border border-border group">
+              {artistReels.map((reel) => (
+                <div key={reel.id} className="relative aspect-[9/16] rounded-lg overflow-hidden border border-border group cursor-pointer">
                   <video src={reel.videoUrl} poster={reel.thumbnail} className="w-full h-full object-cover" muted />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+                  {reel.instagram_url && (
+                    <div className="absolute top-2 right-2 bg-black/50 rounded-full p-1.5">
+                      <Instagram className="w-3.5 h-3.5 text-white" />
+                    </div>
+                  )}
                   <div className="absolute bottom-3 left-3 right-3">
                     <p className="text-white text-xs line-clamp-2">{reel.caption}</p>
                     <div className="flex items-center gap-3 mt-1.5 text-white/70 text-xs">
@@ -151,7 +296,7 @@ const ArtistDashboard = () => {
               ))}
               <div className="aspect-[9/16] rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center hover:border-gold/30 transition-colors cursor-pointer gap-2">
                 <Film className="w-8 h-8 text-muted-foreground" />
-                <span className="text-muted-foreground text-xs">Upload Reel</span>
+                <span className="text-muted-foreground text-xs">Add Reel</span>
               </div>
             </div>
           </div>
@@ -161,7 +306,7 @@ const ArtistDashboard = () => {
           <div>
             <h2 className="font-heading text-2xl font-bold text-foreground mb-6">Availability</h2>
             <div className="bg-card rounded-lg border border-border p-6 space-y-4">
-              {["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"].map(day => (
+              {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map((day) => (
                 <div key={day} className="flex items-center justify-between py-2 border-b border-border last:border-0">
                   <span className="text-foreground text-sm font-medium">{day}</span>
                   <div className="flex items-center gap-3">
@@ -184,7 +329,7 @@ const ArtistDashboard = () => {
                 { label: "This Month", value: "₹25,500" },
                 { label: "Total Bookings", value: "12" },
                 { label: "Completed", value: "8" },
-              ].map(stat => (
+              ].map((stat) => (
                 <div key={stat.label} className="bg-card rounded-lg border border-border p-5">
                   <p className="text-muted-foreground text-sm">{stat.label}</p>
                   <p className="text-gradient-gold font-heading text-2xl font-bold mt-1">{stat.value}</p>
@@ -193,7 +338,7 @@ const ArtistDashboard = () => {
             </div>
             <div className="bg-card rounded-lg border border-border p-6">
               <h3 className="text-foreground font-medium mb-4">Recent Transactions</h3>
-              {artistBookings.filter(b => b.status === "completed" || b.status === "confirmed").map(b => (
+              {artistBookings.filter((b) => b.status === "completed" || b.status === "confirmed").map((b) => (
                 <div key={b.id} className="flex items-center justify-between py-3 border-b border-border last:border-0">
                   <div>
                     <p className="text-foreground text-sm">{b.customerName}</p>

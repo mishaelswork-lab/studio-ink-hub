@@ -9,6 +9,7 @@ export interface Reel {
   videoUrl: string;
   thumbnail: string;
   caption: string;
+  instagram_url?: string;
   likes: number;
   views: number;
   createdAt: string;
