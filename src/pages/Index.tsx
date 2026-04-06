@@ -142,6 +142,7 @@ const Index = () => (
     <Navbar />
     <Hero />
     <Stats />
+    <DiscoverReels />
     <FeaturedArtists />
     <footer className="py-10 border-t border-border text-center">
       <p className="text-muted-foreground text-sm">© 2026 ArtSpace. All rights reserved.</p>
