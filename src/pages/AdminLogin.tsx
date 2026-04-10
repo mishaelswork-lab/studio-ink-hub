@@ -1,20 +1,36 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const AdminLogin = () => {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (username === "admin" && password === "admin123") {
+    setLoading(true);
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+
+      const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", data.user.id).eq("role", "admin");
+      if (!roles?.length) {
+        await supabase.auth.signOut();
+        toast.error("This account does not have admin access.");
+        return;
+      }
+
       toast.success("Welcome, Admin!");
       navigate("/admin/dashboard");
-    } else {
-      toast.error("Invalid credentials");
+    } catch (error: any) {
+      toast.error(error.message || "Login failed");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -29,15 +45,25 @@ const AdminLogin = () => {
         </div>
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="text-sm text-muted-foreground mb-1.5 block">Username</label>
-            <input type="text" required value={username} onChange={e => setUsername(e.target.value)} placeholder="admin" className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-gold placeholder:text-muted-foreground" />
+            <label className="text-sm text-muted-foreground mb-1.5 block">Email</label>
+            <input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="admin@artspace.com" className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-gold placeholder:text-muted-foreground" />
           </div>
           <div>
             <label className="text-sm text-muted-foreground mb-1.5 block">Password</label>
             <input type="password" required value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-gold placeholder:text-muted-foreground" />
           </div>
-          <Button type="submit" variant="gold" className="w-full">Sign In</Button>
+          <Button type="submit" variant="gold" className="w-full" disabled={loading}>
+            {loading ? "Signing in..." : "Sign In"}
+          </Button>
         </form>
+        <div className="mt-4 p-3 rounded-md bg-secondary/50 border border-border">
+          <p className="text-muted-foreground text-xs text-center">
+            Test: <span className="text-gold">admin@artspace.com</span> / <span className="text-gold">admin123</span>
+          </p>
+        </div>
+        <div className="mt-6 pt-6 border-t border-border text-center">
+          <Link to="/login" className="text-sm text-muted-foreground hover:text-gold transition-colors">← Customer Login</Link>
+        </div>
       </div>
     </div>
   );

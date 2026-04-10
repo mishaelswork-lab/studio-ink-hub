@@ -14,6 +14,221 @@ export type Database = {
   }
   public: {
     Tables: {
+      artists: {
+        Row: {
+          availability_hours: Json | null
+          available: boolean | null
+          avatar_url: string | null
+          bio: string | null
+          created_at: string
+          experience_years: number | null
+          hourly_rate: number
+          id: string
+          instagram_url: string | null
+          name: string
+          portfolio_images: string[] | null
+          rating: number | null
+          specialty: string | null
+          studio_name: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          availability_hours?: Json | null
+          available?: boolean | null
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          experience_years?: number | null
+          hourly_rate?: number
+          id?: string
+          instagram_url?: string | null
+          name: string
+          portfolio_images?: string[] | null
+          rating?: number | null
+          specialty?: string | null
+          studio_name?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          availability_hours?: Json | null
+          available?: boolean | null
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          experience_years?: number | null
+          hourly_rate?: number
+          id?: string
+          instagram_url?: string | null
+          name?: string
+          portfolio_images?: string[] | null
+          rating?: number | null
+          specialty?: string | null
+          studio_name?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      bookings: {
+        Row: {
+          artist_id: string
+          cover_charge_paid: boolean | null
+          created_at: string
+          customer_id: string | null
+          customer_name: string
+          customer_phone: string | null
+          date: string
+          description: string | null
+          id: string
+          placement: string
+          size: string | null
+          status: string
+          style: string
+          time: string
+          total_estimate: number | null
+          updated_at: string
+        }
+        Insert: {
+          artist_id: string
+          cover_charge_paid?: boolean | null
+          created_at?: string
+          customer_id?: string | null
+          customer_name: string
+          customer_phone?: string | null
+          date: string
+          description?: string | null
+          id?: string
+          placement: string
+          size?: string | null
+          status?: string
+          style: string
+          time: string
+          total_estimate?: number | null
+          updated_at?: string
+        }
+        Update: {
+          artist_id?: string
+          cover_charge_paid?: boolean | null
+          created_at?: string
+          customer_id?: string | null
+          customer_name?: string
+          customer_phone?: string | null
+          date?: string
+          description?: string | null
+          id?: string
+          placement?: string
+          size?: string | null
+          status?: string
+          style?: string
+          time?: string
+          total_estimate?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          amount: number
+          artist_id: string | null
+          booking_id: string | null
+          created_at: string
+          currency: string | null
+          customer_id: string | null
+          id: string
+          payment_type: string
+          razorpay_order_id: string | null
+          razorpay_payment_id: string | null
+          razorpay_signature: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          artist_id?: string | null
+          booking_id?: string | null
+          created_at?: string
+          currency?: string | null
+          customer_id?: string | null
+          id?: string
+          payment_type?: string
+          razorpay_order_id?: string | null
+          razorpay_payment_id?: string | null
+          razorpay_signature?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          artist_id?: string | null
+          booking_id?: string | null
+          created_at?: string
+          currency?: string | null
+          customer_id?: string | null
+          id?: string
+          payment_type?: string
+          razorpay_order_id?: string | null
+          razorpay_payment_id?: string | null
+          razorpay_signature?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          phone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       reels: {
         Row: {
           artist_id: string
@@ -54,6 +269,32 @@ export type Database = {
           video_url?: string
           views?: number
         }
+        Relationships: [
+          {
+            foreignKeyName: "reels_artist_fk"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
         Relationships: []
       }
     }
@@ -61,10 +302,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "customer" | "artist" | "admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -191,6 +438,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["customer", "artist", "admin"],
+    },
   },
 } as const
