@@ -47,14 +47,17 @@ const CustomerDashboard = () => {
 
       if (diffMins <= 60 && diffMins > 30 && !notifiedBookings.has(reminderKey60)) {
         toast.info(`⏰ Your appointment is in ~1 hour!`, { description: `${booking.style} with your artist`, duration: 10000 });
+        sendPushNotification("⏰ 1 Hour Left", `${booking.style} appointment coming up!`);
         setNotifiedBookings(prev => new Set(prev).add(reminderKey60));
       }
       if (diffMins <= 30 && diffMins > 15 && !notifiedBookings.has(reminderKey30)) {
         toast.warning(`⏰ 30 minutes until your appointment!`, { description: `${booking.style} — get ready!`, duration: 10000 });
+        sendPushNotification("⏰ 30 Minutes Left", `${booking.style} — get ready!`);
         setNotifiedBookings(prev => new Set(prev).add(reminderKey30));
       }
       if (diffMins <= 15 && diffMins > 0 && !notifiedBookings.has(reminderKey15)) {
         toast.error(`🔔 15 minutes left! Your appointment is almost here!`, { description: `${booking.style} — head to the studio now!`, duration: 15000 });
+        sendPushNotification("🔔 15 Minutes Left!", `${booking.style} — head to the studio now!`);
         setNotifiedBookings(prev => new Set(prev).add(reminderKey15));
       }
     });
