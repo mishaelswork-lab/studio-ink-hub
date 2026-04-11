@@ -16,6 +16,7 @@ import ArtistLogin from "./pages/ArtistLogin";
 import ArtistDashboard from "./pages/ArtistDashboard";
 import AdminLogin from "./pages/AdminLogin";
 import AdminPanel from "./pages/AdminPanel";
+import CustomerDashboard from "./pages/CustomerDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="/ai-consultant" element={<AIConsultant />} />
             <Route path="/discover" element={<DiscoverPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/dashboard" element={<ProtectedRoute redirectTo="/login"><CustomerDashboard /></ProtectedRoute>} />
             <Route path="/artist-login" element={<ArtistLogin />} />
             <Route path="/artist-dashboard" element={<ProtectedRoute requiredRole="artist" redirectTo="/artist-login"><ArtistDashboard /></ProtectedRoute>} />
             <Route path="/admin" element={<AdminLogin />} />
