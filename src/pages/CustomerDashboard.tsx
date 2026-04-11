@@ -114,7 +114,7 @@ const CustomerDashboard = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <div className="pt-20 pb-16 px-4 max-w-5xl mx-auto">
+      <div className="pt-20 pb-24 px-4 max-w-5xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8 pt-4">
           <div>
