@@ -29,8 +29,8 @@ const Hero = () => (
         <Link to="/studios">
           <Button variant="gold" size="xl">Explore Studios</Button>
         </Link>
-        <Link to="/ai-consultant">
-          <Button variant="gold-outline" size="xl">AI Style Consultant</Button>
+        <Link to="/discover">
+          <Button variant="gold-outline" size="xl">Watch Artist Reels</Button>
         </Link>
       </div>
     </div>

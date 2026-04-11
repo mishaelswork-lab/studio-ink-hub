@@ -60,10 +60,23 @@ const CustomerDashboard = () => {
     });
   }, [bookings, notifiedBookings]);
 
+  // Push notification permission + reminders
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  const sendPushNotification = useCallback((title: string, body: string) => {
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification(title, { body, icon: "/placeholder.svg", badge: "/placeholder.svg" });
+    }
+  }, []);
+
   useEffect(() => {
     if (bookings.length === 0) return;
     checkReminders();
-    const interval = setInterval(checkReminders, 60000); // check every minute
+    const interval = setInterval(checkReminders, 60000);
     return () => clearInterval(interval);
   }, [bookings, checkReminders]);
 
