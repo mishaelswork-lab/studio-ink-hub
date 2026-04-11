@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { CalendarDays, Clock, MapPin, Search, Star, Bell, LogOut, Compass, Sparkles } from "lucide-react";
+import { CalendarDays, Clock, MapPin, Search, Star, Bell, LogOut, Compass } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/layout/Navbar";
 import { useAuth } from "@/contexts/AuthContext";
