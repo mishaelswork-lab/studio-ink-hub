@@ -71,6 +71,26 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Create test customer
+    const { data: custUser, error: custErr } = await supabaseAdmin.auth.admin.createUser({
+      email: "test@123",
+      password: "test@123",
+      email_confirm: true,
+      user_metadata: { display_name: "Test Customer" },
+    });
+
+    if (custErr && !custErr.message.includes("already been registered")) {
+      console.log("Customer creation note:", custErr.message);
+    }
+
+    const custUserId = custUser?.user?.id;
+    if (custUserId) {
+      await supabaseAdmin.from("user_roles").upsert(
+        { user_id: custUserId, role: "customer" },
+        { onConflict: "user_id,role" }
+      );
+    }
+
     return new Response(JSON.stringify({
       success: true,
       artist: { email: "artist123@artspace.com", password: "artist123", userId: artistUserId },

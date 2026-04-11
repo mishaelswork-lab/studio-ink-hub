@@ -2,10 +2,15 @@ import { Link, useLocation } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const Navbar = () => {
   const [open, setOpen] = useState(false);
   const location = useLocation();
+  const { user, roles } = useAuth();
+
+  const isArtist = roles.includes("artist");
+  const isAdmin = roles.includes("admin");
 
   const links = [
     { to: "/", label: "Home" },
@@ -24,23 +29,25 @@ export const Navbar = () => {
 
         <div className="hidden md:flex items-center gap-8">
           {links.map((link) => (
-            <Link
-              key={link.to}
-              to={link.to}
-              className={`text-sm transition-colors ${location.pathname === link.to ? "text-gold" : "text-muted-foreground hover:text-foreground"}`}
-            >
+            <Link key={link.to} to={link.to} className={`text-sm transition-colors ${location.pathname === link.to ? "text-gold" : "text-muted-foreground hover:text-foreground"}`}>
               {link.label}
             </Link>
           ))}
         </div>
 
         <div className="hidden md:flex items-center gap-3">
-          <Link to="/artist-login">
-            <Button variant="ghost" size="sm" className="text-muted-foreground">Artist Login</Button>
-          </Link>
-          <Link to="/login">
-            <Button variant="gold" size="sm">Book Now</Button>
-          </Link>
+          {user ? (
+            <>
+              {isArtist && <Link to="/artist-dashboard"><Button variant="ghost" size="sm" className="text-muted-foreground">Dashboard</Button></Link>}
+              {isAdmin && <Link to="/admin/dashboard"><Button variant="ghost" size="sm" className="text-muted-foreground">Admin</Button></Link>}
+              <Link to="/dashboard"><Button variant="gold" size="sm">My Bookings</Button></Link>
+            </>
+          ) : (
+            <>
+              <Link to="/artist-login"><Button variant="ghost" size="sm" className="text-muted-foreground">Artist Login</Button></Link>
+              <Link to="/login"><Button variant="gold" size="sm">Book Now</Button></Link>
+            </>
+          )}
         </div>
 
         <button onClick={() => setOpen(!open)} className="md:hidden text-foreground">
@@ -51,22 +58,19 @@ export const Navbar = () => {
       {open && (
         <div className="md:hidden bg-background border-b border-border px-4 py-4 space-y-3">
           {links.map((link) => (
-            <Link
-              key={link.to}
-              to={link.to}
-              onClick={() => setOpen(false)}
-              className="block text-sm text-muted-foreground hover:text-foreground"
-            >
+            <Link key={link.to} to={link.to} onClick={() => setOpen(false)} className="block text-sm text-muted-foreground hover:text-foreground">
               {link.label}
             </Link>
           ))}
           <div className="flex gap-2 pt-2">
-            <Link to="/artist-login" onClick={() => setOpen(false)}>
-              <Button variant="ghost" size="sm">Artist Login</Button>
-            </Link>
-            <Link to="/login" onClick={() => setOpen(false)}>
-              <Button variant="gold" size="sm">Book Now</Button>
-            </Link>
+            {user ? (
+              <Link to="/dashboard" onClick={() => setOpen(false)}><Button variant="gold" size="sm">My Bookings</Button></Link>
+            ) : (
+              <>
+                <Link to="/artist-login" onClick={() => setOpen(false)}><Button variant="ghost" size="sm">Artist Login</Button></Link>
+                <Link to="/login" onClick={() => setOpen(false)}><Button variant="gold" size="sm">Book Now</Button></Link>
+              </>
+            )}
           </div>
         </div>
       )}
