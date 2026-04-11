@@ -61,7 +61,7 @@ const CustomerDashboard = () => {
         setNotifiedBookings(prev => new Set(prev).add(reminderKey15));
       }
     });
-  }, [bookings, notifiedBookings]);
+  }, [bookings, notifiedBookings, sendPushNotification]);
 
   // Push notification permission + reminders
   useEffect(() => {
@@ -183,7 +183,6 @@ const CustomerDashboard = () => {
           {[
             { to: "/studios", icon: Search, label: "Browse Studios", desc: "Find artists near you" },
             { to: "/discover", icon: Compass, label: "Discover", desc: "Watch artist reels" },
-            { to: "/ai-consultant", icon: Sparkles, label: "AI Consultant", desc: "Get style advice" },
             { to: "/studios", icon: CalendarDays, label: "Book Now", desc: "Schedule a session" },
           ].map(action => (
             <Link key={action.label} to={action.to} className="bg-card rounded-lg border border-border p-4 hover:border-gold/30 transition-all group">
