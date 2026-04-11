@@ -179,7 +179,7 @@ const CustomerDashboard = () => {
         )}
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+        <div className="grid grid-cols-3 gap-3 mb-8">
           {[
             { to: "/studios", icon: Search, label: "Browse Studios", desc: "Find artists near you" },
             { to: "/discover", icon: Compass, label: "Discover", desc: "Watch artist reels" },
