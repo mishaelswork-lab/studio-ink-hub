@@ -29,6 +29,19 @@ const CustomerDashboard = () => {
     fetchData();
   }, [user]);
 
+  // Push notification permission
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  const sendPushNotification = useCallback((title: string, body: string) => {
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification(title, { body, icon: "/placeholder.svg", badge: "/placeholder.svg" });
+    }
+  }, []);
+
   // Booking reminder system
   const checkReminders = useCallback(() => {
     const now = new Date();
@@ -62,19 +75,6 @@ const CustomerDashboard = () => {
       }
     });
   }, [bookings, notifiedBookings, sendPushNotification]);
-
-  // Push notification permission + reminders
-  useEffect(() => {
-    if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission();
-    }
-  }, []);
-
-  const sendPushNotification = useCallback((title: string, body: string) => {
-    if ("Notification" in window && Notification.permission === "granted") {
-      new Notification(title, { body, icon: "/placeholder.svg", badge: "/placeholder.svg" });
-    }
-  }, []);
 
   useEffect(() => {
     if (bookings.length === 0) return;
