@@ -23,7 +23,7 @@ const Hero = () => (
         <span className="text-gradient-gold">Space</span>
       </h1>
       <p className="text-muted-foreground text-lg md:text-xl max-w-2xl mx-auto mb-10 animate-fade-in" style={{ animationDelay: "0.2s" }}>
-        Discover Bengaluru's finest tattoo artists. Book your next masterpiece with confidence.
+        Discover India's finest tattoo artists. Book your next masterpiece with confidence.
       </p>
       <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in" style={{ animationDelay: "0.3s" }}>
         <Link to="/studios">
