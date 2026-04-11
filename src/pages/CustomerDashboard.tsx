@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { CalendarDays, Clock, MapPin, Search, Star, Bell, LogOut, Compass, Sparkles } from "lucide-react";
+import { CalendarDays, Clock, MapPin, Search, Star, Bell, LogOut, Compass } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/layout/Navbar";
 import { useAuth } from "@/contexts/AuthContext";
@@ -29,6 +29,19 @@ const CustomerDashboard = () => {
     fetchData();
   }, [user]);
 
+  // Push notification permission
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  const sendPushNotification = useCallback((title: string, body: string) => {
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification(title, { body, icon: "/placeholder.svg", badge: "/placeholder.svg" });
+    }
+  }, []);
+
   // Booking reminder system
   const checkReminders = useCallback(() => {
     const now = new Date();
@@ -47,23 +60,26 @@ const CustomerDashboard = () => {
 
       if (diffMins <= 60 && diffMins > 30 && !notifiedBookings.has(reminderKey60)) {
         toast.info(`⏰ Your appointment is in ~1 hour!`, { description: `${booking.style} with your artist`, duration: 10000 });
+        sendPushNotification("⏰ 1 Hour Left", `${booking.style} appointment coming up!`);
         setNotifiedBookings(prev => new Set(prev).add(reminderKey60));
       }
       if (diffMins <= 30 && diffMins > 15 && !notifiedBookings.has(reminderKey30)) {
         toast.warning(`⏰ 30 minutes until your appointment!`, { description: `${booking.style} — get ready!`, duration: 10000 });
+        sendPushNotification("⏰ 30 Minutes Left", `${booking.style} — get ready!`);
         setNotifiedBookings(prev => new Set(prev).add(reminderKey30));
       }
       if (diffMins <= 15 && diffMins > 0 && !notifiedBookings.has(reminderKey15)) {
         toast.error(`🔔 15 minutes left! Your appointment is almost here!`, { description: `${booking.style} — head to the studio now!`, duration: 15000 });
+        sendPushNotification("🔔 15 Minutes Left!", `${booking.style} — head to the studio now!`);
         setNotifiedBookings(prev => new Set(prev).add(reminderKey15));
       }
     });
-  }, [bookings, notifiedBookings]);
+  }, [bookings, notifiedBookings, sendPushNotification]);
 
   useEffect(() => {
     if (bookings.length === 0) return;
     checkReminders();
-    const interval = setInterval(checkReminders, 60000); // check every minute
+    const interval = setInterval(checkReminders, 60000);
     return () => clearInterval(interval);
   }, [bookings, checkReminders]);
 
@@ -98,7 +114,7 @@ const CustomerDashboard = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <div className="pt-20 pb-16 px-4 max-w-5xl mx-auto">
+      <div className="pt-20 pb-24 px-4 max-w-5xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8 pt-4">
           <div>
@@ -163,11 +179,10 @@ const CustomerDashboard = () => {
         )}
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+        <div className="grid grid-cols-3 gap-3 mb-8">
           {[
             { to: "/studios", icon: Search, label: "Browse Studios", desc: "Find artists near you" },
             { to: "/discover", icon: Compass, label: "Discover", desc: "Watch artist reels" },
-            { to: "/ai-consultant", icon: Sparkles, label: "AI Consultant", desc: "Get style advice" },
             { to: "/studios", icon: CalendarDays, label: "Book Now", desc: "Schedule a session" },
           ].map(action => (
             <Link key={action.label} to={action.to} className="bg-card rounded-lg border border-border p-4 hover:border-gold/30 transition-all group">
