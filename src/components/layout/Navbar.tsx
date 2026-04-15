@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Menu, X, Home, MapPin, Compass, User, LayoutDashboard, Shield, LogIn } from "lucide-react";
+import { Menu, X, Home, MapPin, Compass, User, LayoutDashboard, Shield, LogIn, Heart } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -91,10 +91,16 @@ export const Navbar = () => {
             </Link>
           ))}
           {user ? (
-            <Link to="/dashboard" className={`flex flex-col items-center gap-1 px-3 py-2 ${isActive("/dashboard") ? "text-gold" : "text-muted-foreground"}`}>
-              <LayoutDashboard className="w-5 h-5" />
-              <span className="text-[10px] font-medium">Bookings</span>
-            </Link>
+            <>
+              <Link to="/favorites" className={`flex flex-col items-center gap-1 px-3 py-2 ${isActive("/favorites") ? "text-gold" : "text-muted-foreground"}`}>
+                <Heart className="w-5 h-5" />
+                <span className="text-[10px] font-medium">Faves</span>
+              </Link>
+              <Link to="/dashboard" className={`flex flex-col items-center gap-1 px-3 py-2 ${isActive("/dashboard") ? "text-gold" : "text-muted-foreground"}`}>
+                <LayoutDashboard className="w-5 h-5" />
+                <span className="text-[10px] font-medium">Bookings</span>
+              </Link>
+            </>
           ) : (
             <Link to="/login" className={`flex flex-col items-center gap-1 px-3 py-2 ${isActive("/login") ? "text-gold" : "text-muted-foreground"}`}>
               <LogIn className="w-5 h-5" />

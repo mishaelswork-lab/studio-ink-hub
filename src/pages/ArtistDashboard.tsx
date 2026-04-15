@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { CalendarDays, ImagePlus, DollarSign, Clock, Check, X, LogOut, Film, Upload, Link2, Instagram, IndianRupee } from "lucide-react";
+import { CalendarDays, ImagePlus, DollarSign, Clock, Check, X, LogOut, Film, Upload, Link2, Instagram, IndianRupee, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,12 +13,12 @@ const tabs = [
   { id: "bookings", label: "Bookings", icon: CalendarDays },
   { id: "portfolio", label: "Portfolio", icon: ImagePlus },
   { id: "reels", label: "Reels", icon: Film },
-  { id: "availability", label: "Availability", icon: Clock },
+  { id: "consultations", label: "Chats", icon: MessageSquare },
+  { id: "availability", label: "Hours", icon: Clock },
   { id: "earnings", label: "Earnings", icon: DollarSign },
 ] as const;
 
 type Tab = typeof tabs[number]["id"];
-
 type DaySchedule = { start: string; end: string; off: boolean };
 type AvailabilityHours = Record<string, DaySchedule>;
 
@@ -32,7 +32,7 @@ const defaultHours: AvailabilityHours = {
   sunday: { start: "10:00", end: "18:00", off: true },
 };
 
-const InstagramImportDialog = ({ onImport }: { onImport: (url: string, caption: string) => void }) => {
+const InstagramImportDialog = ({ onImport, type }: { onImport: (url: string, caption: string) => void; type: "reel" | "photo" }) => {
   const [igUrl, setIgUrl] = useState("");
   const [caption, setCaption] = useState("");
   const [open, setOpen] = useState(false);
@@ -47,26 +47,28 @@ const InstagramImportDialog = ({ onImport }: { onImport: (url: string, caption: 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-1 border-border text-foreground"><Instagram className="w-4 h-4" /> Import from Instagram</Button>
+        <Button variant="outline" size="sm" className="gap-1 border-border text-foreground">
+          <Instagram className="w-4 h-4" /> Import {type === "reel" ? "Reel" : "Photo"} from IG
+        </Button>
       </DialogTrigger>
       <DialogContent className="bg-card border-border">
         <DialogHeader>
-          <DialogTitle className="font-heading text-foreground">Import Instagram Reel</DialogTitle>
-          <DialogDescription className="text-muted-foreground">Paste the URL of your Instagram reel.</DialogDescription>
+          <DialogTitle className="font-heading text-foreground">Import from Instagram</DialogTitle>
+          <DialogDescription className="text-muted-foreground">Paste the URL of your Instagram {type}.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 mt-2">
           <div>
-            <label className="text-sm text-muted-foreground mb-1.5 block">Instagram Reel URL</label>
+            <label className="text-sm text-muted-foreground mb-1.5 block">Instagram URL</label>
             <div className="relative">
               <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input placeholder="https://www.instagram.com/reel/..." value={igUrl} onChange={e => setIgUrl(e.target.value)} className="pl-10 bg-secondary border-border text-foreground" />
+              <Input placeholder={`https://www.instagram.com/${type === "reel" ? "reel" : "p"}/...`} value={igUrl} onChange={e => setIgUrl(e.target.value)} className="pl-10 bg-secondary border-border text-foreground" />
             </div>
           </div>
           <div>
             <label className="text-sm text-muted-foreground mb-1.5 block">Caption (optional)</label>
             <Textarea placeholder="Add a caption..." value={caption} onChange={e => setCaption(e.target.value)} className="bg-secondary border-border text-foreground resize-none" rows={3} />
           </div>
-          <Button variant="gold" className="w-full gap-2" onClick={handleImport}><Instagram className="w-4 h-4" /> Import Reel</Button>
+          <Button variant="gold" className="w-full gap-2" onClick={handleImport}><Instagram className="w-4 h-4" /> Import</Button>
         </div>
       </DialogContent>
     </Dialog>
@@ -80,26 +82,29 @@ const ArtistDashboard = () => {
   const [bookings, setBookings] = useState<any[]>([]);
   const [reels, setReels] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
+  const [consultations, setConsultations] = useState<any[]>([]);
   const [availability, setAvailability] = useState<AvailabilityHours>(defaultHours);
   const [savingHours, setSavingHours] = useState(false);
 
   useEffect(() => {
-    if (!artistProfile) return;
+    if (!artistProfile || !user) return;
     const fetchData = async () => {
-      const [bookingsRes, reelsRes, paymentsRes] = await Promise.all([
+      const [bookingsRes, reelsRes, paymentsRes, consultationsRes] = await Promise.all([
         supabase.from("bookings").select("*").eq("artist_id", artistProfile.id).order("created_at", { ascending: false }),
         supabase.from("reels").select("*").eq("artist_id", artistProfile.id).order("created_at", { ascending: false }),
         supabase.from("payments").select("*").eq("artist_id", artistProfile.id).eq("status", "completed"),
+        supabase.from("consultations").select("*").eq("artist_id", user.id).order("created_at", { ascending: false }),
       ]);
       setBookings(bookingsRes.data || []);
       setReels(reelsRes.data || []);
       setPayments(paymentsRes.data || []);
+      setConsultations(consultationsRes.data || []);
       if (artistProfile.availability_hours) {
         setAvailability(artistProfile.availability_hours as AvailabilityHours);
       }
     };
     fetchData();
-  }, [artistProfile]);
+  }, [artistProfile, user]);
 
   const handleUpdateBookingStatus = async (id: string, status: string) => {
     const { error } = await supabase.from("bookings").update({ status }).eq("id", id);
@@ -121,6 +126,39 @@ const ArtistDashboard = () => {
     toast.success("Instagram reel imported!");
     const { data } = await supabase.from("reels").select("*").eq("artist_id", artistProfile.id).order("created_at", { ascending: false });
     setReels(data || []);
+  };
+
+  const handleInstagramPhotoImport = async (url: string, caption: string) => {
+    if (!artistProfile) return;
+    // Add to portfolio_images
+    const currentImages = artistProfile.portfolio_images || [];
+    const { error } = await supabase.from("artists").update({
+      portfolio_images: [...currentImages, url],
+    }).eq("id", artistProfile.id);
+    if (error) { toast.error("Failed to import"); return; }
+    toast.success("Portfolio photo added from Instagram!");
+    // Refresh locally
+    artistProfile.portfolio_images = [...currentImages, url];
+  };
+
+  const handlePortfolioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !artistProfile) return;
+    if (file.size > 5 * 1024 * 1024) { toast.error("Max 5MB"); return; }
+
+    const ext = file.name.split(".").pop();
+    const path = `portfolio/${artistProfile.id}/${Date.now()}.${ext}`;
+    const { error: upErr } = await supabase.storage.from("reels-videos").upload(path, file);
+    if (upErr) { toast.error("Upload failed"); return; }
+
+    const { data: urlData } = supabase.storage.from("reels-videos").getPublicUrl(path);
+    const currentImages = artistProfile.portfolio_images || [];
+    const { error } = await supabase.from("artists").update({
+      portfolio_images: [...currentImages, urlData.publicUrl],
+    }).eq("id", artistProfile.id);
+    if (error) { toast.error("Failed to save"); return; }
+    artistProfile.portfolio_images = [...currentImages, urlData.publicUrl];
+    toast.success("Photo added to portfolio!");
   };
 
   const handleSaveAvailability = async () => {
@@ -197,9 +235,7 @@ const ArtistDashboard = () => {
                       <p className="text-muted-foreground text-sm">{booking.date} · {booking.time}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      {booking.cover_charge_paid && (
-                        <span className="text-xs px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-400">₹500 Paid</span>
-                      )}
+                      {booking.cover_charge_paid && <span className="text-xs px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-400">₹500 Paid</span>}
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
                         booking.status === "confirmed" ? "bg-emerald-500/10 text-emerald-400" :
                         booking.status === "pending" ? "bg-gold/10 text-gold" :
@@ -224,9 +260,17 @@ const ArtistDashboard = () => {
 
         {activeTab === "portfolio" && (
           <div>
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
               <h2 className="font-heading text-2xl font-bold text-foreground">Portfolio</h2>
-              <Button variant="gold" size="sm" className="gap-1"><ImagePlus className="w-4 h-4" /> Upload</Button>
+              <div className="flex gap-2">
+                <InstagramImportDialog onImport={handleInstagramPhotoImport} type="photo" />
+                <label>
+                  <Button variant="gold" size="sm" className="gap-1 cursor-pointer" asChild>
+                    <span><ImagePlus className="w-4 h-4" /> Upload</span>
+                  </Button>
+                  <input type="file" accept="image/*" className="hidden" onChange={handlePortfolioUpload} />
+                </label>
+              </div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {(artistProfile.portfolio_images || []).map((img: string, i: number) => (
@@ -234,9 +278,10 @@ const ArtistDashboard = () => {
                   <img src={img} alt={`Work ${i + 1}`} className="w-full h-full object-cover" />
                 </div>
               ))}
-              <div className="aspect-square rounded-lg border-2 border-dashed border-border flex items-center justify-center hover:border-gold/30 transition-colors cursor-pointer">
+              <label className="aspect-square rounded-lg border-2 border-dashed border-border flex items-center justify-center hover:border-gold/30 transition-colors cursor-pointer">
                 <ImagePlus className="w-8 h-8 text-muted-foreground" />
-              </div>
+                <input type="file" accept="image/*" className="hidden" onChange={handlePortfolioUpload} />
+              </label>
             </div>
           </div>
         )}
@@ -245,9 +290,7 @@ const ArtistDashboard = () => {
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-heading text-2xl font-bold text-foreground">Reels</h2>
-              <div className="flex gap-2">
-                <InstagramImportDialog onImport={handleInstagramImport} />
-              </div>
+              <InstagramImportDialog onImport={handleInstagramImport} type="reel" />
             </div>
             <p className="text-muted-foreground text-sm mb-6">Upload short videos or import from Instagram to showcase your work.</p>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -255,9 +298,7 @@ const ArtistDashboard = () => {
                 <div key={reel.id} className="relative aspect-[9/16] rounded-lg overflow-hidden border border-border group cursor-pointer">
                   <video src={reel.video_url} poster={reel.thumbnail_url} className="w-full h-full object-cover" muted />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-                  {reel.instagram_url && (
-                    <div className="absolute top-2 right-2 bg-black/50 rounded-full p-1.5"><Instagram className="w-3.5 h-3.5 text-white" /></div>
-                  )}
+                  {reel.instagram_url && <div className="absolute top-2 right-2 bg-black/50 rounded-full p-1.5"><Instagram className="w-3.5 h-3.5 text-white" /></div>}
                   <div className="absolute bottom-3 left-3 right-3">
                     <p className="text-white text-xs line-clamp-2">{reel.caption}</p>
                     <div className="flex items-center gap-3 mt-1.5 text-white/70 text-xs">
@@ -271,6 +312,31 @@ const ArtistDashboard = () => {
                 <Film className="w-8 h-8 text-muted-foreground" />
                 <span className="text-muted-foreground text-xs">Add Reel</span>
               </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "consultations" && (
+          <div>
+            <h2 className="font-heading text-2xl font-bold text-foreground mb-6">Design Consultations</h2>
+            <div className="space-y-4">
+              {consultations.length === 0 && <p className="text-muted-foreground">No consultation requests yet.</p>}
+              {consultations.map(c => (
+                <Link key={c.id} to={`/consultation/${c.id}`} className="bg-card rounded-lg border border-border p-5 block hover:border-gold/30 transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-foreground font-medium">{c.design_description?.slice(0, 60) || "Design consultation"}...</p>
+                    <span className={`px-2.5 py-1 rounded-full text-xs ${c.status === "active" ? "bg-emerald-500/10 text-emerald-400" : c.status === "pending" ? "bg-gold/10 text-gold" : "bg-primary/10 text-primary"}`}>{c.status}</span>
+                  </div>
+                  <p className="text-muted-foreground text-xs">{new Date(c.created_at).toLocaleDateString()}</p>
+                  {c.reference_images?.length > 0 && (
+                    <div className="flex gap-2 mt-2">
+                      {c.reference_images.slice(0, 3).map((img: string, i: number) => (
+                        <img key={i} src={img} alt="ref" className="w-12 h-12 rounded object-cover border border-border" />
+                      ))}
+                    </div>
+                  )}
+                </Link>
+              ))}
             </div>
           </div>
         )}
@@ -321,7 +387,6 @@ const ArtistDashboard = () => {
                 </div>
               ))}
             </div>
-
             {coverCharges.length > 0 && (
               <div className="bg-card rounded-lg border border-border p-6 mb-6">
                 <h3 className="text-foreground font-medium mb-4 flex items-center gap-2"><IndianRupee className="w-4 h-4 text-gold" /> Cover Charges</h3>
@@ -336,7 +401,6 @@ const ArtistDashboard = () => {
                 ))}
               </div>
             )}
-
             <div className="bg-card rounded-lg border border-border p-6">
               <h3 className="text-foreground font-medium mb-4">All Payments</h3>
               {payments.length === 0 && <p className="text-muted-foreground text-sm">No payments yet.</p>}

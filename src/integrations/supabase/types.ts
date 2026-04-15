@@ -136,6 +136,98 @@ export type Database = {
           },
         ]
       }
+      consultation_messages: {
+        Row: {
+          consultation_id: string
+          created_at: string
+          id: string
+          image_url: string | null
+          message: string | null
+          sender_id: string
+        }
+        Insert: {
+          consultation_id: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          message?: string | null
+          sender_id: string
+        }
+        Update: {
+          consultation_id?: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          message?: string | null
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consultation_messages_consultation_id_fkey"
+            columns: ["consultation_id"]
+            isOneToOne: false
+            referencedRelation: "consultations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      consultations: {
+        Row: {
+          artist_id: string
+          created_at: string
+          customer_id: string
+          design_description: string | null
+          id: string
+          reference_images: string[] | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          artist_id: string
+          created_at?: string
+          customer_id: string
+          design_description?: string | null
+          id?: string
+          reference_images?: string[] | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          artist_id?: string
+          created_at?: string
+          customer_id?: string
+          design_description?: string | null
+          id?: string
+          reference_images?: string[] | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      favorites: {
+        Row: {
+          created_at: string
+          id: string
+          item_id: string
+          item_type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_id: string
+          item_type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_id?: string
+          item_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       payments: {
         Row: {
           amount: number
@@ -278,6 +370,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      referrals: {
+        Row: {
+          created_at: string
+          discount_amount: number
+          id: string
+          referral_code: string
+          referred_id: string | null
+          referrer_id: string
+          used: boolean
+        }
+        Insert: {
+          created_at?: string
+          discount_amount?: number
+          id?: string
+          referral_code: string
+          referred_id?: string | null
+          referrer_id: string
+          used?: boolean
+        }
+        Update: {
+          created_at?: string
+          discount_amount?: number
+          id?: string
+          referral_code?: string
+          referred_id?: string | null
+          referrer_id?: string
+          used?: boolean
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {

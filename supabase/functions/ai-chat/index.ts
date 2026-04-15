@@ -10,81 +10,67 @@ serve(async (req) => {
 
   try {
     const { messages } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
-
-    // Try OpenRouter first, fall back to Lovable AI
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+    const MANUS_AI_API_KEY = Deno.env.get("MANUS_AI_API_KEY");
+    if (!MANUS_AI_API_KEY) throw new Error("MANUS_AI_API_KEY is not configured");
 
     const systemMessage = {
       role: "system",
       content: `You are ArtSpace's AI Tattoo Style Consultant — an expert in tattoo art, styles, and placement advice. You help customers discover the perfect tattoo style based on their personality and preferences.
 
-You know about these Bengaluru-based studios and artists:
-- **Ink Dynasty** (Indiranagar): Arjun Mehta (Japanese Traditional, ₹3000/hr), Priya Sharma (Watercolor & Illustrative, ₹2500/hr)
-- **Sacred Skin Studio** (Koramangala): Vikram Rathore (Geometric & Dotwork, ₹3500/hr), Neha Kapoor (Minimalist & Fine Line, ₹2000/hr)
-- **Needle & Thread** (Jayanagar): Rohan Desai (Blackwork & Tribal, ₹3000/hr)
-- **Eternal Marks** (HSR Layout): Aisha Khan (Realism & Portraits, ₹4000/hr)
+You know about these India-based studios and artists:
+- **Ink Dynasty** (Indiranagar, Bengaluru): Arjun Mehta (Japanese Traditional, ₹3000/hr), Priya Sharma (Watercolor & Illustrative, ₹2500/hr)
+- **Sacred Skin Studio** (Koramangala, Bengaluru): Vikram Rathore (Geometric & Dotwork, ₹3500/hr), Neha Kapoor (Minimalist & Fine Line, ₹2000/hr)
+- **Needle & Thread** (Jayanagar, Bengaluru): Rohan Desai (Blackwork & Tribal, ₹3000/hr)
+- **Eternal Marks** (HSR Layout, Bengaluru): Aisha Khan (Realism & Portraits, ₹4000/hr)
 
 When recommending, suggest specific artists and studios. Keep responses warm, knowledgeable, and concise. Use markdown formatting and emojis sparingly.`,
     };
 
-    let apiUrl: string;
-    let headers: Record<string, string>;
-
-    if (OPENROUTER_API_KEY) {
-      apiUrl = "https://openrouter.ai/api/v1/chat/completions";
-      headers = {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-      };
-    } else {
-      apiUrl = "https://ai.gateway.lovable.dev/v1/chat/completions";
-      headers = {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      };
-    }
-
-    let response = await fetch(apiUrl, {
+    const response = await fetch("https://api.manus.ai/v1/chat/completions", {
       method: "POST",
-      headers,
+      headers: {
+        Authorization: `Bearer ${MANUS_AI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "manus-1",
         messages: [systemMessage, ...messages],
         stream: true,
       }),
     });
 
-    // If OpenRouter fails (402/429), fall back to Lovable AI
-    if (!response.ok && OPENROUTER_API_KEY) {
-      console.log("OpenRouter failed, falling back to Lovable AI");
-      response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: [systemMessage, ...messages],
-          stream: true,
-        }),
-      });
-    }
-
     if (!response.ok) {
       const status = response.status;
       const text = await response.text();
-      console.error("AI error:", status, text);
+      console.error("Manus AI error:", status, text);
+
+      // Fallback to Lovable AI
+      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+      if (LOVABLE_API_KEY) {
+        console.log("Falling back to Lovable AI");
+        const fallbackResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash",
+            messages: [systemMessage, ...messages],
+            stream: true,
+          }),
+        });
+
+        if (fallbackResponse.ok) {
+          return new Response(fallbackResponse.body, {
+            headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+          });
+        }
+      }
+
       if (status === 429) {
         return new Response(JSON.stringify({ error: "Rate limited. Please try again shortly." }), {
           status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add funds." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       return new Response(JSON.stringify({ error: "AI service error" }), {
