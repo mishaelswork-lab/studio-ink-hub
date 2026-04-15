@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { CalendarDays, Clock, MapPin, Search, Star, Bell, LogOut, Compass } from "lucide-react";
+import { CalendarDays, Clock, MapPin, Search, Star, Bell, LogOut, Compass, Heart, Gift, MessageSquare, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/layout/Navbar";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,18 +12,33 @@ const CustomerDashboard = () => {
   const navigate = useNavigate();
   const [bookings, setBookings] = useState<any[]>([]);
   const [artists, setArtists] = useState<any[]>([]);
+  const [consultations, setConsultations] = useState<any[]>([]);
+  const [referralCode, setReferralCode] = useState("");
+  const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notifiedBookings, setNotifiedBookings] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!user) return;
     const fetchData = async () => {
-      const [bookingsRes, artistsRes] = await Promise.all([
+      const [bookingsRes, artistsRes, consultationsRes, referralRes] = await Promise.all([
         supabase.from("bookings").select("*, artists(name, avatar_url, studio_name, specialty)").eq("customer_id", user.id).order("created_at", { ascending: false }),
         supabase.from("artists").select("*").eq("available", true).limit(6),
+        supabase.from("consultations").select("*").eq("customer_id", user.id).order("created_at", { ascending: false }).limit(5),
+        supabase.from("referrals").select("*").eq("referrer_id", user.id).limit(1),
       ]);
       setBookings(bookingsRes.data || []);
       setArtists(artistsRes.data || []);
+      setConsultations(consultationsRes.data || []);
+
+      // Generate referral code if none exists
+      if ((referralRes.data || []).length > 0) {
+        setReferralCode(referralRes.data![0].referral_code);
+      } else {
+        const code = `ART${user.id.slice(0, 6).toUpperCase()}`;
+        await supabase.from("referrals").insert({ referrer_id: user.id, referral_code: code });
+        setReferralCode(code);
+      }
       setLoading(false);
     };
     fetchData();
@@ -38,41 +53,29 @@ const CustomerDashboard = () => {
 
   const sendPushNotification = useCallback((title: string, body: string) => {
     if ("Notification" in window && Notification.permission === "granted") {
-      new Notification(title, { body, icon: "/placeholder.svg", badge: "/placeholder.svg" });
+      new Notification(title, { body, icon: "/placeholder.svg" });
     }
   }, []);
 
-  // Booking reminder system
   const checkReminders = useCallback(() => {
     const now = new Date();
     const activeBookings = bookings.filter(b => b.status === "confirmed" || b.status === "pending");
-
     activeBookings.forEach(booking => {
-      const bookingDateTime = parseBookingDateTime(booking.date, booking.time);
-      if (!bookingDateTime) return;
-
-      const diffMs = bookingDateTime.getTime() - now.getTime();
-      const diffMins = diffMs / (1000 * 60);
-
-      const reminderKey60 = `${booking.id}-60`;
-      const reminderKey30 = `${booking.id}-30`;
-      const reminderKey15 = `${booking.id}-15`;
-
-      if (diffMins <= 60 && diffMins > 30 && !notifiedBookings.has(reminderKey60)) {
-        toast.info(`⏰ Your appointment is in ~1 hour!`, { description: `${booking.style} with your artist`, duration: 10000 });
-        sendPushNotification("⏰ 1 Hour Left", `${booking.style} appointment coming up!`);
-        setNotifiedBookings(prev => new Set(prev).add(reminderKey60));
-      }
-      if (diffMins <= 30 && diffMins > 15 && !notifiedBookings.has(reminderKey30)) {
-        toast.warning(`⏰ 30 minutes until your appointment!`, { description: `${booking.style} — get ready!`, duration: 10000 });
-        sendPushNotification("⏰ 30 Minutes Left", `${booking.style} — get ready!`);
-        setNotifiedBookings(prev => new Set(prev).add(reminderKey30));
-      }
-      if (diffMins <= 15 && diffMins > 0 && !notifiedBookings.has(reminderKey15)) {
-        toast.error(`🔔 15 minutes left! Your appointment is almost here!`, { description: `${booking.style} — head to the studio now!`, duration: 15000 });
-        sendPushNotification("🔔 15 Minutes Left!", `${booking.style} — head to the studio now!`);
-        setNotifiedBookings(prev => new Set(prev).add(reminderKey15));
-      }
+      const bookingDt = parseBookingDateTime(booking.date, booking.time);
+      if (!bookingDt) return;
+      const diffMins = (bookingDt.getTime() - now.getTime()) / 60000;
+      const keys = [
+        { mins: 60, key: `${booking.id}-60`, msg: "⏰ 1 hour left!", desc: `${booking.style} appointment coming up!` },
+        { mins: 30, key: `${booking.id}-30`, msg: "⏰ 30 minutes left!", desc: `${booking.style} — get ready!` },
+        { mins: 15, key: `${booking.id}-15`, msg: "🔔 15 minutes left!", desc: `${booking.style} — head to the studio!` },
+      ];
+      keys.forEach(({ mins, key, msg, desc }) => {
+        if (diffMins <= mins && diffMins > (mins === 60 ? 30 : mins === 30 ? 15 : 0) && !notifiedBookings.has(key)) {
+          toast.info(msg, { description: desc, duration: 10000 });
+          sendPushNotification(msg, desc);
+          setNotifiedBookings(prev => new Set(prev).add(key));
+        }
+      });
     });
   }, [bookings, notifiedBookings, sendPushNotification]);
 
@@ -98,6 +101,13 @@ const CustomerDashboard = () => {
     } catch { return null; }
   };
 
+  const copyReferral = () => {
+    navigator.clipboard.writeText(referralCode);
+    setCopied(true);
+    toast.success("Referral code copied!");
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   const activeBookings = bookings.filter(b => b.status === "confirmed" || b.status === "pending");
   const pastBookings = bookings.filter(b => b.status === "completed" || b.status === "cancelled");
   const hasActiveBookings = activeBookings.length > 0;
@@ -115,7 +125,6 @@ const CustomerDashboard = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
       <div className="pt-20 pb-24 px-4 max-w-5xl mx-auto">
-        {/* Header */}
         <div className="flex items-center justify-between mb-8 pt-4">
           <div>
             <h1 className="font-heading text-2xl md:text-3xl font-bold text-foreground">
@@ -140,7 +149,6 @@ const CustomerDashboard = () => {
                 const bookingDt = parseBookingDateTime(booking.date, booking.time);
                 const isToday = bookingDt && new Date().toDateString() === bookingDt.toDateString();
                 const artist = booking.artists;
-
                 return (
                   <div key={booking.id} className={`bg-card rounded-xl border p-5 ${isToday ? "border-gold shadow-[0_0_20px_-5px_hsl(var(--gold)/0.3)]" : "border-border"}`}>
                     {isToday && (
@@ -150,9 +158,7 @@ const CustomerDashboard = () => {
                       </div>
                     )}
                     <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                      {artist?.avatar_url && (
-                        <img src={artist.avatar_url} alt={artist.name} className="w-14 h-14 rounded-full object-cover border-2 border-gold/30 flex-shrink-0" />
-                      )}
+                      {artist?.avatar_url && <img src={artist.avatar_url} alt={artist.name} className="w-14 h-14 rounded-full object-cover border-2 border-gold/30 flex-shrink-0" />}
                       <div className="flex-1 min-w-0">
                         <h3 className="text-foreground font-medium text-lg">{booking.style}</h3>
                         <p className="text-muted-foreground text-sm">{artist?.name} · {artist?.studio_name}</p>
@@ -163,12 +169,8 @@ const CustomerDashboard = () => {
                         </div>
                       </div>
                       <div className="flex flex-col items-end gap-2">
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          booking.status === "confirmed" ? "bg-emerald-500/10 text-emerald-400" : "bg-gold/10 text-gold"
-                        }`}>{booking.status}</span>
-                        {booking.cover_charge_paid && (
-                          <span className="text-xs text-emerald-400">₹500 paid</span>
-                        )}
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${booking.status === "confirmed" ? "bg-emerald-500/10 text-emerald-400" : "bg-gold/10 text-gold"}`}>{booking.status}</span>
+                        {booking.cover_charge_paid && <span className="text-xs text-emerald-400">₹500 paid</span>}
                       </div>
                     </div>
                   </div>
@@ -179,10 +181,11 @@ const CustomerDashboard = () => {
         )}
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-3 gap-3 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
           {[
             { to: "/studios", icon: Search, label: "Browse Studios", desc: "Find artists near you" },
             { to: "/discover", icon: Compass, label: "Discover", desc: "Watch artist reels" },
+            { to: "/favorites", icon: Heart, label: "Favorites", desc: "Saved artists & reels" },
             { to: "/studios", icon: CalendarDays, label: "Book Now", desc: "Schedule a session" },
           ].map(action => (
             <Link key={action.label} to={action.to} className="bg-card rounded-lg border border-border p-4 hover:border-gold/30 transition-all group">
@@ -192,6 +195,45 @@ const CustomerDashboard = () => {
             </Link>
           ))}
         </div>
+
+        {/* Referral Card */}
+        <div className="bg-gradient-to-r from-gold/10 to-gold/5 rounded-xl border border-gold/20 p-5 mb-8">
+          <div className="flex items-start gap-3">
+            <Gift className="w-5 h-5 text-gold flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="text-foreground font-medium mb-1">Refer & Earn ₹100 Off!</h3>
+              <p className="text-muted-foreground text-sm mb-3">Share your code with friends. They get ₹100 off on their first booking!</p>
+              <div className="flex items-center gap-2">
+                <div className="bg-card rounded-md border border-border px-4 py-2 font-mono text-foreground text-sm tracking-wider">{referralCode}</div>
+                <Button variant="gold" size="sm" onClick={copyReferral} className="gap-1">
+                  {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copied ? "Copied" : "Copy"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Active Consultations */}
+        {consultations.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <MessageSquare className="w-4 h-4 text-gold" />
+              <h2 className="font-heading text-lg font-semibold text-foreground">Design Consultations</h2>
+            </div>
+            <div className="space-y-3">
+              {consultations.map(c => (
+                <Link key={c.id} to={`/consultation/${c.id}`} className="bg-card rounded-lg border border-border p-4 flex items-center justify-between hover:border-gold/30 transition-colors block">
+                  <div>
+                    <p className="text-foreground text-sm font-medium line-clamp-1">{c.design_description || "Design consultation"}</p>
+                    <p className="text-muted-foreground text-xs mt-0.5">{new Date(c.created_at).toLocaleDateString()}</p>
+                  </div>
+                  <span className={`px-2.5 py-1 rounded-full text-xs ${c.status === "active" ? "bg-emerald-500/10 text-emerald-400" : c.status === "pending" ? "bg-gold/10 text-gold" : "bg-primary/10 text-primary"}`}>{c.status}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Nearby Artists */}
         <div className="mb-8">
@@ -232,9 +274,7 @@ const CustomerDashboard = () => {
                     <p className="text-foreground text-sm font-medium">{booking.style}</p>
                     <p className="text-muted-foreground text-xs">{booking.date} · {booking.placement}</p>
                   </div>
-                  <span className={`px-2.5 py-1 rounded-full text-xs ${
-                    booking.status === "completed" ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"
-                  }`}>{booking.status}</span>
+                  <span className={`px-2.5 py-1 rounded-full text-xs ${booking.status === "completed" ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"}`}>{booking.status}</span>
                 </div>
               ))}
             </div>
