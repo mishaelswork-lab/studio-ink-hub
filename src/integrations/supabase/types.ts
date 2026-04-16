@@ -228,6 +228,42 @@ export type Database = {
         }
         Relationships: []
       }
+      outreach_leads: {
+        Row: {
+          city: string | null
+          contacted: boolean
+          contacted_at: string | null
+          created_at: string
+          email: string | null
+          id: string
+          instagram_url: string | null
+          name: string | null
+          source_url: string | null
+        }
+        Insert: {
+          city?: string | null
+          contacted?: boolean
+          contacted_at?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          instagram_url?: string | null
+          name?: string | null
+          source_url?: string | null
+        }
+        Update: {
+          city?: string | null
+          contacted?: boolean
+          contacted_at?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          instagram_url?: string | null
+          name?: string | null
+          source_url?: string | null
+        }
+        Relationships: []
+      }
       payments: {
         Row: {
           amount: number
@@ -297,6 +333,7 @@ export type Database = {
           created_at: string
           display_name: string | null
           id: string
+          last_active_at: string | null
           phone: string | null
           updated_at: string
           user_id: string
@@ -306,6 +343,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          last_active_at?: string | null
           phone?: string | null
           updated_at?: string
           user_id: string
@@ -315,6 +353,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          last_active_at?: string | null
           phone?: string | null
           updated_at?: string
           user_id?: string
