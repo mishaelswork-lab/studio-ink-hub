@@ -17,13 +17,13 @@ const Hero = () => (
       <div className="absolute bottom-1/4 right-1/4 w-72 h-72 rounded-full bg-gold/10 blur-[100px]" />
     </div>
     <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
-      <p className="text-gold font-body text-sm tracking-[0.3em] uppercase mb-6 animate-fade-in">Premium Tattoo Experiences</p>
+      <p className="text-gold font-body text-sm tracking-[0.3em] uppercase mb-6 animate-fade-in">Premium Art Experiences</p>
       <h1 className="font-heading text-5xl md:text-7xl lg:text-8xl font-bold mb-6 animate-fade-in" style={{ animationDelay: "0.1s" }}>
         <span className="text-foreground">Art</span>
         <span className="text-gradient-gold">Space</span>
       </h1>
       <p className="text-muted-foreground text-lg md:text-xl max-w-2xl mx-auto mb-10 animate-fade-in" style={{ animationDelay: "0.2s" }}>
-        Discover India's finest tattoo artists. Book your next masterpiece with confidence.
+        Discover India's finest artists. Book your next masterpiece with confidence.
       </p>
       <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in" style={{ animationDelay: "0.3s" }}>
         <Link to="/studios">
