@@ -40,7 +40,7 @@ const ArtistProfile = () => {
           icon: "/placeholder.svg",
         });
       }
-    }, 15 * 60 * 1000);
+    }, 5 * 60 * 1000);
     return () => { if (browseTimerRef.current) clearTimeout(browseTimerRef.current); };
   }, [dbArtist, mockArtist]);
 

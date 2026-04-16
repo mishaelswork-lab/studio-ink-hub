@@ -44,6 +44,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const updateLastActive = async (userId: string) => {
+    await supabase.from("profiles").update({ last_active_at: new Date().toISOString() }).eq("user_id", userId);
+  };
+
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
@@ -51,6 +55,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (session?.user) {
         await fetchRoles(session.user.id);
         await fetchArtistProfile(session.user.id);
+        updateLastActive(session.user.id);
       } else {
         setRoles([]);
         setArtistProfile(null);
@@ -64,6 +69,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (session?.user) {
         await fetchRoles(session.user.id);
         await fetchArtistProfile(session.user.id);
+        updateLastActive(session.user.id);
       }
       setLoading(false);
     });
