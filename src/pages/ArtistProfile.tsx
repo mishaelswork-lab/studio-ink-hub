@@ -25,6 +25,25 @@ const ArtistProfile = () => {
     });
   }, [id]);
 
+  // 15-minute browsing nudge
+  const browseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    browseTimerRef.current = setTimeout(() => {
+      const artistName = dbArtist?.name || mockArtist?.name || "this artist";
+      toast.info(`Still browsing ${artistName}?`, {
+        description: "Ready to book? Start a consultation or book a session now!",
+        duration: 15000,
+      });
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification(`Still browsing ${artistName}?`, {
+          body: "Looks like you love their work! Book a session or start a consultation.",
+          icon: "/placeholder.svg",
+        });
+      }
+    }, 15 * 60 * 1000);
+    return () => { if (browseTimerRef.current) clearTimeout(browseTimerRef.current); };
+  }, [dbArtist, mockArtist]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
