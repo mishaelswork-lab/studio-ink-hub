@@ -85,9 +85,8 @@ const FeaturedArtists = () => (
 
 const Stats = () => (
   <section className="py-16 border-y border-border">
-    <div className="max-w-5xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+    <div className="max-w-5xl mx-auto px-4 grid grid-cols-1 md:grid-cols-2 gap-8 text-center">
       {[
-        { value: "Pan-India", label: "Coverage" },
         { value: "100%", label: "Verified Artists" },
         { value: "₹100 Off", label: "Refer & Earn" },
       ].map((stat) => (
