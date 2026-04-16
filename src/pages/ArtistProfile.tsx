@@ -1,12 +1,13 @@
 import { useParams, Link } from "react-router-dom";
 import { Star, MapPin, Clock, ArrowLeft, Heart, MessageSquare } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/layout/Navbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useFavorite } from "@/hooks/useFavorite";
 import { artists as mockArtists } from "@/data/mockData";
+import { toast } from "sonner";
 
 const ArtistProfile = () => {
   const { id } = useParams();
