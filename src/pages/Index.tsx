@@ -43,6 +43,7 @@ const FeaturedArtists = () => (
       <div className="text-center mb-12">
         <p className="text-gold text-sm tracking-[0.2em] uppercase mb-2">Handpicked Talent</p>
         <h2 className="font-heading text-3xl md:text-4xl font-bold text-foreground">Featured Artists</h2>
+        <p className="text-muted-foreground text-sm mt-2">Book sessions with the best artists across India</p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {artists.filter(a => a.available).slice(0, 3).map((artist) => (
@@ -84,12 +85,11 @@ const FeaturedArtists = () => (
 
 const Stats = () => (
   <section className="py-16 border-y border-border">
-    <div className="max-w-5xl mx-auto px-4 grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+    <div className="max-w-5xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
       {[
-        { value: "5+", label: "Studios" },
-        { value: "6+", label: "Artists" },
-        { value: "1.5K+", label: "Happy Clients" },
-        { value: "4.8", label: "Avg Rating" },
+        { value: "Pan-India", label: "Coverage" },
+        { value: "100%", label: "Verified Artists" },
+        { value: "₹100 Off", label: "Refer & Earn" },
       ].map((stat) => (
         <div key={stat.label}>
           <p className="text-gradient-gold font-heading text-3xl md:text-4xl font-bold">{stat.value}</p>

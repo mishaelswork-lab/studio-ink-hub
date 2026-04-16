@@ -130,7 +130,7 @@ const CustomerDashboard = () => {
             <h1 className="font-heading text-2xl md:text-3xl font-bold text-foreground">
               Welcome back{user?.user_metadata?.display_name ? `, ${user.user_metadata.display_name}` : ""}
             </h1>
-            <p className="text-muted-foreground text-sm mt-1">Your tattoo journey continues here</p>
+            <p className="text-muted-foreground text-sm mt-1">Your art journey continues here</p>
           </div>
           <Button variant="ghost" size="sm" onClick={() => { signOut(); navigate("/"); }} className="text-muted-foreground gap-1">
             <LogOut className="w-4 h-4" /> Sign Out
