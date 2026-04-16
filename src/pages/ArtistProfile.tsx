@@ -1,12 +1,13 @@
 import { useParams, Link } from "react-router-dom";
 import { Star, MapPin, Clock, ArrowLeft, Heart, MessageSquare } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/layout/Navbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useFavorite } from "@/hooks/useFavorite";
 import { artists as mockArtists } from "@/data/mockData";
+import { toast } from "sonner";
 
 const ArtistProfile = () => {
   const { id } = useParams();
@@ -23,6 +24,25 @@ const ArtistProfile = () => {
       setLoading(false);
     });
   }, [id]);
+
+  // 15-minute browsing nudge
+  const browseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    browseTimerRef.current = setTimeout(() => {
+      const artistName = dbArtist?.name || mockArtist?.name || "this artist";
+      toast.info(`Still browsing ${artistName}?`, {
+        description: "Ready to book? Start a consultation or book a session now!",
+        duration: 15000,
+      });
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification(`Still browsing ${artistName}?`, {
+          body: "Looks like you love their work! Book a session or start a consultation.",
+          icon: "/placeholder.svg",
+        });
+      }
+    }, 15 * 60 * 1000);
+    return () => { if (browseTimerRef.current) clearTimeout(browseTimerRef.current); };
+  }, [dbArtist, mockArtist]);
 
   if (loading) {
     return (
