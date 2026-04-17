@@ -128,6 +128,20 @@ const FavoritesPage = () => {
             ))}
           </div>
         )}
+
+        {tab === "designs" && (
+          <div className="columns-2 md:columns-3 gap-3">
+            {designs.length === 0 && <p className="text-muted-foreground text-sm">No saved designs. Browse Discover → Designs to save inspiration!</p>}
+            {designs.map(d => (
+              <div key={d.id} className="break-inside-avoid mb-3 relative group rounded-lg overflow-hidden border border-border">
+                <img src={d.thumb_url || d.image_url} alt={d.description || "Tattoo design"} loading="lazy" className="w-full" />
+                <button onClick={() => removeFavorite("design", d.id)} className="absolute top-2 right-2 bg-black/50 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Trash2 className="w-3.5 h-3.5 text-white" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
