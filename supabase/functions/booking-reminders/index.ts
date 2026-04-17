@@ -1,6 +1,6 @@
 // Sends booking reminder push notifications at T-1h, T-30m, T-15m.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { sendPushToUser } from "../send-push/index.ts";
+import { sendPushToUser } from "./_push.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

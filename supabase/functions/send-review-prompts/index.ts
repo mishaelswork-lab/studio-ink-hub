@@ -1,6 +1,6 @@
 // Sends review prompts 24h after a confirmed booking ends, if no review yet.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { sendPushToUser } from "../send-push/index.ts";
+import { sendPushToUser } from "./_push.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
