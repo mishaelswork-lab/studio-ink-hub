@@ -5,6 +5,7 @@ import { reels } from "@/data/mockReels";
 import { Button } from "@/components/ui/button";
 import heroBg from "@/assets/hero-bg.jpg";
 import { Navbar } from "@/components/layout/Navbar";
+import { SEO } from "@/lib/seo";
 
 const Hero = () => (
   <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
@@ -138,6 +139,16 @@ const DiscoverReels = () => (
 
 const Index = () => (
   <div className="min-h-screen bg-background">
+    <SEO
+      title="ArtSpace — Premium Art & Tattoo Experiences in India"
+      description="Discover India's finest tattoo and body-art artists. Browse portfolios, watch reels, get design ideas and book your next masterpiece on ArtSpace."
+      jsonLd={{
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        name: "ArtSpace",
+        url: "https://artspace.lovable.app/",
+      }}
+    />
     <Navbar />
     <Hero />
     <Stats />

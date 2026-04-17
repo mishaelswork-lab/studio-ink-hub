@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/layout/Navbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { ReviewDialog } from "@/components/ReviewDialog";
 import { toast } from "sonner";
 
 const CustomerDashboard = () => {
@@ -269,12 +270,17 @@ const CustomerDashboard = () => {
             <h2 className="font-heading text-lg font-semibold text-foreground mb-4">Past Bookings</h2>
             <div className="space-y-3">
               {pastBookings.slice(0, 5).map(booking => (
-                <div key={booking.id} className="bg-card rounded-lg border border-border p-4 flex items-center justify-between">
-                  <div>
-                    <p className="text-foreground text-sm font-medium">{booking.style}</p>
+                <div key={booking.id} className="bg-card rounded-lg border border-border p-4 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-foreground text-sm font-medium truncate">{booking.style}</p>
                     <p className="text-muted-foreground text-xs">{booking.date} · {booking.placement}</p>
                   </div>
-                  <span className={`px-2.5 py-1 rounded-full text-xs ${booking.status === "completed" ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"}`}>{booking.status}</span>
+                  <div className="flex items-center gap-2">
+                    {booking.status === "completed" && user && (
+                      <ReviewDialog bookingId={booking.id} artistId={booking.artist_id} customerId={user.id} />
+                    )}
+                    <span className={`px-2.5 py-1 rounded-full text-xs ${booking.status === "completed" ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"}`}>{booking.status}</span>
+                  </div>
                 </div>
               ))}
             </div>

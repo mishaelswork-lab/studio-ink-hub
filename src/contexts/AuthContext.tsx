@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { registerPush } from "@/lib/push";
 import type { User, Session } from "@supabase/supabase-js";
 
 interface AuthContextType {
@@ -56,6 +57,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         await fetchRoles(session.user.id);
         await fetchArtistProfile(session.user.id);
         updateLastActive(session.user.id);
+        // Register web push (silent if denied)
+        setTimeout(() => { registerPush(session.user.id); }, 1500);
       } else {
         setRoles([]);
         setArtistProfile(null);
@@ -70,6 +73,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         await fetchRoles(session.user.id);
         await fetchArtistProfile(session.user.id);
         updateLastActive(session.user.id);
+        setTimeout(() => { registerPush(session.user.id); }, 1500);
       }
       setLoading(false);
     });

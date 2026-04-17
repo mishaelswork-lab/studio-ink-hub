@@ -1,5 +1,5 @@
 import { useParams, Link } from "react-router-dom";
-import { Star, MapPin, Clock, ArrowLeft, Heart, MessageSquare } from "lucide-react";
+import { Star, MapPin, Clock, ArrowLeft, Heart, MessageSquare, Share2 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/layout/Navbar";
@@ -7,25 +7,47 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useFavorite } from "@/hooks/useFavorite";
 import { artists as mockArtists } from "@/data/mockData";
+import { CinematicGallery } from "@/components/CinematicGallery";
+import { shareLink } from "@/lib/share";
+import { SEO } from "@/lib/seo";
 import { toast } from "sonner";
 
 const ArtistProfile = () => {
   const { id } = useParams();
   const { user } = useAuth();
   const [dbArtist, setDbArtist] = useState<any>(null);
+  const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { isFavorite, toggle: toggleFav, loading: favLoading } = useFavorite("artist", id);
 
   const mockArtist = mockArtists.find(a => a.id === id);
 
   useEffect(() => {
-    supabase.from("artists").select("*").eq("id", id!).maybeSingle().then(({ data }) => {
-      setDbArtist(data);
+    const fetchAll = async () => {
+      const [{ data: art }, { data: revs }] = await Promise.all([
+        supabase.from("artists").select("*").eq("id", id!).maybeSingle(),
+        supabase.from("reviews").select("rating, comment, created_at").eq("artist_id", id!).order("created_at", { ascending: false }).limit(10),
+      ]);
+      setDbArtist(art);
+      setReviews(revs || []);
       setLoading(false);
-    });
+    };
+    fetchAll();
+
+    // Realtime availability sync
+    const channel = supabase
+      .channel(`artist-${id}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "artists", filter: `id=eq.${id}` }, (payload) => {
+        setDbArtist((prev: any) => ({ ...prev, ...(payload.new as object) }));
+        const wasAvail = (payload.old as any)?.available;
+        const isAvail = (payload.new as any)?.available;
+        if (wasAvail !== isAvail) toast.info(isAvail ? "Artist is now available" : "Artist marked unavailable");
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, [id]);
 
-  // 15-minute browsing nudge
+  // 5-minute browsing nudge
   const browseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     browseTimerRef.current = setTimeout(() => {
@@ -35,31 +57,17 @@ const ArtistProfile = () => {
         duration: 15000,
       });
       if ("Notification" in window && Notification.permission === "granted") {
-        new Notification(`Still browsing ${artistName}?`, {
-          body: "Looks like you love their work! Book a session or start a consultation.",
-          icon: "/placeholder.svg",
-        });
+        new Notification(`Still browsing ${artistName}?`, { body: "Looks like you love their work!", icon: "/placeholder.svg" });
       }
     }, 5 * 60 * 1000);
     return () => { if (browseTimerRef.current) clearTimeout(browseTimerRef.current); };
   }, [dbArtist, mockArtist]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
+    return <div className="min-h-screen bg-background flex items-center justify-center"><div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" /></div>;
   }
-
   const artist = dbArtist || mockArtist;
-  if (!artist) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">Artist not found.</p>
-      </div>
-    );
-  }
+  if (!artist) return <div className="min-h-screen bg-background flex items-center justify-center"><p className="text-muted-foreground">Artist not found.</p></div>;
 
   const name = dbArtist ? dbArtist.name : mockArtist!.name;
   const specialty = dbArtist ? dbArtist.specialty : mockArtist!.specialty;
@@ -69,12 +77,38 @@ const ArtistProfile = () => {
   const bio = dbArtist ? dbArtist.bio : mockArtist!.bio;
   const hourlyRate = dbArtist ? dbArtist.hourly_rate : mockArtist!.hourlyRate;
   const avatarUrl = dbArtist ? dbArtist.avatar_url : mockArtist!.avatar;
-  const portfolio = dbArtist ? (dbArtist.portfolio_images || []) : mockArtist!.portfolio;
+  const portfolio: string[] = dbArtist ? (dbArtist.portfolio_images || []) : mockArtist!.portfolio;
   const available = dbArtist ? dbArtist.available : mockArtist!.available;
   const artistId = dbArtist ? dbArtist.id : mockArtist!.id;
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    name,
+    jobTitle: specialty,
+    image: avatarUrl,
+    description: bio,
+    address: { "@type": "PostalAddress", addressCountry: "IN" },
+    aggregateRating: rating ? { "@type": "AggregateRating", ratingValue: rating, reviewCount: reviews.length || 1 } : undefined,
+    worksFor: { "@type": "Organization", name: studioName },
+    offers: { "@type": "Offer", price: hourlyRate, priceCurrency: "INR" },
+  };
+
+  const shareProfile = () => shareLink({
+    title: `${name} on ArtSpace`,
+    text: `${specialty} artist at ${studioName}`,
+    url: window.location.href,
+  });
+
   return (
     <div className="min-h-screen bg-background pb-20">
+      <SEO
+        title={`${name} — ${specialty} artist`}
+        description={`Book ${name}, a ${specialty} artist at ${studioName}. ${(bio || "").slice(0, 100)}`}
+        image={avatarUrl}
+        type="profile"
+        jsonLd={jsonLd}
+      />
       <Navbar />
       <div className="pt-20 pb-16 px-4 max-w-5xl mx-auto">
         <Link to="/studios" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground text-sm mb-8 transition-colors">
@@ -84,19 +118,28 @@ const ArtistProfile = () => {
         <div className="flex flex-col md:flex-row gap-8 mb-12">
           <img src={avatarUrl || "https://via.placeholder.com/128"} alt={name} className="w-32 h-32 rounded-full object-cover border-2 border-gold/30 flex-shrink-0" />
           <div className="flex-1">
-            <div className="flex items-start justify-between">
+            <div className="flex items-start justify-between gap-2">
               <h1 className="font-heading text-3xl md:text-4xl font-bold text-foreground mb-1">{name}</h1>
-              {user && (
-                <button onClick={toggleFav} disabled={favLoading} className="p-2 rounded-full hover:bg-card transition-colors">
-                  <Heart className={`w-6 h-6 ${isFavorite ? "fill-red-500 text-red-500" : "text-muted-foreground"}`} />
+              <div className="flex gap-1">
+                {user && (
+                  <button onClick={toggleFav} disabled={favLoading} className="p-2 rounded-full hover:bg-card transition-colors">
+                    <Heart className={`w-6 h-6 ${isFavorite ? "fill-red-500 text-red-500" : "text-muted-foreground"}`} />
+                  </button>
+                )}
+                <button onClick={shareProfile} className="p-2 rounded-full hover:bg-card transition-colors">
+                  <Share2 className="w-5 h-5 text-muted-foreground" />
                 </button>
-              )}
+              </div>
             </div>
             <p className="text-gold font-medium mb-2">{specialty}</p>
             <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-4">
               <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{studioName}</span>
               <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{experience}</span>
               <span className="flex items-center gap-1"><Star className="w-3.5 h-3.5 fill-gold text-gold" />{rating}</span>
+              <span className={`flex items-center gap-1 ${available ? "text-emerald-400" : "text-destructive"}`}>
+                <span className={`w-2 h-2 rounded-full ${available ? "bg-emerald-400" : "bg-destructive"} animate-pulse`} />
+                {available ? "Available now" : "Unavailable"}
+              </span>
             </div>
             <p className="text-muted-foreground leading-relaxed mb-6">{bio}</p>
             <div className="flex items-center gap-3 flex-wrap">
@@ -118,14 +161,24 @@ const ArtistProfile = () => {
 
         <div>
           <h2 className="font-heading text-2xl font-bold text-foreground mb-6">Portfolio</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {portfolio.map((img: string, i: number) => (
-              <div key={i} className="aspect-square rounded-lg overflow-hidden border border-border">
-                <img src={img} alt={`${name} work ${i + 1}`} className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
-              </div>
-            ))}
-          </div>
+          <CinematicGallery images={portfolio} alt={`${name} portfolio`} />
         </div>
+
+        {reviews.length > 0 && (
+          <div className="mt-12">
+            <h2 className="font-heading text-2xl font-bold text-foreground mb-6">Reviews</h2>
+            <div className="space-y-3">
+              {reviews.map((r, i) => (
+                <div key={i} className="bg-card border border-border rounded-lg p-4">
+                  <div className="flex items-center gap-1 mb-1">
+                    {Array.from({ length: r.rating }).map((_, j) => <Star key={j} className="w-3.5 h-3.5 fill-gold text-gold" />)}
+                  </div>
+                  {r.comment && <p className="text-sm text-foreground">{r.comment}</p>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

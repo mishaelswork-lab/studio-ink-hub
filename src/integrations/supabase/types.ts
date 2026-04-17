@@ -204,6 +204,39 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_designs: {
+        Row: {
+          description: string | null
+          external_id: string
+          fetched_at: string
+          id: string
+          image_url: string
+          photographer: string | null
+          source_url: string | null
+          thumb_url: string | null
+        }
+        Insert: {
+          description?: string | null
+          external_id: string
+          fetched_at?: string
+          id?: string
+          image_url: string
+          photographer?: string | null
+          source_url?: string | null
+          thumb_url?: string | null
+        }
+        Update: {
+          description?: string | null
+          external_id?: string
+          fetched_at?: string
+          id?: string
+          image_url?: string
+          photographer?: string | null
+          source_url?: string | null
+          thumb_url?: string | null
+        }
+        Relationships: []
+      }
       favorites: {
         Row: {
           created_at: string
@@ -360,6 +393,36 @@ export type Database = {
         }
         Relationships: []
       }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       reels: {
         Row: {
           artist_id: string
@@ -368,6 +431,7 @@ export type Database = {
           id: string
           instagram_url: string | null
           likes: number
+          moderation_status: string
           source: string
           thumbnail_url: string | null
           updated_at: string
@@ -381,6 +445,7 @@ export type Database = {
           id?: string
           instagram_url?: string | null
           likes?: number
+          moderation_status?: string
           source?: string
           thumbnail_url?: string | null
           updated_at?: string
@@ -394,6 +459,7 @@ export type Database = {
           id?: string
           instagram_url?: string | null
           likes?: number
+          moderation_status?: string
           source?: string
           thumbnail_url?: string | null
           updated_at?: string
@@ -437,6 +503,36 @@ export type Database = {
           referred_id?: string | null
           referrer_id?: string
           used?: boolean
+        }
+        Relationships: []
+      }
+      reviews: {
+        Row: {
+          artist_id: string
+          booking_id: string
+          comment: string | null
+          created_at: string
+          customer_id: string
+          id: string
+          rating: number
+        }
+        Insert: {
+          artist_id: string
+          booking_id: string
+          comment?: string | null
+          created_at?: string
+          customer_id: string
+          id?: string
+          rating: number
+        }
+        Update: {
+          artist_id?: string
+          booking_id?: string
+          comment?: string | null
+          created_at?: string
+          customer_id?: string
+          id?: string
+          rating?: number
         }
         Relationships: []
       }
