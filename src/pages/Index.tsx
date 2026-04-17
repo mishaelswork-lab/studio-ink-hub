@@ -5,6 +5,7 @@ import { reels } from "@/data/mockReels";
 import { Button } from "@/components/ui/button";
 import heroBg from "@/assets/hero-bg.jpg";
 import { Navbar } from "@/components/layout/Navbar";
+import { SEO } from "@/lib/seo";
 
 const Hero = () => (
   <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">

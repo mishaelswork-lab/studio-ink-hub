@@ -12,8 +12,9 @@ const FavoritesPage = () => {
   const [favorites, setFavorites] = useState<any[]>([]);
   const [artists, setArtists] = useState<any[]>([]);
   const [reels, setReels] = useState<any[]>([]);
+  const [designs, setDesigns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"artists" | "reels">("artists");
+  const [tab, setTab] = useState<"artists" | "reels" | "designs">("artists");
 
   useEffect(() => {
     if (!user) return;
@@ -23,6 +24,7 @@ const FavoritesPage = () => {
 
       const artistIds = (favs || []).filter(f => f.item_type === "artist").map(f => f.item_id);
       const reelIds = (favs || []).filter(f => f.item_type === "reel").map(f => f.item_id);
+      const designIds = (favs || []).filter(f => f.item_type === "design").map(f => f.item_id);
 
       if (artistIds.length > 0) {
         const { data } = await supabase.from("artists").select("*").in("id", artistIds);
@@ -31,6 +33,10 @@ const FavoritesPage = () => {
       if (reelIds.length > 0) {
         const { data } = await supabase.from("reels").select("*, artists(name, avatar_url)").in("id", reelIds);
         setReels(data || []);
+      }
+      if (designIds.length > 0) {
+        const { data } = await supabase.from("daily_designs").select("*").in("id", designIds);
+        setDesigns(data || []);
       }
       setLoading(false);
     };
@@ -43,6 +49,7 @@ const FavoritesPage = () => {
     setFavorites(prev => prev.filter(f => !(f.item_type === itemType && f.item_id === itemId)));
     if (itemType === "artist") setArtists(prev => prev.filter(a => a.id !== itemId));
     if (itemType === "reel") setReels(prev => prev.filter(r => r.id !== itemId));
+    if (itemType === "design") setDesigns(prev => prev.filter(d => d.id !== itemId));
     toast.success("Removed from favorites");
   };
 
@@ -69,10 +76,10 @@ const FavoritesPage = () => {
           <h1 className="font-heading text-2xl font-bold text-foreground">My Favorites</h1>
         </div>
 
-        <div className="flex gap-2 mb-6">
-          {(["artists", "reels"] as const).map(t => (
-            <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 rounded-full text-sm capitalize ${tab === t ? "bg-gold/10 text-gold border border-gold/20" : "bg-card text-muted-foreground border border-border"}`}>
-              {t} ({t === "artists" ? artists.length : reels.length})
+        <div className="flex gap-2 mb-6 overflow-x-auto">
+          {(["artists", "reels", "designs"] as const).map(t => (
+            <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 rounded-full text-sm capitalize whitespace-nowrap ${tab === t ? "bg-gold/10 text-gold border border-gold/20" : "bg-card text-muted-foreground border border-border"}`}>
+              {t} ({t === "artists" ? artists.length : t === "reels" ? reels.length : designs.length})
             </button>
           ))}
         </div>
