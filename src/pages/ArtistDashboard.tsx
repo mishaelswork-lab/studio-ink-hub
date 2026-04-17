@@ -113,31 +113,47 @@ const ArtistDashboard = () => {
     setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b));
   };
 
+  // Safeguard: only allow tattoo/art uploads (AI moderation + admin override)
+  const moderate = async (imageUrl: string): Promise<boolean> => {
+    try {
+      const { data } = await supabase.functions.invoke("moderate-image", { body: { imageUrl } });
+      if (data?.allowed) return true;
+      toast.error(`Upload blocked: ${data?.reason || "not tattoo/art"}. An admin can override.`);
+      return false;
+    } catch {
+      // Fail open with warning so artists aren't fully blocked on outages
+      toast.warning("Couldn't verify image — flagged for admin review");
+      return true;
+    }
+  };
+
   const handleInstagramImport = async (url: string, caption: string) => {
     if (!artistProfile) return;
+    const ok = await moderate(url);
     const { error } = await supabase.from("reels").insert({
       artist_id: artistProfile.id,
       video_url: url,
       instagram_url: url,
       caption,
       source: "instagram",
+      moderation_status: ok ? "approved" : "flagged",
     });
     if (error) { toast.error("Failed to import"); return; }
-    toast.success("Instagram reel imported!");
+    toast.success(ok ? "Instagram reel imported!" : "Imported but flagged for admin review");
     const { data } = await supabase.from("reels").select("*").eq("artist_id", artistProfile.id).order("created_at", { ascending: false });
     setReels(data || []);
   };
 
   const handleInstagramPhotoImport = async (url: string, caption: string) => {
     if (!artistProfile) return;
-    // Add to portfolio_images
+    const ok = await moderate(url);
+    if (!ok) return;
     const currentImages = artistProfile.portfolio_images || [];
     const { error } = await supabase.from("artists").update({
       portfolio_images: [...currentImages, url],
     }).eq("id", artistProfile.id);
     if (error) { toast.error("Failed to import"); return; }
     toast.success("Portfolio photo added from Instagram!");
-    // Refresh locally
     artistProfile.portfolio_images = [...currentImages, url];
   };
 
@@ -152,6 +168,11 @@ const ArtistDashboard = () => {
     if (upErr) { toast.error("Upload failed"); return; }
 
     const { data: urlData } = supabase.storage.from("reels-videos").getPublicUrl(path);
+    const ok = await moderate(urlData.publicUrl);
+    if (!ok) {
+      await supabase.storage.from("reels-videos").remove([path]);
+      return;
+    }
     const currentImages = artistProfile.portfolio_images || [];
     const { error } = await supabase.from("artists").update({
       portfolio_images: [...currentImages, urlData.publicUrl],
