@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
-export const useFavorite = (itemType: "artist" | "reel" | "photo", itemId: string | undefined) => {
+export const useFavorite = (itemType: "artist" | "reel" | "photo" | "design", itemId: string | undefined) => {
   const { user } = useAuth();
   const [isFavorite, setIsFavorite] = useState(false);
   const [loading, setLoading] = useState(false);
