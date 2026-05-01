@@ -21,6 +21,7 @@ const BookingPage = () => {
   const { artistId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isMember } = useMembership();
   const [dbArtist, setDbArtist] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
