@@ -84,28 +84,53 @@ const ArtistDashboard = () => {
   const [reels, setReels] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
   const [consultations, setConsultations] = useState<any[]>([]);
+  const [certs, setCerts] = useState<any[]>([]);
+  const [newCert, setNewCert] = useState({ name: "", issuing_body: "", url: "" });
   const [availability, setAvailability] = useState<AvailabilityHours>(defaultHours);
   const [savingHours, setSavingHours] = useState(false);
 
   useEffect(() => {
     if (!artistProfile || !user) return;
     const fetchData = async () => {
-      const [bookingsRes, reelsRes, paymentsRes, consultationsRes] = await Promise.all([
+      const [bookingsRes, reelsRes, paymentsRes, consultationsRes, certsRes] = await Promise.all([
         supabase.from("bookings").select("*").eq("artist_id", artistProfile.id).order("created_at", { ascending: false }),
         supabase.from("reels").select("*").eq("artist_id", artistProfile.id).order("created_at", { ascending: false }),
         supabase.from("payments").select("*").eq("artist_id", artistProfile.id).eq("status", "completed"),
         supabase.from("consultations").select("*").eq("artist_id", user.id).order("created_at", { ascending: false }),
+        supabase.from("artist_certifications").select("*").eq("artist_id", artistProfile.id).order("created_at", { ascending: false }),
       ]);
       setBookings(bookingsRes.data || []);
       setReels(reelsRes.data || []);
       setPayments(paymentsRes.data || []);
       setConsultations(consultationsRes.data || []);
+      setCerts(certsRes.data || []);
       if (artistProfile.availability_hours) {
         setAvailability(artistProfile.availability_hours as AvailabilityHours);
       }
     };
     fetchData();
   }, [artistProfile, user]);
+
+  const handleAddCert = async () => {
+    if (!artistProfile || !newCert.name.trim()) { toast.error("Certification name required"); return; }
+    const { error } = await supabase.from("artist_certifications").insert({
+      artist_id: artistProfile.id,
+      certification_name: newCert.name.trim(),
+      issuing_body: newCert.issuing_body.trim() || null,
+      certificate_url: newCert.url.trim() || null,
+    });
+    if (error) { toast.error("Failed to add"); return; }
+    toast.success("Certification added! Admin will verify it.");
+    setNewCert({ name: "", issuing_body: "", url: "" });
+    const { data } = await supabase.from("artist_certifications").select("*").eq("artist_id", artistProfile.id).order("created_at", { ascending: false });
+    setCerts(data || []);
+  };
+
+  const handleDeleteCert = async (id: string) => {
+    await supabase.from("artist_certifications").delete().eq("id", id);
+    setCerts(prev => prev.filter(c => c.id !== id));
+    toast.success("Certification removed");
+  };
 
   const handleUpdateBookingStatus = async (id: string, status: string) => {
     const { error } = await supabase.from("bookings").update({ status }).eq("id", id);
