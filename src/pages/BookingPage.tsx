@@ -80,7 +80,8 @@ const BookingPage = () => {
     }
   };
 
-  const coverCharge = Math.max(0, 500 - referralDiscount);
+  const baseCover = isMember ? 250 : 500;
+  const coverCharge = Math.max(0, baseCover - referralDiscount);
 
   const sendPushNotification = (title: string, body: string) => {
     if ("Notification" in window && Notification.permission === "granted") {
