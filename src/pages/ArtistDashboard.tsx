@@ -13,6 +13,7 @@ const tabs = [
   { id: "bookings", label: "Bookings", icon: CalendarDays },
   { id: "portfolio", label: "Portfolio", icon: ImagePlus },
   { id: "reels", label: "Reels", icon: Film },
+  { id: "certifications", label: "Certs", icon: Award },
   { id: "consultations", label: "Chats", icon: MessageSquare },
   { id: "availability", label: "Hours", icon: Clock },
   { id: "earnings", label: "Earnings", icon: DollarSign },
