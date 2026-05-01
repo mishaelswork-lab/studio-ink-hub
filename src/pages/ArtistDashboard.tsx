@@ -425,7 +425,7 @@ const ArtistDashboard = () => {
           </div>
         )}
 
-
+        {activeTab === "availability" && (
           <div>
             <div className="flex items-center justify-between mb-6">
               <h2 className="font-heading text-2xl font-bold text-foreground">Availability</h2>
