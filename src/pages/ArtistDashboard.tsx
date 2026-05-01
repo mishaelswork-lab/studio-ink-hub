@@ -388,7 +388,44 @@ const ArtistDashboard = () => {
           </div>
         )}
 
-        {activeTab === "availability" && (
+        {activeTab === "certifications" && (
+          <div>
+            <h2 className="font-heading text-2xl font-bold text-foreground mb-2">Certifications</h2>
+            <p className="text-muted-foreground text-sm mb-6">Add your certifications. Verified certs earn a badge on your profile.</p>
+
+            <div className="bg-card rounded-lg border border-border p-5 mb-6">
+              <h3 className="text-foreground font-medium mb-3">Add Certification</h3>
+              <div className="space-y-3">
+                <Input placeholder="Certification name *" value={newCert.name} onChange={e => setNewCert(p => ({ ...p, name: e.target.value }))} className="bg-secondary border-border" />
+                <Input placeholder="Issuing body (optional)" value={newCert.issuing_body} onChange={e => setNewCert(p => ({ ...p, issuing_body: e.target.value }))} className="bg-secondary border-border" />
+                <Input placeholder="Certificate URL (optional)" value={newCert.url} onChange={e => setNewCert(p => ({ ...p, url: e.target.value }))} className="bg-secondary border-border" />
+                <Button variant="gold" size="sm" className="gap-1" onClick={handleAddCert}><Plus className="w-3.5 h-3.5" /> Add</Button>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {certs.length === 0 && <p className="text-muted-foreground text-sm">No certifications added yet.</p>}
+              {certs.map(cert => (
+                <div key={cert.id} className={`flex items-center justify-between p-4 rounded-lg border ${cert.verified ? "border-gold/30 bg-gold/5" : "border-border bg-card"}`}>
+                  <div className="flex items-center gap-3">
+                    <Award className={`w-5 h-5 ${cert.verified ? "text-gold" : "text-muted-foreground"}`} />
+                    <div>
+                      <p className="text-foreground text-sm font-medium">{cert.certification_name}</p>
+                      {cert.issuing_body && <p className="text-muted-foreground text-xs">{cert.issuing_body}</p>}
+                    </div>
+                    {cert.verified && <span className="text-xs bg-gold/10 text-gold px-2 py-0.5 rounded-full">Verified</span>}
+                    {!cert.verified && <span className="text-xs bg-secondary text-muted-foreground px-2 py-0.5 rounded-full">Pending</span>}
+                  </div>
+                  <button onClick={() => handleDeleteCert(cert.id)} className="text-muted-foreground hover:text-destructive transition-colors">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+
           <div>
             <div className="flex items-center justify-between mb-6">
               <h2 className="font-heading text-2xl font-bold text-foreground">Availability</h2>
