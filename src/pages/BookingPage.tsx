@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
+import { useMembership } from "@/hooks/useMembership";
+import { Crown } from "lucide-react";
 
 declare global {
   interface Window {
