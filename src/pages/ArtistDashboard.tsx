@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { CalendarDays, ImagePlus, DollarSign, Clock, Check, X, LogOut, Film, Upload, Link2, Instagram, IndianRupee, MessageSquare } from "lucide-react";
+import { CalendarDays, ImagePlus, DollarSign, Clock, Check, X, LogOut, Film, Upload, Link2, Instagram, IndianRupee, MessageSquare, Award, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "sonner";
