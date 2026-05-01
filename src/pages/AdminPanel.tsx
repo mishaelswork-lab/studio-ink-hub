@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Users, CalendarDays, BarChart3, Settings, LogOut, Plus, Star, TrendingUp, IndianRupee, Film, Trash2 } from "lucide-react";
+import { Users, CalendarDays, BarChart3, Settings, LogOut, Plus, Star, TrendingUp, IndianRupee, Film, Trash2, Shield, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,6 +14,7 @@ const adminTabs = [
   { id: "artists", label: "Artists", icon: Users },
   { id: "bookings", label: "Bookings", icon: CalendarDays },
   { id: "reels", label: "Reels", icon: Film },
+  { id: "moderation", label: "Moderation", icon: Shield },
   { id: "settings", label: "Settings", icon: Settings },
 ] as const;
 
@@ -108,18 +109,21 @@ const AdminPanel = () => {
   const [dbBookings, setDbBookings] = useState<any[]>([]);
   const [dbReels, setDbReels] = useState<any[]>([]);
   const [dbPayments, setDbPayments] = useState<any[]>([]);
+  const [flaggedReels, setFlaggedReels] = useState<any[]>([]);
 
   const fetchData = async () => {
-    const [artistsRes, bookingsRes, reelsRes, paymentsRes] = await Promise.all([
+    const [artistsRes, bookingsRes, reelsRes, paymentsRes, flaggedRes] = await Promise.all([
       supabase.from("artists").select("*").order("created_at", { ascending: false }),
       supabase.from("bookings").select("*").order("created_at", { ascending: false }),
       supabase.from("reels").select("*").order("created_at", { ascending: false }),
       supabase.from("payments").select("*").eq("status", "completed"),
+      supabase.from("reels").select("*, artists(name)").eq("moderation_status", "flagged").order("created_at", { ascending: false }),
     ]);
     setDbArtists(artistsRes.data || []);
     setDbBookings(bookingsRes.data || []);
     setDbReels(reelsRes.data || []);
     setDbPayments(paymentsRes.data || []);
+    setFlaggedReels(flaggedRes.data || []);
   };
 
   useEffect(() => { fetchData(); }, []);
@@ -132,6 +136,18 @@ const AdminPanel = () => {
     if (error) { toast.error("Failed to delete reel"); return; }
     toast.success("Reel removed");
     setDbReels(prev => prev.filter(r => r.id !== id));
+  };
+
+  const handleModerateReel = async (id: string, status: "approved" | "rejected") => {
+    if (status === "rejected") {
+      const { error } = await supabase.from("reels").delete().eq("id", id);
+      if (error) { toast.error("Failed to reject"); return; }
+    } else {
+      const { error } = await supabase.from("reels").update({ moderation_status: "approved" }).eq("id", id);
+      if (error) { toast.error("Failed to approve"); return; }
+    }
+    toast.success(status === "approved" ? "Reel approved" : "Reel rejected & removed");
+    setFlaggedReels(prev => prev.filter(r => r.id !== id));
   };
 
   const handleLogout = async () => { await signOut(); };
@@ -147,6 +163,9 @@ const AdminPanel = () => {
           {adminTabs.map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors ${activeTab === tab.id ? "bg-gold/10 text-gold" : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"}`}>
               <tab.icon className="w-4 h-4" /> {tab.label}
+              {tab.id === "moderation" && flaggedReels.length > 0 && (
+                <span className="ml-auto bg-destructive text-destructive-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">{flaggedReels.length}</span>
+              )}
             </button>
           ))}
         </nav>
@@ -187,6 +206,14 @@ const AdminPanel = () => {
                 </div>
               ))}
             </div>
+            {flaggedReels.length > 0 && (
+              <div className="bg-destructive/5 border border-destructive/20 rounded-lg p-4 mb-6 cursor-pointer" onClick={() => setActiveTab("moderation")}>
+                <div className="flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-destructive" />
+                  <p className="text-foreground text-sm font-medium">{flaggedReels.length} reel{flaggedReels.length > 1 ? "s" : ""} awaiting moderation</p>
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="bg-card rounded-lg border border-border p-6">
                 <h3 className="text-foreground font-medium mb-4">Recent Bookings</h3>
@@ -197,12 +224,7 @@ const AdminPanel = () => {
                       <p className="text-foreground text-sm">{b.customer_name}</p>
                       <p className="text-muted-foreground text-xs">{b.date} · {b.time}</p>
                     </div>
-                    <span className={`text-xs px-2 py-1 rounded-full ${
-                      b.status === "confirmed" ? "bg-emerald-500/10 text-emerald-400" :
-                      b.status === "pending" ? "bg-gold/10 text-gold" :
-                      b.status === "completed" ? "bg-primary/10 text-primary" :
-                      "bg-destructive/10 text-destructive"
-                    }`}>{b.status}</span>
+                    <span className={`text-xs px-2 py-1 rounded-full ${b.status === "confirmed" ? "bg-emerald-500/10 text-emerald-400" : b.status === "pending" ? "bg-gold/10 text-gold" : b.status === "completed" ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"}`}>{b.status}</span>
                   </div>
                 ))}
               </div>
@@ -293,12 +315,7 @@ const AdminPanel = () => {
                         <td className="p-4 text-muted-foreground text-sm">{b.date} · {b.time}</td>
                         <td className="p-4 text-gold text-sm">{b.style}</td>
                         <td className="p-4"><span className={`text-xs px-2 py-1 rounded-full ${b.cover_charge_paid ? "bg-emerald-500/10 text-emerald-400" : "bg-destructive/10 text-destructive"}`}>{b.cover_charge_paid ? "Paid" : "Unpaid"}</span></td>
-                        <td className="p-4"><span className={`text-xs px-2 py-1 rounded-full ${
-                          b.status === "confirmed" ? "bg-emerald-500/10 text-emerald-400" :
-                          b.status === "pending" ? "bg-gold/10 text-gold" :
-                          b.status === "completed" ? "bg-primary/10 text-primary" :
-                          "bg-destructive/10 text-destructive"
-                        }`}>{b.status}</span></td>
+                        <td className="p-4"><span className={`text-xs px-2 py-1 rounded-full ${b.status === "confirmed" ? "bg-emerald-500/10 text-emerald-400" : b.status === "pending" ? "bg-gold/10 text-gold" : b.status === "completed" ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"}`}>{b.status}</span></td>
                       </tr>
                     ))}
                     {dbBookings.length === 0 && (
@@ -330,6 +347,43 @@ const AdminPanel = () => {
               ))}
               {dbReels.length === 0 && <p className="text-muted-foreground col-span-full text-center py-8">No reels uploaded yet.</p>}
             </div>
+          </div>
+        )}
+
+        {activeTab === "moderation" && (
+          <div>
+            <h2 className="font-heading text-2xl font-bold text-foreground mb-2">Moderation Queue</h2>
+            <p className="text-muted-foreground text-sm mb-6">Reels flagged by AI moderation for manual review</p>
+            {flaggedReels.length === 0 ? (
+              <div className="bg-card rounded-lg border border-border p-12 text-center">
+                <Shield className="w-10 h-10 text-emerald-400 mx-auto mb-3" />
+                <p className="text-foreground font-medium">All clear!</p>
+                <p className="text-muted-foreground text-sm mt-1">No reels pending moderation</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {flaggedReels.map(reel => (
+                  <div key={reel.id} className="bg-card rounded-lg border border-destructive/30 overflow-hidden">
+                    <div className="relative aspect-video">
+                      <video src={reel.video_url} poster={reel.thumbnail_url} className="w-full h-full object-cover" muted controls />
+                    </div>
+                    <div className="p-4">
+                      <p className="text-foreground text-sm font-medium mb-1">{reel.caption || "No caption"}</p>
+                      <p className="text-muted-foreground text-xs mb-1">By: {(reel as any).artists?.name || "Unknown"}</p>
+                      <p className="text-muted-foreground text-xs mb-3">Source: {reel.source} · {new Date(reel.created_at).toLocaleDateString()}</p>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="gold" className="flex-1 gap-1" onClick={() => handleModerateReel(reel.id, "approved")}>
+                          <Check className="w-3.5 h-3.5" /> Approve
+                        </Button>
+                        <Button size="sm" variant="outline" className="flex-1 gap-1 border-destructive/50 text-destructive hover:bg-destructive/10" onClick={() => handleModerateReel(reel.id, "rejected")}>
+                          <X className="w-3.5 h-3.5" /> Reject
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

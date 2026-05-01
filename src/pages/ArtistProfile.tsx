@@ -1,5 +1,5 @@
 import { useParams, Link } from "react-router-dom";
-import { Star, MapPin, Clock, ArrowLeft, Heart, MessageSquare, Share2 } from "lucide-react";
+import { Star, MapPin, Clock, ArrowLeft, Heart, MessageSquare, Share2, Award } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/layout/Navbar";
@@ -17,6 +17,7 @@ const ArtistProfile = () => {
   const { user } = useAuth();
   const [dbArtist, setDbArtist] = useState<any>(null);
   const [reviews, setReviews] = useState<any[]>([]);
+  const [certs, setCerts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { isFavorite, toggle: toggleFav, loading: favLoading } = useFavorite("artist", id);
 
@@ -24,17 +25,18 @@ const ArtistProfile = () => {
 
   useEffect(() => {
     const fetchAll = async () => {
-      const [{ data: art }, { data: revs }] = await Promise.all([
+      const [{ data: art }, { data: revs }, { data: certData }] = await Promise.all([
         supabase.from("artists").select("*").eq("id", id!).maybeSingle(),
         supabase.from("reviews").select("rating, comment, created_at").eq("artist_id", id!).order("created_at", { ascending: false }).limit(10),
+        supabase.from("artist_certifications").select("*").eq("artist_id", id!).order("created_at", { ascending: false }),
       ]);
       setDbArtist(art);
       setReviews(revs || []);
+      setCerts(certData || []);
       setLoading(false);
     };
     fetchAll();
 
-    // Realtime availability sync
     const channel = supabase
       .channel(`artist-${id}`)
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "artists", filter: `id=eq.${id}` }, (payload) => {
@@ -47,7 +49,6 @@ const ArtistProfile = () => {
     return () => { supabase.removeChannel(channel); };
   }, [id]);
 
-  // 5-minute browsing nudge
   const browseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     browseTimerRef.current = setTimeout(() => {
@@ -80,6 +81,8 @@ const ArtistProfile = () => {
   const portfolio: string[] = dbArtist ? (dbArtist.portfolio_images || []) : mockArtist!.portfolio;
   const available = dbArtist ? dbArtist.available : mockArtist!.available;
   const artistId = dbArtist ? dbArtist.id : mockArtist!.id;
+  const hasCerts = certs.length > 0;
+  const hasVerifiedCert = certs.some(c => c.verified);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -102,13 +105,7 @@ const ArtistProfile = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <SEO
-        title={`${name} — ${specialty} artist`}
-        description={`Book ${name}, a ${specialty} artist at ${studioName}. ${(bio || "").slice(0, 100)}`}
-        image={avatarUrl}
-        type="profile"
-        jsonLd={jsonLd}
-      />
+      <SEO title={`${name} — ${specialty} artist`} description={`Book ${name}, a ${specialty} artist at ${studioName}. ${(bio || "").slice(0, 100)}`} image={avatarUrl} type="profile" jsonLd={jsonLd} />
       <Navbar />
       <div className="pt-20 pb-16 px-4 max-w-5xl mx-auto">
         <Link to="/studios" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground text-sm mb-8 transition-colors">
@@ -116,10 +113,20 @@ const ArtistProfile = () => {
         </Link>
 
         <div className="flex flex-col md:flex-row gap-8 mb-12">
-          <img src={avatarUrl || "https://via.placeholder.com/128"} alt={name} className="w-32 h-32 rounded-full object-cover border-2 border-gold/30 flex-shrink-0" />
+          <div className="relative flex-shrink-0">
+            <img src={avatarUrl || "https://via.placeholder.com/128"} alt={name} className="w-32 h-32 rounded-full object-cover border-2 border-gold/30" />
+            {hasVerifiedCert && (
+              <div className="absolute -bottom-1 -right-1 bg-gold rounded-full p-1.5" title="Certified Artist">
+                <Award className="w-4 h-4 text-background" />
+              </div>
+            )}
+          </div>
           <div className="flex-1">
             <div className="flex items-start justify-between gap-2">
-              <h1 className="font-heading text-3xl md:text-4xl font-bold text-foreground mb-1">{name}</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="font-heading text-3xl md:text-4xl font-bold text-foreground">{name}</h1>
+                {hasVerifiedCert && <span className="text-xs bg-gold/10 text-gold px-2 py-0.5 rounded-full font-medium">Certified</span>}
+              </div>
               <div className="flex gap-1">
                 {user && (
                   <button onClick={toggleFav} disabled={favLoading} className="p-2 rounded-full hover:bg-card transition-colors">
@@ -158,6 +165,25 @@ const ArtistProfile = () => {
             </div>
           </div>
         </div>
+
+        {/* Certifications */}
+        {hasCerts && (
+          <div className="mb-12">
+            <h2 className="font-heading text-2xl font-bold text-foreground mb-4">Certifications</h2>
+            <div className="flex flex-wrap gap-3">
+              {certs.map(cert => (
+                <div key={cert.id} className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border ${cert.verified ? "border-gold/30 bg-gold/5" : "border-border bg-card"}`}>
+                  <Award className={`w-4 h-4 ${cert.verified ? "text-gold" : "text-muted-foreground"}`} />
+                  <div>
+                    <p className="text-foreground text-sm font-medium">{cert.certification_name}</p>
+                    {cert.issuing_body && <p className="text-muted-foreground text-xs">{cert.issuing_body}</p>}
+                  </div>
+                  {cert.verified && <span className="text-xs bg-gold/10 text-gold px-1.5 py-0.5 rounded-full ml-1">Verified</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div>
           <h2 className="font-heading text-2xl font-bold text-foreground mb-6">Portfolio</h2>
