@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      artist_certifications: {
+        Row: {
+          artist_id: string
+          certificate_url: string | null
+          certification_name: string
+          created_at: string
+          id: string
+          issuing_body: string | null
+          verified: boolean
+        }
+        Insert: {
+          artist_id: string
+          certificate_url?: string | null
+          certification_name: string
+          created_at?: string
+          id?: string
+          issuing_body?: string | null
+          verified?: boolean
+        }
+        Update: {
+          artist_id?: string
+          certificate_url?: string | null
+          certification_name?: string
+          created_at?: string
+          id?: string
+          issuing_body?: string | null
+          verified?: boolean
+        }
+        Relationships: []
+      }
       artists: {
         Row: {
           availability_hours: Json | null
@@ -261,6 +291,42 @@ export type Database = {
         }
         Relationships: []
       }
+      memberships: {
+        Row: {
+          amount: number
+          created_at: string
+          expires_at: string
+          id: string
+          plan: string
+          started_at: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          expires_at?: string
+          id?: string
+          plan?: string
+          started_at?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          expires_at?: string
+          id?: string
+          plan?: string
+          started_at?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       outreach_leads: {
         Row: {
           city: string | null
@@ -363,6 +429,7 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          chat_count: number
           created_at: string
           display_name: string | null
           id: string
@@ -373,6 +440,7 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          chat_count?: number
           created_at?: string
           display_name?: string | null
           id?: string
@@ -383,6 +451,7 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          chat_count?: number
           created_at?: string
           display_name?: string | null
           id?: string

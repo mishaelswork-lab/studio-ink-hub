@@ -1,5 +1,4 @@
-import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Heart, Share2, ExternalLink, Image as ImageIcon, Play } from "lucide-react";
 import { reels } from "@/data/mockReels";
@@ -108,6 +107,20 @@ const DesignsFeed = () => {
   );
 };
 
+const ReelsFeed = () => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  return (
+    <div
+      ref={scrollRef}
+      className="snap-y snap-mandatory overflow-y-auto space-y-4 scrollbar-hide"
+      style={{ maxHeight: "calc(100vh - 14rem)" }}
+    >
+      {reels.map(reel => <ReelCard key={reel.id} reel={reel} />)}
+    </div>
+  );
+};
+
 const DiscoverPage = () => {
   return (
     <div className="min-h-screen bg-background">
@@ -121,19 +134,20 @@ const DiscoverPage = () => {
           <div className="text-center mb-5">
             <p className="text-gold text-sm tracking-[0.2em] uppercase mb-1">Discover</p>
             <h1 className="font-heading text-2xl md:text-3xl font-bold text-foreground">Reels & Designs</h1>
-            <p className="text-muted-foreground text-sm mt-1">Watch artists in action or browse design ideas</p>
           </div>
 
           <Tabs defaultValue="reels" className="w-full">
-            <TabsList className="grid grid-cols-2 mb-4 w-full">
-              <TabsTrigger value="reels"><Play className="w-3.5 h-3.5 mr-1.5" />Reels</TabsTrigger>
-              <TabsTrigger value="designs"><ImageIcon className="w-3.5 h-3.5 mr-1.5" />Design Ideas</TabsTrigger>
+            <TabsList className="grid grid-cols-2 mb-4 w-full bg-secondary/50 border border-border">
+              <TabsTrigger value="reels" className="gap-1.5 text-sm data-[state=active]:bg-gold/10 data-[state=active]:text-gold">
+                <Play className="w-3.5 h-3.5" />Reels
+              </TabsTrigger>
+              <TabsTrigger value="designs" className="gap-1.5 text-sm data-[state=active]:bg-gold/10 data-[state=active]:text-gold">
+                <ImageIcon className="w-3.5 h-3.5" />Designs
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="reels">
-              <div className="snap-y snap-mandatory overflow-y-auto space-y-4" style={{ maxHeight: "calc(100vh - 14rem)" }}>
-                {reels.map(reel => <ReelCard key={reel.id} reel={reel} />)}
-              </div>
+              <ReelsFeed />
             </TabsContent>
 
             <TabsContent value="designs">

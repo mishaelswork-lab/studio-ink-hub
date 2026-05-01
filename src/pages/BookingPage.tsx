@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
+import { useMembership } from "@/hooks/useMembership";
+import { Crown } from "lucide-react";
 
 declare global {
   interface Window {
@@ -19,6 +21,7 @@ const BookingPage = () => {
   const { artistId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isMember } = useMembership();
   const [dbArtist, setDbArtist] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
@@ -77,7 +80,8 @@ const BookingPage = () => {
     }
   };
 
-  const coverCharge = Math.max(0, 500 - referralDiscount);
+  const baseCover = isMember ? 250 : 500;
+  const coverCharge = Math.max(0, baseCover - referralDiscount);
 
   const sendPushNotification = (title: string, body: string) => {
     if ("Notification" in window && Notification.permission === "granted") {
@@ -273,8 +277,18 @@ const BookingPage = () => {
             <div className="bg-secondary/50 rounded-md p-4 border border-border">
               <div className="flex justify-between text-sm mb-1">
                 <span className="text-muted-foreground">Cover Charge</span>
-                <span className="text-foreground font-medium">₹500</span>
+                {isMember ? (
+                  <span className="text-foreground font-medium"><span className="line-through text-muted-foreground mr-1.5">₹500</span>₹250</span>
+                ) : (
+                  <span className="text-foreground font-medium">₹500</span>
+                )}
               </div>
+              {isMember && (
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-gold flex items-center gap-1"><Crown className="w-3 h-3" /> Member Discount</span>
+                  <span className="text-gold font-medium">-₹250</span>
+                </div>
+              )}
               {referralDiscount > 0 && (
                 <div className="flex justify-between text-sm mb-1">
                   <span className="text-emerald-400">Referral Discount</span>
@@ -290,7 +304,7 @@ const BookingPage = () => {
                 <span className="text-foreground">₹{artistRate}/hr</span>
               </div>
               <p className="text-muted-foreground text-xs mt-2">Final price will be discussed with the artist after confirmation.</p>
-              <p className="text-gold text-xs mt-1">💡 Pay at the parlour using ArtSpace for exclusive offers!</p>
+              {!isMember && <p className="text-gold text-xs mt-1">💡 Premium members pay only ₹250 cover charge!</p>}
             </div>
 
             <Button type="submit" variant="gold" size="lg" className="w-full" disabled={paying}>

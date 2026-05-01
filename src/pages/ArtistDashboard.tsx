@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { CalendarDays, ImagePlus, DollarSign, Clock, Check, X, LogOut, Film, Upload, Link2, Instagram, IndianRupee, MessageSquare } from "lucide-react";
+import { CalendarDays, ImagePlus, DollarSign, Clock, Check, X, LogOut, Film, Upload, Link2, Instagram, IndianRupee, MessageSquare, Award, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -13,6 +13,7 @@ const tabs = [
   { id: "bookings", label: "Bookings", icon: CalendarDays },
   { id: "portfolio", label: "Portfolio", icon: ImagePlus },
   { id: "reels", label: "Reels", icon: Film },
+  { id: "certifications", label: "Certs", icon: Award },
   { id: "consultations", label: "Chats", icon: MessageSquare },
   { id: "availability", label: "Hours", icon: Clock },
   { id: "earnings", label: "Earnings", icon: DollarSign },
@@ -83,28 +84,53 @@ const ArtistDashboard = () => {
   const [reels, setReels] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
   const [consultations, setConsultations] = useState<any[]>([]);
+  const [certs, setCerts] = useState<any[]>([]);
+  const [newCert, setNewCert] = useState({ name: "", issuing_body: "", url: "" });
   const [availability, setAvailability] = useState<AvailabilityHours>(defaultHours);
   const [savingHours, setSavingHours] = useState(false);
 
   useEffect(() => {
     if (!artistProfile || !user) return;
     const fetchData = async () => {
-      const [bookingsRes, reelsRes, paymentsRes, consultationsRes] = await Promise.all([
+      const [bookingsRes, reelsRes, paymentsRes, consultationsRes, certsRes] = await Promise.all([
         supabase.from("bookings").select("*").eq("artist_id", artistProfile.id).order("created_at", { ascending: false }),
         supabase.from("reels").select("*").eq("artist_id", artistProfile.id).order("created_at", { ascending: false }),
         supabase.from("payments").select("*").eq("artist_id", artistProfile.id).eq("status", "completed"),
         supabase.from("consultations").select("*").eq("artist_id", user.id).order("created_at", { ascending: false }),
+        supabase.from("artist_certifications").select("*").eq("artist_id", artistProfile.id).order("created_at", { ascending: false }),
       ]);
       setBookings(bookingsRes.data || []);
       setReels(reelsRes.data || []);
       setPayments(paymentsRes.data || []);
       setConsultations(consultationsRes.data || []);
+      setCerts(certsRes.data || []);
       if (artistProfile.availability_hours) {
         setAvailability(artistProfile.availability_hours as AvailabilityHours);
       }
     };
     fetchData();
   }, [artistProfile, user]);
+
+  const handleAddCert = async () => {
+    if (!artistProfile || !newCert.name.trim()) { toast.error("Certification name required"); return; }
+    const { error } = await supabase.from("artist_certifications").insert({
+      artist_id: artistProfile.id,
+      certification_name: newCert.name.trim(),
+      issuing_body: newCert.issuing_body.trim() || null,
+      certificate_url: newCert.url.trim() || null,
+    });
+    if (error) { toast.error("Failed to add"); return; }
+    toast.success("Certification added! Admin will verify it.");
+    setNewCert({ name: "", issuing_body: "", url: "" });
+    const { data } = await supabase.from("artist_certifications").select("*").eq("artist_id", artistProfile.id).order("created_at", { ascending: false });
+    setCerts(data || []);
+  };
+
+  const handleDeleteCert = async (id: string) => {
+    await supabase.from("artist_certifications").delete().eq("id", id);
+    setCerts(prev => prev.filter(c => c.id !== id));
+    toast.success("Certification removed");
+  };
 
   const handleUpdateBookingStatus = async (id: string, status: string) => {
     const { error } = await supabase.from("bookings").update({ status }).eq("id", id);
@@ -357,6 +383,43 @@ const ArtistDashboard = () => {
                     </div>
                   )}
                 </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "certifications" && (
+          <div>
+            <h2 className="font-heading text-2xl font-bold text-foreground mb-2">Certifications</h2>
+            <p className="text-muted-foreground text-sm mb-6">Add your certifications. Verified certs earn a badge on your profile.</p>
+
+            <div className="bg-card rounded-lg border border-border p-5 mb-6">
+              <h3 className="text-foreground font-medium mb-3">Add Certification</h3>
+              <div className="space-y-3">
+                <Input placeholder="Certification name *" value={newCert.name} onChange={e => setNewCert(p => ({ ...p, name: e.target.value }))} className="bg-secondary border-border" />
+                <Input placeholder="Issuing body (optional)" value={newCert.issuing_body} onChange={e => setNewCert(p => ({ ...p, issuing_body: e.target.value }))} className="bg-secondary border-border" />
+                <Input placeholder="Certificate URL (optional)" value={newCert.url} onChange={e => setNewCert(p => ({ ...p, url: e.target.value }))} className="bg-secondary border-border" />
+                <Button variant="gold" size="sm" className="gap-1" onClick={handleAddCert}><Plus className="w-3.5 h-3.5" /> Add</Button>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {certs.length === 0 && <p className="text-muted-foreground text-sm">No certifications added yet.</p>}
+              {certs.map(cert => (
+                <div key={cert.id} className={`flex items-center justify-between p-4 rounded-lg border ${cert.verified ? "border-gold/30 bg-gold/5" : "border-border bg-card"}`}>
+                  <div className="flex items-center gap-3">
+                    <Award className={`w-5 h-5 ${cert.verified ? "text-gold" : "text-muted-foreground"}`} />
+                    <div>
+                      <p className="text-foreground text-sm font-medium">{cert.certification_name}</p>
+                      {cert.issuing_body && <p className="text-muted-foreground text-xs">{cert.issuing_body}</p>}
+                    </div>
+                    {cert.verified && <span className="text-xs bg-gold/10 text-gold px-2 py-0.5 rounded-full">Verified</span>}
+                    {!cert.verified && <span className="text-xs bg-secondary text-muted-foreground px-2 py-0.5 rounded-full">Pending</span>}
+                  </div>
+                  <button onClick={() => handleDeleteCert(cert.id)} className="text-muted-foreground hover:text-destructive transition-colors">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               ))}
             </div>
           </div>

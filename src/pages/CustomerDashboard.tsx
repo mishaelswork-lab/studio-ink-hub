@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { CalendarDays, Clock, MapPin, Search, Star, Bell, LogOut, Compass, Heart, Gift, MessageSquare, Copy, Check } from "lucide-react";
+import { CalendarDays, Clock, MapPin, Search, Star, Bell, LogOut, Compass, Heart, Gift, MessageSquare, Copy, Check, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/layout/Navbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { ReviewDialog } from "@/components/ReviewDialog";
+import { MembershipBanner } from "@/components/MembershipBanner";
+import { useMembership } from "@/hooks/useMembership";
 import { toast } from "sonner";
 
 const CustomerDashboard = () => {
@@ -18,6 +20,7 @@ const CustomerDashboard = () => {
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notifiedBookings, setNotifiedBookings] = useState<Set<string>>(new Set());
+  const { isMember, chatsRemaining } = useMembership();
 
   useEffect(() => {
     if (!user) return;
@@ -32,7 +35,6 @@ const CustomerDashboard = () => {
       setArtists(artistsRes.data || []);
       setConsultations(consultationsRes.data || []);
 
-      // Generate referral code if none exists
       if ((referralRes.data || []).length > 0) {
         setReferralCode(referralRes.data![0].referral_code);
       } else {
@@ -45,7 +47,6 @@ const CustomerDashboard = () => {
     fetchData();
   }, [user]);
 
-  // Push notification permission
   useEffect(() => {
     if ("Notification" in window && Notification.permission === "default") {
       Notification.requestPermission();
@@ -66,9 +67,9 @@ const CustomerDashboard = () => {
       if (!bookingDt) return;
       const diffMins = (bookingDt.getTime() - now.getTime()) / 60000;
       const keys = [
-        { mins: 60, key: `${booking.id}-60`, msg: "⏰ 1 hour left!", desc: `${booking.style} appointment coming up!` },
-        { mins: 30, key: `${booking.id}-30`, msg: "⏰ 30 minutes left!", desc: `${booking.style} — get ready!` },
-        { mins: 15, key: `${booking.id}-15`, msg: "🔔 15 minutes left!", desc: `${booking.style} — head to the studio!` },
+        { mins: 60, key: `${booking.id}-60`, msg: "1 hour left!", desc: `${booking.style} appointment coming up!` },
+        { mins: 30, key: `${booking.id}-30`, msg: "30 minutes left!", desc: `${booking.style} — get ready!` },
+        { mins: 15, key: `${booking.id}-15`, msg: "15 minutes left!", desc: `${booking.style} — head to the studio!` },
       ];
       keys.forEach(({ mins, key, msg, desc }) => {
         if (diffMins <= mins && diffMins > (mins === 60 ? 30 : mins === 30 ? 15 : 0) && !notifiedBookings.has(key)) {
@@ -128,9 +129,12 @@ const CustomerDashboard = () => {
       <div className="pt-20 pb-24 px-4 max-w-5xl mx-auto">
         <div className="flex items-center justify-between mb-8 pt-4">
           <div>
-            <h1 className="font-heading text-2xl md:text-3xl font-bold text-foreground">
-              Welcome back{user?.user_metadata?.display_name ? `, ${user.user_metadata.display_name}` : ""}
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="font-heading text-2xl md:text-3xl font-bold text-foreground">
+                Welcome back{user?.user_metadata?.display_name ? `, ${user.user_metadata.display_name}` : ""}
+              </h1>
+              {isMember && <span className="text-xs bg-gold/10 text-gold px-2 py-0.5 rounded-full font-medium flex items-center gap-1"><Crown className="w-3 h-3" /> Premium</span>}
+            </div>
             <p className="text-muted-foreground text-sm mt-1">Your art journey continues here</p>
           </div>
           <Button variant="ghost" size="sm" onClick={() => { signOut(); navigate("/"); }} className="text-muted-foreground gap-1">
@@ -138,7 +142,14 @@ const CustomerDashboard = () => {
           </Button>
         </div>
 
-        {/* Active Bookings - Pinned */}
+        {/* Membership upsell for non-members */}
+        {!isMember && (
+          <div className="mb-6">
+            <MembershipBanner chatsRemaining={chatsRemaining} showChatTrigger />
+          </div>
+        )}
+
+        {/* Active Bookings */}
         {hasActiveBookings && (
           <div className="mb-8">
             <div className="flex items-center gap-2 mb-4">
@@ -171,7 +182,7 @@ const CustomerDashboard = () => {
                       </div>
                       <div className="flex flex-col items-end gap-2">
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${booking.status === "confirmed" ? "bg-emerald-500/10 text-emerald-400" : "bg-gold/10 text-gold"}`}>{booking.status}</span>
-                        {booking.cover_charge_paid && <span className="text-xs text-emerald-400">₹500 paid</span>}
+                        {booking.cover_charge_paid && <span className="text-xs text-emerald-400">{isMember ? "₹250 paid" : "₹500 paid"}</span>}
                       </div>
                     </div>
                   </div>
