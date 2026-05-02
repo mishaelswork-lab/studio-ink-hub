@@ -115,9 +115,25 @@ const AdminPanel = () => {
   const [rejectDialog, setRejectDialog] = useState<{ id: string; caption: string } | null>(null);
   const [rejectReason, setRejectReason] = useState("");
 
+  const { session } = useAuth();
   const isAdmin = roles.includes("admin");
+  const [serverAdmin, setServerAdmin] = useState<boolean | null>(null);
+
+  // Server-verified admin gate before any data fetch
+  useEffect(() => {
+    if (!session) return;
+    (async () => {
+      const { data, error } = await supabase.functions.invoke("verify-admin", {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const ok = !error && (data as any)?.isAdmin === true;
+      setServerAdmin(ok);
+      if (!ok) toast.error("Admin access denied");
+    })();
+  }, [session]);
 
   const fetchData = async () => {
+    if (!serverAdmin) return;
     const [artistsRes, bookingsRes, reelsRes, paymentsRes, flaggedRes, auditRes] = await Promise.all([
       supabase.from("artists").select("*").order("created_at", { ascending: false }),
       supabase.from("bookings").select("*").order("created_at", { ascending: false }),
