@@ -179,7 +179,6 @@ const LoginPage = () => {
 
           <div className="mt-6 pt-6 border-t border-border text-center space-y-2">
             <Link to="/artist-login" className="block text-sm text-muted-foreground hover:text-gold transition-colors">Artist Login →</Link>
-            <Link to="/admin" className="block text-sm text-muted-foreground hover:text-gold transition-colors">Admin Login →</Link>
           </div>
         </div>
       </div>
