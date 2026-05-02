@@ -115,9 +115,25 @@ const AdminPanel = () => {
   const [rejectDialog, setRejectDialog] = useState<{ id: string; caption: string } | null>(null);
   const [rejectReason, setRejectReason] = useState("");
 
+  const { session } = useAuth();
   const isAdmin = roles.includes("admin");
+  const [serverAdmin, setServerAdmin] = useState<boolean | null>(null);
+
+  // Server-verified admin gate before any data fetch
+  useEffect(() => {
+    if (!session) return;
+    (async () => {
+      const { data, error } = await supabase.functions.invoke("verify-admin", {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const ok = !error && (data as any)?.isAdmin === true;
+      setServerAdmin(ok);
+      if (!ok) toast.error("Admin access denied");
+    })();
+  }, [session]);
 
   const fetchData = async () => {
+    if (!serverAdmin) return;
     const [artistsRes, bookingsRes, reelsRes, paymentsRes, flaggedRes, auditRes] = await Promise.all([
       supabase.from("artists").select("*").order("created_at", { ascending: false }),
       supabase.from("bookings").select("*").order("created_at", { ascending: false }),
@@ -134,7 +150,19 @@ const AdminPanel = () => {
     setAuditLog(auditRes.data || []);
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { if (serverAdmin) fetchData(); }, [serverAdmin]);
+
+  if (serverAdmin === false) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <div className="text-center">
+          <Shield className="w-10 h-10 text-destructive mx-auto mb-3" />
+          <h1 className="font-heading text-xl font-bold text-foreground mb-1">403 — Forbidden</h1>
+          <p className="text-muted-foreground text-sm">Admin access required.</p>
+        </div>
+      </div>
+    );
+  }
 
   const totalRevenue = dbPayments.reduce((sum, p) => sum + p.amount, 0);
   const pendingCount = dbBookings.filter(b => b.status === "pending").length;
