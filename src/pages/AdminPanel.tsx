@@ -417,6 +417,34 @@ const AdminPanel = () => {
           </div>
         )}
 
+        {activeTab === "audit" && (
+          <div>
+            <h2 className="font-heading text-2xl font-bold text-foreground mb-2">Admin Audit Log</h2>
+            <p className="text-muted-foreground text-sm mb-6">Recent admin actions across the platform</p>
+            <div className="bg-card rounded-lg border border-border overflow-hidden">
+              {auditLog.length === 0 ? (
+                <p className="text-muted-foreground text-sm text-center py-12">No admin actions recorded yet.</p>
+              ) : (
+                <div className="divide-y divide-border">
+                  {auditLog.map(entry => (
+                    <div key={entry.id} className="p-4 flex items-start gap-3">
+                      <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${entry.action.includes("approved") ? "bg-emerald-400" : entry.action.includes("rejected") || entry.action.includes("deleted") ? "bg-destructive" : "bg-gold"}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-foreground text-sm font-medium">{entry.action.replace(/_/g, " ")}</p>
+                        <p className="text-muted-foreground text-xs mt-0.5">
+                          {entry.target_type} · <span className="font-mono">{String(entry.target_id).slice(0, 8)}</span> · admin <span className="font-mono">{String(entry.admin_id).slice(0, 8)}</span>
+                        </p>
+                        {entry.reason && <p className="text-muted-foreground text-xs mt-1 italic">Reason: {entry.reason}</p>}
+                      </div>
+                      <span className="text-muted-foreground text-xs whitespace-nowrap">{new Date(entry.created_at).toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {activeTab === "settings" && (
           <div>
             <h2 className="font-heading text-2xl font-bold text-foreground mb-6">Settings</h2>
