@@ -402,10 +402,10 @@ const AdminPanel = () => {
                       <p className="text-muted-foreground text-xs mb-1">By: {(reel as any).artists?.name || "Unknown"}</p>
                       <p className="text-muted-foreground text-xs mb-3">Source: {reel.source} · {new Date(reel.created_at).toLocaleDateString()}</p>
                       <div className="flex gap-2">
-                        <Button size="sm" variant="gold" className="flex-1 gap-1" onClick={() => handleModerateReel(reel.id, "approved")}>
+                        <Button size="sm" variant="gold" className="flex-1 gap-1" onClick={() => handleApproveReel(reel.id)}>
                           <Check className="w-3.5 h-3.5" /> Approve
                         </Button>
-                        <Button size="sm" variant="outline" className="flex-1 gap-1 border-destructive/50 text-destructive hover:bg-destructive/10" onClick={() => handleModerateReel(reel.id, "rejected")}>
+                        <Button size="sm" variant="outline" className="flex-1 gap-1 border-destructive/50 text-destructive hover:bg-destructive/10" onClick={() => { setRejectDialog({ id: reel.id, caption: reel.caption || "Untitled" }); setRejectReason(""); }}>
                           <X className="w-3.5 h-3.5" /> Reject
                         </Button>
                       </div>
