@@ -129,9 +129,9 @@ const FeaturedArtists = () => (
         ))}
       </div>
       <div className="text-center mt-10">
-        <Link to="/studios">
-          <Button variant="gold-outline" size="lg">View All Artists</Button>
-        </Link>
+        <a href="#studios">
+          <Button variant="gold-outline" size="lg">View All Studios</Button>
+        </a>
       </div>
     </div>
   </section>
