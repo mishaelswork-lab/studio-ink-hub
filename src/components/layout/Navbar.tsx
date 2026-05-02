@@ -14,7 +14,6 @@ export const Navbar = () => {
 
   const links = [
     { to: "/", label: "Home", icon: Home },
-    { to: "/studios", label: "Studios", icon: MapPin },
     { to: "/discover", label: "Discover", icon: Compass },
   ];
 
