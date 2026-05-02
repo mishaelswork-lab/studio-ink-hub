@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Users, CalendarDays, BarChart3, Settings, LogOut, Plus, Star, TrendingUp, IndianRupee, Film, Trash2, Shield, Check, X } from "lucide-react";
+import { Users, CalendarDays, BarChart3, Settings, LogOut, Plus, Star, TrendingUp, IndianRupee, Film, Trash2, Shield, Check, X, ScrollText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,6 +15,7 @@ const adminTabs = [
   { id: "bookings", label: "Bookings", icon: CalendarDays },
   { id: "reels", label: "Reels", icon: Film },
   { id: "moderation", label: "Moderation", icon: Shield },
+  { id: "audit", label: "Audit Log", icon: ScrollText },
   { id: "settings", label: "Settings", icon: Settings },
 ] as const;
 
@@ -104,26 +105,33 @@ const AddArtistDialog = ({ onAdded }: { onAdded: () => void }) => {
 
 const AdminPanel = () => {
   const [activeTab, setActiveTab] = useState<AdminTab>("overview");
-  const { signOut } = useAuth();
+  const { signOut, user, roles } = useAuth();
   const [dbArtists, setDbArtists] = useState<any[]>([]);
   const [dbBookings, setDbBookings] = useState<any[]>([]);
   const [dbReels, setDbReels] = useState<any[]>([]);
   const [dbPayments, setDbPayments] = useState<any[]>([]);
   const [flaggedReels, setFlaggedReels] = useState<any[]>([]);
+  const [auditLog, setAuditLog] = useState<any[]>([]);
+  const [rejectDialog, setRejectDialog] = useState<{ id: string; caption: string } | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+
+  const isAdmin = roles.includes("admin");
 
   const fetchData = async () => {
-    const [artistsRes, bookingsRes, reelsRes, paymentsRes, flaggedRes] = await Promise.all([
+    const [artistsRes, bookingsRes, reelsRes, paymentsRes, flaggedRes, auditRes] = await Promise.all([
       supabase.from("artists").select("*").order("created_at", { ascending: false }),
       supabase.from("bookings").select("*").order("created_at", { ascending: false }),
       supabase.from("reels").select("*").order("created_at", { ascending: false }),
       supabase.from("payments").select("*").eq("status", "completed"),
       supabase.from("reels").select("*, artists(name)").eq("moderation_status", "flagged").order("created_at", { ascending: false }),
+      supabase.from("admin_audit_log").select("*").order("created_at", { ascending: false }).limit(200),
     ]);
     setDbArtists(artistsRes.data || []);
     setDbBookings(bookingsRes.data || []);
     setDbReels(reelsRes.data || []);
     setDbPayments(paymentsRes.data || []);
     setFlaggedReels(flaggedRes.data || []);
+    setAuditLog(auditRes.data || []);
   };
 
   useEffect(() => { fetchData(); }, []);
@@ -131,23 +139,45 @@ const AdminPanel = () => {
   const totalRevenue = dbPayments.reduce((sum, p) => sum + p.amount, 0);
   const pendingCount = dbBookings.filter(b => b.status === "pending").length;
 
-  const handleDeleteReel = async (id: string) => {
-    const { error } = await supabase.from("reels").delete().eq("id", id);
-    if (error) { toast.error("Failed to delete reel"); return; }
-    toast.success("Reel removed");
-    setDbReels(prev => prev.filter(r => r.id !== id));
+  const writeAudit = async (action: string, target_type: string, target_id: string, reason?: string, metadata?: any) => {
+    if (!user) return;
+    await supabase.from("admin_audit_log").insert({
+      admin_id: user.id, action, target_type, target_id, reason: reason || null, metadata: metadata || {},
+    });
   };
 
-  const handleModerateReel = async (id: string, status: "approved" | "rejected") => {
-    if (status === "rejected") {
-      const { error } = await supabase.from("reels").delete().eq("id", id);
-      if (error) { toast.error("Failed to reject"); return; }
-    } else {
-      const { error } = await supabase.from("reels").update({ moderation_status: "approved" }).eq("id", id);
-      if (error) { toast.error("Failed to approve"); return; }
-    }
-    toast.success(status === "approved" ? "Reel approved" : "Reel rejected & removed");
+  const handleDeleteReel = async (id: string) => {
+    if (!isAdmin) { toast.error("Admin access required"); return; }
+    const { error } = await supabase.from("reels").delete().eq("id", id);
+    if (error) { toast.error("Failed to delete reel"); return; }
+    await writeAudit("reel_deleted", "reel", id);
+    toast.success("Reel removed");
+    setDbReels(prev => prev.filter(r => r.id !== id));
+    fetchData();
+  };
+
+  const handleApproveReel = async (id: string) => {
+    if (!isAdmin) { toast.error("Admin access required"); return; }
+    const { error } = await supabase.from("reels").update({ moderation_status: "approved" }).eq("id", id);
+    if (error) { toast.error("Failed to approve"); return; }
+    await writeAudit("reel_approved", "reel", id);
+    toast.success("Reel approved");
     setFlaggedReels(prev => prev.filter(r => r.id !== id));
+    fetchData();
+  };
+
+  const handleRejectReel = async () => {
+    if (!isAdmin || !rejectDialog) return;
+    if (!rejectReason.trim()) { toast.error("Please provide a reason"); return; }
+    const { id } = rejectDialog;
+    const { error } = await supabase.from("reels").delete().eq("id", id);
+    if (error) { toast.error("Failed to reject"); return; }
+    await writeAudit("reel_rejected", "reel", id, rejectReason.trim());
+    toast.success("Reel rejected & removed");
+    setFlaggedReels(prev => prev.filter(r => r.id !== id));
+    setRejectDialog(null);
+    setRejectReason("");
+    fetchData();
   };
 
   const handleLogout = async () => { await signOut(); };
