@@ -207,6 +207,7 @@ const Index = () => (
     <Stats />
     <DiscoverReels />
     <FeaturedArtists />
+    <StudiosSection />
     <footer className="py-10 border-t border-border text-center">
       <p className="text-muted-foreground text-sm">© 2026 ArtSpace. All rights reserved.</p>
     </footer>
