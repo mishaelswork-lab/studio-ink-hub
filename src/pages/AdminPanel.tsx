@@ -465,6 +465,22 @@ const AdminPanel = () => {
           </div>
         )}
       </main>
+
+      <Dialog open={!!rejectDialog} onOpenChange={(o) => { if (!o) { setRejectDialog(null); setRejectReason(""); } }}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-foreground">Reject Reel</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <p className="text-muted-foreground text-sm">Reason for rejecting <span className="text-foreground">"{rejectDialog?.caption}"</span>. Saved to the audit log.</p>
+            <Textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="e.g. Non-tattoo content, inappropriate imagery, low quality..." className="bg-secondary border-border min-h-[100px]" />
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => { setRejectDialog(null); setRejectReason(""); }}>Cancel</Button>
+              <Button variant="gold" onClick={handleRejectReel} disabled={!rejectReason.trim()}>Confirm Reject</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
