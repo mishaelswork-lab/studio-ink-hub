@@ -150,7 +150,19 @@ const AdminPanel = () => {
     setAuditLog(auditRes.data || []);
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { if (serverAdmin) fetchData(); }, [serverAdmin]);
+
+  if (serverAdmin === false) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <div className="text-center">
+          <Shield className="w-10 h-10 text-destructive mx-auto mb-3" />
+          <h1 className="font-heading text-xl font-bold text-foreground mb-1">403 — Forbidden</h1>
+          <p className="text-muted-foreground text-sm">Admin access required.</p>
+        </div>
+      </div>
+    );
+  }
 
   const totalRevenue = dbPayments.reduce((sum, p) => sum + p.amount, 0);
   const pendingCount = dbBookings.filter(b => b.status === "pending").length;
