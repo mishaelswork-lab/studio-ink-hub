@@ -24,6 +24,8 @@ const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 const FavoritesPage = lazy(() => import("./pages/FavoritesPage"));
 const ConsultationChat = lazy(() => import("./pages/ConsultationChat"));
 const StartConsultation = lazy(() => import("./pages/StartConsultation"));
+const ChatsPage = lazy(() => import("./pages/ChatsPage"));
+const ArtistChatsPage = lazy(() => import("./pages/ArtistChatsPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -55,6 +57,8 @@ const App = () => (
               <Route path="/favorites" element={<ProtectedRoute redirectTo="/login"><FavoritesPage /></ProtectedRoute>} />
               <Route path="/consultation/:consultationId" element={<ProtectedRoute redirectTo="/login"><ConsultationChat /></ProtectedRoute>} />
               <Route path="/consult/:artistId" element={<ProtectedRoute redirectTo="/login"><StartConsultation /></ProtectedRoute>} />
+              <Route path="/chats" element={<ProtectedRoute redirectTo="/login"><ChatsPage /></ProtectedRoute>} />
+              <Route path="/artist-chats" element={<ProtectedRoute requiredRole="artist" redirectTo="/artist-login"><ArtistChatsPage /></ProtectedRoute>} />
               <Route path="/artist-login" element={<ArtistLogin />} />
               <Route path="/artist-dashboard" element={<ProtectedRoute requiredRole="artist" redirectTo="/artist-login"><ArtistDashboard /></ProtectedRoute>} />
               <Route path="/admin" element={<AdminLogin />} />
