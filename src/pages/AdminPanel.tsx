@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Users, CalendarDays, BarChart3, Settings, LogOut, Plus, Star, TrendingUp, IndianRupee, Film, Trash2, Shield, Check, X, ScrollText } from "lucide-react";
+import { Users, CalendarDays, BarChart3, Settings, LogOut, Plus, Star, TrendingUp, IndianRupee, Film, Trash2, Shield, Check, X, ScrollText, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,6 +15,7 @@ const adminTabs = [
   { id: "bookings", label: "Bookings", icon: CalendarDays },
   { id: "reels", label: "Reels", icon: Film },
   { id: "moderation", label: "Moderation", icon: Shield },
+  { id: "featured", label: "Featured", icon: Sparkles },
   { id: "audit", label: "Audit Log", icon: ScrollText },
   { id: "settings", label: "Settings", icon: Settings },
 ] as const;
@@ -112,6 +113,9 @@ const AdminPanel = () => {
   const [dbPayments, setDbPayments] = useState<any[]>([]);
   const [flaggedReels, setFlaggedReels] = useState<any[]>([]);
   const [auditLog, setAuditLog] = useState<any[]>([]);
+  const [featuredRequests, setFeaturedRequests] = useState<any[]>([]);
+  const [featuredArtists, setFeaturedArtists] = useState<any[]>([]);
+  const [adminNote, setAdminNote] = useState<Record<string, string>>({});
   const [rejectDialog, setRejectDialog] = useState<{ id: string; caption: string } | null>(null);
   const [rejectReason, setRejectReason] = useState("");
 
@@ -134,13 +138,15 @@ const AdminPanel = () => {
 
   const fetchData = async () => {
     if (!serverAdmin) return;
-    const [artistsRes, bookingsRes, reelsRes, paymentsRes, flaggedRes, auditRes] = await Promise.all([
+    const [artistsRes, bookingsRes, reelsRes, paymentsRes, flaggedRes, auditRes, fReqRes, fArtRes] = await Promise.all([
       supabase.from("artists").select("*").order("created_at", { ascending: false }),
       supabase.from("bookings").select("*").order("created_at", { ascending: false }),
       supabase.from("reels").select("*").order("created_at", { ascending: false }),
       supabase.from("payments").select("*").eq("status", "completed"),
       supabase.from("reels").select("*, artists(name)").eq("moderation_status", "flagged").order("created_at", { ascending: false }),
       supabase.from("admin_audit_log").select("*").order("created_at", { ascending: false }).limit(200),
+      supabase.from("featured_requests").select("*, artists(name, avatar_url, specialty)").order("created_at", { ascending: false }),
+      supabase.from("featured_artists").select("*, artists(name, avatar_url, specialty)").order("priority", { ascending: false }),
     ]);
     setDbArtists(artistsRes.data || []);
     setDbBookings(bookingsRes.data || []);
@@ -148,6 +154,8 @@ const AdminPanel = () => {
     setDbPayments(paymentsRes.data || []);
     setFlaggedReels(flaggedRes.data || []);
     setAuditLog(auditRes.data || []);
+    setFeaturedRequests(fReqRes.data || []);
+    setFeaturedArtists(fArtRes.data || []);
   };
 
   useEffect(() => { if (serverAdmin) fetchData(); }, [serverAdmin]);
