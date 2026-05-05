@@ -198,7 +198,7 @@ const CustomerDashboard = () => {
             { to: "/studios", icon: Search, label: "Browse Studios", desc: "Find artists near you" },
             { to: "/discover", icon: Compass, label: "Discover", desc: "Watch artist reels" },
             { to: "/favorites", icon: Heart, label: "Favorites", desc: "Saved artists & reels" },
-            { to: "/studios", icon: CalendarDays, label: "Book Now", desc: "Schedule a session" },
+            { to: "/chats", icon: MessageSquare, label: "Chats", desc: "AI & artist chats" },
           ].map(action => (
             <Link key={action.label} to={action.to} className="bg-card rounded-lg border border-border p-4 hover:border-gold/30 transition-all group">
               <action.icon className="w-5 h-5 text-gold mb-2 group-hover:scale-110 transition-transform" />
