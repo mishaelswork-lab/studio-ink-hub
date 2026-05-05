@@ -1,9 +1,25 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { MapPin, Star, Users } from "lucide-react";
+import { MapPin, Star, Users, Sparkles } from "lucide-react";
 import { studios, artists } from "@/data/mockData";
 import { Navbar } from "@/components/layout/Navbar";
+import { supabase } from "@/integrations/supabase/client";
 
 const StudiosPage = () => {
+  const [featured, setFeatured] = useState<any[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("featured_artists")
+        .select("*, artists(id,name,avatar_url,specialty,studio_name,rating)")
+        .eq("active", true)
+        .order("priority", { ascending: false })
+        .limit(6);
+      setFeatured((data || []).filter((f: any) => f.artists));
+    })();
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -13,6 +29,29 @@ const StudiosPage = () => {
           <h1 className="font-heading text-3xl md:text-4xl font-bold text-foreground">Tattoo Studios</h1>
           <p className="text-muted-foreground mt-2">Discover premium tattoo studios across the city</p>
         </div>
+
+        {featured.length > 0 && (
+          <section className="mb-10">
+            <div className="flex items-center gap-2 mb-4">
+              <Sparkles className="w-4 h-4 text-gold" />
+              <h2 className="font-heading text-lg font-semibold text-foreground">Featured Artists</h2>
+            </div>
+            <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+              {featured.map((f: any) => (
+                <Link key={f.id} to={`/artist/${f.artists.id}`} className="flex-shrink-0 w-56 bg-gradient-to-br from-gold/10 to-card border border-gold/30 rounded-xl p-4 hover:border-gold/50 transition-colors">
+                  <div className="flex items-center gap-3 mb-2">
+                    <img src={f.artists.avatar_url || "https://via.placeholder.com/40"} alt={f.artists.name} className="w-10 h-10 rounded-full object-cover border border-gold/30" />
+                    <div className="min-w-0">
+                      <p className="text-foreground text-sm font-medium truncate">{f.artists.name}</p>
+                      <p className="text-gold text-xs truncate">{f.artists.specialty}</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] uppercase tracking-wider text-gold">Featured</span>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {studios.map((studio) => {
