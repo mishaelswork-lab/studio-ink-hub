@@ -216,6 +216,41 @@ const AdminPanel = () => {
     fetchData();
   };
 
+  const handlePromoteToFeatured = async (artistId: string, requestId?: string) => {
+    if (!isAdmin) { toast.error("Admin only"); return; }
+    const { error } = await supabase.from("featured_artists").insert({ artist_id: artistId, active: true, priority: 10 });
+    if (error) { toast.error("Failed to feature artist"); return; }
+    if (requestId) {
+      await supabase.from("featured_requests").update({ status: "approved", admin_notes: adminNote[requestId] || null }).eq("id", requestId);
+    }
+    await writeAudit("artist_featured", "artist", artistId, adminNote[requestId || ""] || undefined);
+    toast.success("Artist featured!");
+    fetchData();
+  };
+
+  const handleRejectFeatured = async (requestId: string) => {
+    if (!isAdmin) return;
+    await supabase.from("featured_requests").update({ status: "rejected", admin_notes: adminNote[requestId] || null }).eq("id", requestId);
+    await writeAudit("featured_request_rejected", "featured_request", requestId, adminNote[requestId] || undefined);
+    toast.success("Request rejected");
+    fetchData();
+  };
+
+  const handleToggleFeatured = async (id: string, active: boolean) => {
+    if (!isAdmin) return;
+    await supabase.from("featured_artists").update({ active: !active }).eq("id", id);
+    await writeAudit(active ? "featured_disabled" : "featured_enabled", "featured_artist", id);
+    fetchData();
+  };
+
+  const handleRemoveFeatured = async (id: string, artistId: string) => {
+    if (!isAdmin) return;
+    await supabase.from("featured_artists").delete().eq("id", id);
+    await writeAudit("featured_removed", "artist", artistId);
+    toast.success("Removed from featured");
+    fetchData();
+  };
+
   const handleLogout = async () => { await signOut(); };
 
   return (
