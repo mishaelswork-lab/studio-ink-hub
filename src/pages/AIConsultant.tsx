@@ -139,8 +139,39 @@ const AIConsultant = () => {
           </Button>
         </div>
 
+        {/* Loading skeletons */}
+        {loading && (
+          <div className="mt-10">
+            <h2 className="font-heading text-2xl font-bold mb-5">Generating 10 designs…</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="bg-card border border-border rounded-xl overflow-hidden">
+                  <Skeleton className="aspect-square w-full" />
+                  <div className="p-4 space-y-2">
+                    <Skeleton className="h-4 w-2/3" />
+                    <Skeleton className="h-3 w-1/2" />
+                    <Skeleton className="h-3 w-full" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Error + retry */}
+        {!loading && error && (
+          <div className="mt-10 bg-destructive/5 border border-destructive/30 rounded-xl p-6 text-center">
+            <AlertCircle className="w-8 h-8 text-destructive mx-auto mb-2" />
+            <p className="text-foreground font-medium mb-1">Something went wrong</p>
+            <p className="text-muted-foreground text-sm mb-4">{error}</p>
+            <Button variant="gold" onClick={handleSubmit} className="gap-2">
+              <RotateCw className="w-4 h-4" /> Retry
+            </Button>
+          </div>
+        )}
+
         {/* Results */}
-        {suggestions.length > 0 && (
+        {!loading && suggestions.length > 0 && (
           <div className="mt-10">
             <h2 className="font-heading text-2xl font-bold mb-5">Your 10 Designs</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
