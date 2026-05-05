@@ -516,6 +516,92 @@ const AdminPanel = () => {
           </div>
         )}
 
+        {activeTab === "featured" && (
+          <div>
+            <h2 className="font-heading text-2xl font-bold text-foreground mb-2">Featured Artists</h2>
+            <p className="text-muted-foreground text-sm mb-6">Boost requests from artists and currently featured slots.</p>
+
+            <div className="bg-card rounded-lg border border-border p-5 mb-8">
+              <h3 className="text-foreground font-medium mb-4 flex items-center gap-2"><Sparkles className="w-4 h-4 text-gold" /> Boost Requests</h3>
+              {featuredRequests.length === 0 ? (
+                <p className="text-muted-foreground text-sm">No requests yet.</p>
+              ) : (
+                <div className="space-y-4">
+                  {featuredRequests.map((r: any) => (
+                    <div key={r.id} className="border border-border rounded-lg p-4">
+                      <div className="flex items-start gap-3 mb-3">
+                        <img src={r.artists?.avatar_url || "https://via.placeholder.com/40"} alt={r.artists?.name} className="w-10 h-10 rounded-full object-cover border border-gold/20" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-foreground text-sm font-medium">{r.artists?.name || "Artist"}</p>
+                          <p className="text-muted-foreground text-xs">{r.artists?.specialty} · {new Date(r.created_at).toLocaleDateString()}</p>
+                        </div>
+                        <span className={`text-xs px-2 py-1 rounded-full capitalize ${r.status === "approved" ? "bg-emerald-500/10 text-emerald-400" : r.status === "rejected" ? "bg-destructive/10 text-destructive" : "bg-gold/10 text-gold"}`}>{r.status}</span>
+                      </div>
+                      {r.message && <p className="text-foreground text-sm mb-2">{r.message}</p>}
+                      <p className="text-muted-foreground text-xs mb-3">
+                        {r.contact_email && <>📧 {r.contact_email}  </>}
+                        {r.contact_phone && <>📞 {r.contact_phone}</>}
+                      </p>
+                      {r.status === "pending" && (
+                        <div className="space-y-2">
+                          <Textarea value={adminNote[r.id] || ""} onChange={(e) => setAdminNote(p => ({ ...p, [r.id]: e.target.value }))} placeholder="Internal note / deal details (optional)" className="bg-secondary border-border min-h-[60px]" />
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="gold" className="gap-1" onClick={() => handlePromoteToFeatured(r.artist_id, r.id)}>
+                              <Check className="w-3.5 h-3.5" /> Approve & Feature
+                            </Button>
+                            <Button size="sm" variant="outline" className="gap-1 border-destructive/50 text-destructive hover:bg-destructive/10" onClick={() => handleRejectFeatured(r.id)}>
+                              <X className="w-3.5 h-3.5" /> Reject
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                      {r.admin_notes && <p className="text-muted-foreground text-xs mt-2 italic">Note: {r.admin_notes}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="bg-card rounded-lg border border-border p-5 mb-8">
+              <h3 className="text-foreground font-medium mb-4">Currently Featured</h3>
+              {featuredArtists.length === 0 ? (
+                <p className="text-muted-foreground text-sm">No artists featured.</p>
+              ) : (
+                <div className="space-y-2">
+                  {featuredArtists.map((f: any) => (
+                    <div key={f.id} className="flex items-center gap-3 p-3 rounded-lg border border-border">
+                      <img src={f.artists?.avatar_url || "https://via.placeholder.com/40"} alt={f.artists?.name} className="w-9 h-9 rounded-full object-cover border border-gold/30" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-foreground text-sm font-medium truncate">{f.artists?.name}</p>
+                        <p className="text-muted-foreground text-xs">Priority {f.priority} · {f.active ? "Active" : "Paused"}</p>
+                      </div>
+                      <Button size="sm" variant="ghost" onClick={() => handleToggleFeatured(f.id, f.active)}>{f.active ? "Pause" : "Resume"}</Button>
+                      <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleRemoveFeatured(f.id, f.artist_id)}><Trash2 className="w-4 h-4" /></Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="bg-card rounded-lg border border-border p-5">
+              <h3 className="text-foreground font-medium mb-3">Manually Feature an Artist</h3>
+              <p className="text-muted-foreground text-xs mb-3">Pick from artists below to feature directly.</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-80 overflow-y-auto">
+                {dbArtists.map(a => (
+                  <div key={a.id} className="flex items-center gap-3 p-2 rounded border border-border">
+                    <img src={a.avatar_url || "https://via.placeholder.com/32"} alt={a.name} className="w-8 h-8 rounded-full object-cover" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-foreground text-sm truncate">{a.name}</p>
+                      <p className="text-muted-foreground text-xs truncate">{a.specialty}</p>
+                    </div>
+                    <Button size="sm" variant="gold" onClick={() => handlePromoteToFeatured(a.id)}>Feature</Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {activeTab === "settings" && (
           <div>
             <h2 className="font-heading text-2xl font-bold text-foreground mb-6">Settings</h2>
