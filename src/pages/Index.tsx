@@ -25,15 +25,26 @@ const prefetchHomeData = () => {
 };
 
 const Hero = () => (
-  <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
-    <div className="absolute inset-0">
-      <img src={heroBg} alt="" className="w-full h-full object-cover opacity-25" width={1920} height={1080} />
+  <section className="relative min-h-[92vh] flex items-center justify-center overflow-hidden">
+    {/* Multilayered gradient background — no photo */}
+    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_hsl(38_50%_15%/0.5),_transparent_60%),_radial-gradient(ellipse_at_bottom_right,_hsl(38_45%_25%/0.35),_transparent_55%),_linear-gradient(180deg,_hsl(240_10%_4%),_hsl(240_8%_6%))]" />
+    {/* Animated gold orbs */}
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      <div className="absolute top-[15%] left-[10%] w-[420px] h-[420px] rounded-full bg-gold/15 blur-[140px] animate-pulse" style={{ animationDuration: "8s" }} />
+      <div className="absolute bottom-[10%] right-[8%] w-[360px] h-[360px] rounded-full bg-gold/10 blur-[120px] animate-pulse" style={{ animationDuration: "10s", animationDelay: "1s" }} />
+      <div className="absolute top-[55%] left-[55%] w-[280px] h-[280px] rounded-full bg-amber-500/5 blur-[100px]" />
     </div>
-    <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-background/80 to-background" />
-    <div className="absolute inset-0 opacity-10">
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-gold/20 blur-[120px]" />
-      <div className="absolute bottom-1/4 right-1/4 w-72 h-72 rounded-full bg-gold/10 blur-[100px]" />
-    </div>
+    {/* Subtle grain / line pattern */}
+    <div
+      className="absolute inset-0 opacity-[0.07] mix-blend-overlay pointer-events-none"
+      style={{
+        backgroundImage:
+          "repeating-linear-gradient(45deg, hsl(var(--gold)) 0 1px, transparent 1px 14px), repeating-linear-gradient(-45deg, hsl(var(--gold)) 0 1px, transparent 1px 14px)",
+      }}
+    />
+    {/* Vignette */}
+    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
+
     <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
       <img
         src={logo}
