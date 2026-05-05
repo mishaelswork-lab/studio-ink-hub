@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { CalendarDays, ImagePlus, DollarSign, Clock, Check, X, LogOut, Film, Upload, Link2, Instagram, IndianRupee, MessageSquare, Award, Plus, Trash2 } from "lucide-react";
+import { CalendarDays, ImagePlus, DollarSign, Clock, Check, X, LogOut, Film, Upload, Link2, Instagram, IndianRupee, MessageSquare, Award, Plus, Trash2, Sparkles } from "lucide-react";
+import { FeaturedBoostCard } from "@/components/FeaturedBoostCard";
 import { Button } from "@/components/ui/button";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -15,6 +16,7 @@ const tabs = [
   { id: "reels", label: "Reels", icon: Film },
   { id: "certifications", label: "Certs", icon: Award },
   { id: "consultations", label: "Chats", icon: MessageSquare },
+  { id: "boost", label: "Get Featured", icon: Sparkles },
   { id: "availability", label: "Hours", icon: Clock },
   { id: "earnings", label: "Earnings", icon: DollarSign },
 ] as const;
@@ -422,6 +424,14 @@ const ArtistDashboard = () => {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {activeTab === "boost" && artistProfile && (
+          <div className="max-w-2xl">
+            <h2 className="font-heading text-2xl font-bold text-foreground mb-2">Get Featured</h2>
+            <p className="text-muted-foreground text-sm mb-6">Stand out — get displayed above regular results in your area.</p>
+            <FeaturedBoostCard artistId={artistProfile.id} />
           </div>
         )}
 
