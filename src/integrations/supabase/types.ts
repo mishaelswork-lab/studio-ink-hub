@@ -324,6 +324,72 @@ export type Database = {
         }
         Relationships: []
       }
+      featured_artists: {
+        Row: {
+          active: boolean
+          artist_id: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          priority: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          artist_id: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          priority?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          artist_id?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          priority?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      featured_requests: {
+        Row: {
+          admin_notes: string | null
+          artist_id: string
+          contact_email: string | null
+          contact_phone: string | null
+          created_at: string
+          id: string
+          message: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          artist_id: string
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          id?: string
+          message?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          artist_id?: string
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          id?: string
+          message?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       memberships: {
         Row: {
           amount: number
