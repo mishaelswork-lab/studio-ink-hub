@@ -4,7 +4,6 @@ import { MapPin, Star, Users, Play } from "lucide-react";
 import { studios, artists } from "@/data/mockData";
 import { reels } from "@/data/mockReels";
 import { Button } from "@/components/ui/button";
-import heroBg from "@/assets/hero-bg.jpg";
 import logo from "@/assets/artspace-logo.jpg";
 import { Navbar } from "@/components/layout/Navbar";
 import { SEO } from "@/lib/seo";
