@@ -1,7 +1,8 @@
 import { useRef, useState } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Upload, Loader2, Image as ImageIcon, X } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Sparkles, Upload, Loader2, Image as ImageIcon, X, RotateCw, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { SEO } from "@/lib/seo";
@@ -25,6 +26,7 @@ const AIConsultant = () => {
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleFile = (file: File) => {
@@ -47,16 +49,24 @@ const AIConsultant = () => {
     }
     setLoading(true);
     setSuggestions([]);
+    setError(null);
     try {
-      const { data, error } = await supabase.functions.invoke("tattoo-suggest", {
+      const invokePromise = supabase.functions.invoke("tattoo-suggest", {
         body: { imageBase64, bodyArea, notes },
       });
-      if (error) throw error;
+      const timeoutPromise = new Promise<any>((_, reject) =>
+        setTimeout(() => reject(new Error("Taking too long — please retry.")), 30000)
+      );
+      const { data, error: fnErr } = (await Promise.race([invokePromise, timeoutPromise])) as any;
+      if (fnErr) throw fnErr;
       if (data?.error) throw new Error(data.error);
-      setSuggestions(data?.suggestions || []);
-      if (!data?.suggestions?.length) toast.error("No suggestions returned, try again");
+      const list: Suggestion[] = data?.suggestions || [];
+      setSuggestions(list);
+      if (!list.length) setError("No suggestions returned. Try a different photo or area.");
     } catch (e: any) {
-      toast.error(e.message || "Failed to get suggestions");
+      const msg = e?.message || "Failed to get suggestions";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
