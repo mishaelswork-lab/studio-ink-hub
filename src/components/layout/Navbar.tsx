@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Menu, X, Home, Compass, User, LayoutDashboard, LogIn } from "lucide-react";
+import { Menu, X, Home, Compass, User, LayoutDashboard, LogIn, MessageSquare } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,6 +16,7 @@ export const Navbar = () => {
   const links = [
     { to: "/", label: "Home", icon: Home },
     { to: "/discover", label: "Discover", icon: Compass },
+    { to: isArtist ? "/artist-chats" : "/chats", label: "Chats", icon: MessageSquare },
   ];
 
   const isActive = (path: string) => location.pathname === path;
