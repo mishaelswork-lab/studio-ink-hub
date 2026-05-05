@@ -1,16 +1,33 @@
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { MapPin, Star, Users, Play } from "lucide-react";
 import { studios, artists } from "@/data/mockData";
 import { reels } from "@/data/mockReels";
 import { Button } from "@/components/ui/button";
 import heroBg from "@/assets/hero-bg.jpg";
+import logo from "@/assets/artspace-logo.jpg";
 import { Navbar } from "@/components/layout/Navbar";
 import { SEO } from "@/lib/seo";
+import { supabase } from "@/integrations/supabase/client";
+
+// Warm caches so navigating into Discover/Profile/Artist feels instant.
+const prefetchHomeData = () => {
+  // Fire-and-forget; results sit in the HTTP cache + supabase JS internal cache.
+  supabase.from("artists").select("id,name,avatar_url,studio_name,specialty,hourly_rate,rating,available,portfolio_images").limit(20);
+  supabase.from("reels").select("id,artist_id,video_url,thumbnail_url,caption,likes,views").eq("moderation_status", "approved").order("created_at", { ascending: false }).limit(20);
+  supabase.from("daily_designs").select("id,image_url,thumb_url,description").order("fetched_at", { ascending: false }).limit(30);
+  supabase.auth.getSession().then(({ data }) => {
+    if (data.session?.user) {
+      supabase.from("profiles").select("*").eq("user_id", data.session.user.id).maybeSingle();
+      supabase.from("favorites").select("*").eq("user_id", data.session.user.id);
+    }
+  });
+};
 
 const Hero = () => (
   <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
     <div className="absolute inset-0">
-      <img src={heroBg} alt="" className="w-full h-full object-cover opacity-30" width={1920} height={1080} />
+      <img src={heroBg} alt="" className="w-full h-full object-cover opacity-25" width={1920} height={1080} />
     </div>
     <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-background/80 to-background" />
     <div className="absolute inset-0 opacity-10">
@@ -18,20 +35,30 @@ const Hero = () => (
       <div className="absolute bottom-1/4 right-1/4 w-72 h-72 rounded-full bg-gold/10 blur-[100px]" />
     </div>
     <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
-      <p className="text-gold font-body text-sm tracking-[0.3em] uppercase mb-6 animate-fade-in">Premium Art Experiences</p>
-      <h1 className="font-heading text-5xl md:text-7xl lg:text-8xl font-bold mb-6 animate-fade-in" style={{ animationDelay: "0.1s" }}>
-        <span className="text-foreground">Art</span>
-        <span className="text-gradient-gold">Space</span>
+      <img
+        src={logo}
+        alt="ArtSpace logo"
+        className="w-28 h-28 md:w-36 md:h-36 mx-auto mb-6 rounded-full object-cover ring-1 ring-gold/40 shadow-[var(--shadow-gold)] animate-fade-in"
+        width={144}
+        height={144}
+      />
+      <p className="text-gold font-body text-sm tracking-[0.3em] uppercase mb-4 animate-fade-in">Premium Art Experiences</p>
+      <h1 className="font-heading text-5xl md:text-7xl lg:text-8xl font-bold mb-4 tracking-wider animate-fade-in" style={{ animationDelay: "0.1s" }}>
+        <span className="text-foreground">ART</span>
+        <span className="text-gradient-gold">SPACE</span>
       </h1>
-      <p className="text-muted-foreground text-lg md:text-xl max-w-2xl mx-auto mb-10 animate-fade-in" style={{ animationDelay: "0.2s" }}>
+      <p className="font-heading italic text-gold/90 text-lg md:text-xl mb-3 animate-fade-in" style={{ animationDelay: "0.15s" }}>
+        A space for your "Let's do it" moment
+      </p>
+      <p className="text-muted-foreground text-base md:text-lg max-w-2xl mx-auto mb-10 animate-fade-in" style={{ animationDelay: "0.2s" }}>
         Discover India's finest artists. Book your next masterpiece with confidence.
       </p>
       <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in" style={{ animationDelay: "0.3s" }}>
         <a href="#studios">
           <Button variant="gold" size="xl">Explore Studios</Button>
         </a>
-        <Link to="/discover">
-          <Button variant="gold-outline" size="xl">Watch Artist Reels</Button>
+        <Link to="/ai-consultant">
+          <Button variant="gold-outline" size="xl">Try AI Tattoo Match</Button>
         </Link>
       </div>
     </div>
@@ -190,7 +217,9 @@ const DiscoverReels = () => (
   </section>
 );
 
-const Index = () => (
+const Index = () => {
+  useEffect(() => { prefetchHomeData(); }, []);
+  return (
   <div className="min-h-screen bg-background">
     <SEO
       title="ArtSpace — Premium Art & Tattoo Experiences in India"
@@ -212,6 +241,7 @@ const Index = () => (
       <p className="text-muted-foreground text-sm">© 2026 ArtSpace. All rights reserved.</p>
     </footer>
   </div>
-);
+  );
+};
 
 export default Index;

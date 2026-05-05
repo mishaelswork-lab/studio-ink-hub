@@ -15,7 +15,7 @@
     --popover: 240 8% 8%;
     --popover-foreground: 40 20% 90%;
 
-    --primary: 38 45% 60%;
+    --primary: 38 50% 54%;
     --primary-foreground: 240 10% 4%;
 
     --secondary: 240 6% 14%;
@@ -24,7 +24,7 @@
     --muted: 240 6% 14%;
     --muted-foreground: 240 5% 50%;
 
-    --accent: 38 45% 60%;
+    --accent: 38 50% 54%;
     --accent-foreground: 240 10% 4%;
 
     --destructive: 0 62% 50%;
@@ -32,20 +32,20 @@
 
     --border: 240 6% 18%;
     --input: 240 6% 18%;
-    --ring: 38 45% 60%;
+    --ring: 38 50% 54%;
 
     --radius: 0.5rem;
 
-    --gold: 38 45% 60%;
-    --gold-light: 38 55% 75%;
-    --gold-dark: 38 40% 40%;
+    --gold: 38 50% 54%;
+    --gold-light: 38 60% 70%;
+    --gold-dark: 38 45% 35%;
     --surface: 240 8% 8%;
     --surface-hover: 240 7% 12%;
     --surface-elevated: 240 7% 10%;
 
-    --gradient-gold: linear-gradient(135deg, hsl(38 55% 75%), hsl(38 45% 60%), hsl(38 40% 40%));
+    --gradient-gold: linear-gradient(135deg, hsl(38 60% 70%), hsl(38 50% 54%), hsl(38 45% 35%));
     --gradient-dark: linear-gradient(180deg, hsl(240 10% 4%), hsl(240 8% 8%));
-    --shadow-gold: 0 4px 30px -5px hsl(38 45% 60% / 0.2);
+    --shadow-gold: 0 4px 30px -5px hsl(38 50% 54% / 0.25);
     --shadow-elevated: 0 8px 40px -10px hsl(0 0% 0% / 0.5);
 
     --sidebar-background: 240 8% 6%;
@@ -75,7 +75,7 @@
 
 @layer utilities {
   .text-gradient-gold {
-    background: linear-gradient(135deg, hsl(38 55% 75%), hsl(38 45% 60%), hsl(38 40% 40%));
+    background: linear-gradient(135deg, hsl(38 60% 70%), hsl(38 50% 54%), hsl(38 45% 35%));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
