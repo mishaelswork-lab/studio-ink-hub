@@ -1,7 +1,8 @@
 import { useRef, useState } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Upload, Loader2, Image as ImageIcon, X } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Sparkles, Upload, Loader2, Image as ImageIcon, X, RotateCw, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { SEO } from "@/lib/seo";
@@ -25,6 +26,7 @@ const AIConsultant = () => {
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleFile = (file: File) => {
@@ -47,16 +49,24 @@ const AIConsultant = () => {
     }
     setLoading(true);
     setSuggestions([]);
+    setError(null);
     try {
-      const { data, error } = await supabase.functions.invoke("tattoo-suggest", {
+      const invokePromise = supabase.functions.invoke("tattoo-suggest", {
         body: { imageBase64, bodyArea, notes },
       });
-      if (error) throw error;
+      const timeoutPromise = new Promise<any>((_, reject) =>
+        setTimeout(() => reject(new Error("Taking too long — please retry.")), 30000)
+      );
+      const { data, error: fnErr } = (await Promise.race([invokePromise, timeoutPromise])) as any;
+      if (fnErr) throw fnErr;
       if (data?.error) throw new Error(data.error);
-      setSuggestions(data?.suggestions || []);
-      if (!data?.suggestions?.length) toast.error("No suggestions returned, try again");
+      const list: Suggestion[] = data?.suggestions || [];
+      setSuggestions(list);
+      if (!list.length) setError("No suggestions returned. Try a different photo or area.");
     } catch (e: any) {
-      toast.error(e.message || "Failed to get suggestions");
+      const msg = e?.message || "Failed to get suggestions";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -129,8 +139,39 @@ const AIConsultant = () => {
           </Button>
         </div>
 
+        {/* Loading skeletons */}
+        {loading && (
+          <div className="mt-10">
+            <h2 className="font-heading text-2xl font-bold mb-5">Generating 10 designs…</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="bg-card border border-border rounded-xl overflow-hidden">
+                  <Skeleton className="aspect-square w-full" />
+                  <div className="p-4 space-y-2">
+                    <Skeleton className="h-4 w-2/3" />
+                    <Skeleton className="h-3 w-1/2" />
+                    <Skeleton className="h-3 w-full" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Error + retry */}
+        {!loading && error && (
+          <div className="mt-10 bg-destructive/5 border border-destructive/30 rounded-xl p-6 text-center">
+            <AlertCircle className="w-8 h-8 text-destructive mx-auto mb-2" />
+            <p className="text-foreground font-medium mb-1">Something went wrong</p>
+            <p className="text-muted-foreground text-sm mb-4">{error}</p>
+            <Button variant="gold" onClick={handleSubmit} className="gap-2">
+              <RotateCw className="w-4 h-4" /> Retry
+            </Button>
+          </div>
+        )}
+
         {/* Results */}
-        {suggestions.length > 0 && (
+        {!loading && suggestions.length > 0 && (
           <div className="mt-10">
             <h2 className="font-heading text-2xl font-bold mb-5">Your 10 Designs</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
