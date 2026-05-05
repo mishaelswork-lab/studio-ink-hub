@@ -1,6 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { MapPin, Star, Users, Play } from "lucide-react";
+import { MapPin, Star, Users, Play, Sparkles } from "lucide-react";
 import { studios, artists } from "@/data/mockData";
 import { reels } from "@/data/mockReels";
 import { Button } from "@/components/ui/button";
@@ -75,6 +75,39 @@ const Hero = () => (
   </section>
 );
 
+const FeaturedStrip = () => {
+  const [items, setItems] = useState<any[]>([]);
+  useEffect(() => {
+    supabase.from("featured_artists")
+      .select("id,priority,artists(id,name,avatar_url,specialty)")
+      .eq("active", true).order("priority", { ascending: false }).limit(6)
+      .then(({ data }) => setItems((data || []).filter((d: any) => d.artists)));
+  }, []);
+  if (items.length === 0) return null;
+  return (
+    <div className="mb-10">
+      <div className="flex items-center gap-2 mb-4">
+        <Sparkles className="w-4 h-4 text-gold" />
+        <h3 className="font-heading text-lg font-semibold text-foreground">Featured Artists</h3>
+      </div>
+      <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+        {items.map((f: any) => (
+          <Link key={f.id} to={`/artist/${f.artists.id}`} className="flex-shrink-0 w-56 bg-gradient-to-br from-gold/10 to-card border border-gold/30 rounded-xl p-4 hover:border-gold/50 transition-colors">
+            <div className="flex items-center gap-3 mb-2">
+              <img src={f.artists.avatar_url || "https://via.placeholder.com/40"} alt={f.artists.name} className="w-10 h-10 rounded-full object-cover border border-gold/30" />
+              <div className="min-w-0">
+                <p className="text-foreground text-sm font-medium truncate">{f.artists.name}</p>
+                <p className="text-gold text-xs truncate">{f.artists.specialty}</p>
+              </div>
+            </div>
+            <span className="text-[10px] uppercase tracking-wider text-gold">Featured</span>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const StudiosSection = () => (
   <section id="studios" className="py-20 px-4 scroll-mt-20">
     <div className="max-w-7xl mx-auto">
@@ -83,6 +116,7 @@ const StudiosSection = () => (
         <h2 className="font-heading text-3xl md:text-4xl font-bold text-foreground">Tattoo Studios</h2>
         <p className="text-muted-foreground text-sm mt-2">Discover premium tattoo studios across the city</p>
       </div>
+      <FeaturedStrip />
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {studios.map(studio => {
           const studioArtists = artists.filter(a => a.studioId === studio.id);
