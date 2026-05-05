@@ -1,173 +1,162 @@
-import { useState, useRef, useEffect } from "react";
+import { useRef, useState } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Send, Loader2 } from "lucide-react";
-import ReactMarkdown from "react-markdown";
+import { Sparkles, Upload, Loader2, Image as ImageIcon, X } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { SEO } from "@/lib/seo";
 
-interface Message {
-  role: "user" | "assistant";
-  content: string;
+interface Suggestion {
+  title: string;
+  style: string;
+  description: string;
+  placement: string;
+  size: string;
+  keyword: string;
+  image?: string;
 }
 
-const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
-
-async function streamChat({
-  messages,
-  onDelta,
-  onDone,
-  onError,
-}: {
-  messages: Message[];
-  onDelta: (text: string) => void;
-  onDone: () => void;
-  onError: (err: string) => void;
-}) {
-  const resp = await fetch(CHAT_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-    },
-    body: JSON.stringify({ messages }),
-  });
-
-  if (!resp.ok || !resp.body) {
-    if (resp.status === 429) { onError("Rate limited — please wait a moment."); return; }
-    onError("Failed to connect to AI. Please try again."); return;
-  }
-
-  const reader = resp.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-
-    let idx: number;
-    while ((idx = buffer.indexOf("\n")) !== -1) {
-      let line = buffer.slice(0, idx);
-      buffer = buffer.slice(idx + 1);
-      if (line.endsWith("\r")) line = line.slice(0, -1);
-      if (!line.startsWith("data: ")) continue;
-      const json = line.slice(6).trim();
-      if (json === "[DONE]") { onDone(); return; }
-      try {
-        const parsed = JSON.parse(json);
-        const content = parsed.choices?.[0]?.delta?.content;
-        if (content) onDelta(content);
-      } catch { /* partial */ }
-    }
-  }
-  onDone();
-}
+const BODY_AREAS = ["Forearm", "Upper arm", "Shoulder", "Back", "Chest", "Ribs", "Thigh", "Calf", "Ankle", "Wrist", "Neck", "Hand"];
 
 const AIConsultant = () => {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "assistant",
-      content: "Welcome to the ArtSpace AI Style Consultant! ✨\n\nI can help you discover the perfect tattoo style based on your personality and preferences. Tell me:\n\n• What kind of aesthetic are you drawn to?\n• Is this your first tattoo?\n• Do you prefer bold or subtle designs?\n• Any specific themes or imagery you like?",
-    },
-  ]);
-  const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [imageBase64, setImageBase64] = useState<string | null>(null);
+  const [bodyArea, setBodyArea] = useState<string>("");
+  const [notes, setNotes] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages]);
-
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
-    const userMsg: Message = { role: "user", content: input.trim() };
-    setMessages((prev) => [...prev, userMsg]);
-    setInput("");
-    setIsLoading(true);
-
-    let assistantSoFar = "";
-    const upsert = (chunk: string) => {
-      assistantSoFar += chunk;
-      setMessages((prev) => {
-        const last = prev[prev.length - 1];
-        if (last?.role === "assistant" && prev.length > 1 && assistantSoFar.length > chunk.length) {
-          return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantSoFar } : m));
-        }
-        return [...prev, { role: "assistant", content: assistantSoFar }];
-      });
+  const handleFile = (file: File) => {
+    if (file.size > 8 * 1024 * 1024) { toast.error("Image too large (max 8MB)"); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const data = reader.result as string;
+      setPreview(data);
+      setImageBase64(data);
     };
+    reader.readAsDataURL(file);
+  };
 
+  const clearImage = () => { setPreview(null); setImageBase64(null); if (fileRef.current) fileRef.current.value = ""; };
+
+  const handleSubmit = async () => {
+    if (!imageBase64 && !bodyArea) {
+      toast.error("Upload a photo or pick a body area");
+      return;
+    }
+    setLoading(true);
+    setSuggestions([]);
     try {
-      await streamChat({
-        messages: [...messages, userMsg],
-        onDelta: upsert,
-        onDone: () => setIsLoading(false),
-        onError: (err) => {
-          setMessages((prev) => [...prev, { role: "assistant", content: err }]);
-          setIsLoading(false);
-        },
+      const { data, error } = await supabase.functions.invoke("tattoo-suggest", {
+        body: { imageBase64, bodyArea, notes },
       });
-    } catch {
-      setMessages((prev) => [...prev, { role: "assistant", content: "Something went wrong. Please try again." }]);
-      setIsLoading(false);
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setSuggestions(data?.suggestions || []);
+      if (!data?.suggestions?.length) toast.error("No suggestions returned, try again");
+    } catch (e: any) {
+      toast.error(e.message || "Failed to get suggestions");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background">
+      <SEO title="AI Tattoo Match — ArtSpace" description="Upload a photo of where you want a tattoo and get 10 design ideas instantly." />
       <Navbar />
-      <div className="flex-1 pt-20 pb-4 px-4 max-w-3xl mx-auto w-full flex flex-col">
-        <div className="text-center mb-6">
+      <div className="pt-24 pb-24 px-4 max-w-5xl mx-auto">
+        <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 text-gold mb-2">
             <Sparkles className="w-5 h-5" />
-            <span className="text-sm tracking-[0.2em] uppercase">AI Style Consultant</span>
+            <span className="text-sm tracking-[0.2em] uppercase">AI Tattoo Match</span>
           </div>
-          <h1 className="font-heading text-2xl font-bold text-foreground">Find Your Perfect Style</h1>
+          <h1 className="font-heading text-3xl md:text-4xl font-bold text-foreground">Find 10 designs for your spot</h1>
+          <p className="text-muted-foreground text-sm mt-2">Upload a photo of the area or pick a body part — we'll suggest 10 tattoos that work.</p>
         </div>
 
-        <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-4 mb-4">
-          {messages.map((msg, i) => (
-            <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-              <div
-                className={`max-w-[80%] rounded-lg px-4 py-3 text-sm ${
-                  msg.role === "user"
-                    ? "bg-gold/20 text-foreground border border-gold/20"
-                    : "bg-card text-foreground border border-border"
-                }`}
+        <div className="bg-card border border-border rounded-xl p-5 md:p-6 space-y-5">
+          {/* Upload */}
+          <div>
+            <label className="text-xs uppercase tracking-wider text-muted-foreground mb-2 block">Photo of your skin / body area</label>
+            {preview ? (
+              <div className="relative inline-block">
+                <img src={preview} alt="Preview" className="max-h-60 rounded-lg border border-border" />
+                <button onClick={clearImage} className="absolute -top-2 -right-2 bg-background border border-border rounded-full p-1">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => fileRef.current?.click()}
+                className="w-full border-2 border-dashed border-border rounded-lg py-10 flex flex-col items-center gap-2 hover:border-gold/40 transition-colors"
               >
-                {msg.role === "assistant" ? (
-                  <div className="prose prose-sm prose-invert max-w-none">
-                    <ReactMarkdown>{msg.content}</ReactMarkdown>
-                  </div>
-                ) : (
-                  <span className="whitespace-pre-wrap">{msg.content}</span>
-                )}
-              </div>
-            </div>
-          ))}
-          {isLoading && messages[messages.length - 1]?.role === "user" && (
-            <div className="flex justify-start">
-              <div className="bg-card border border-border rounded-lg px-4 py-3">
-                <Loader2 className="w-4 h-4 animate-spin text-gold" />
-              </div>
-            </div>
-          )}
-        </div>
+                <Upload className="w-6 h-6 text-gold" />
+                <span className="text-sm text-foreground">Click to upload a photo</span>
+                <span className="text-xs text-muted-foreground">JPG/PNG up to 8MB</span>
+              </button>
+            )}
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
+          </div>
 
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSend()}
-            placeholder="Describe your style preferences..."
-            disabled={isLoading}
-            className="flex-1 h-12 px-4 rounded-lg bg-card border border-border text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-gold placeholder:text-muted-foreground disabled:opacity-50"
-          />
-          <Button variant="gold" size="icon" className="h-12 w-12" onClick={handleSend} disabled={isLoading}>
-            {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+          {/* Body area picker */}
+          <div>
+            <label className="text-xs uppercase tracking-wider text-muted-foreground mb-2 block">Or pick a body area</label>
+            <div className="flex flex-wrap gap-2">
+              {BODY_AREAS.map(a => (
+                <button
+                  key={a}
+                  onClick={() => setBodyArea(bodyArea === a ? "" : a)}
+                  className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${bodyArea === a ? "bg-gold text-background border-gold" : "border-border text-muted-foreground hover:text-foreground hover:border-gold/40"}`}
+                >{a}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label className="text-xs uppercase tracking-wider text-muted-foreground mb-2 block">Style or theme (optional)</label>
+            <input
+              value={notes} onChange={(e) => setNotes(e.target.value)}
+              placeholder="e.g. minimal, mythological, floral, geometric…"
+              className="w-full h-11 px-4 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-gold"
+            />
+          </div>
+
+          <Button variant="gold" size="lg" className="w-full" onClick={handleSubmit} disabled={loading}>
+            {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Generating 10 ideas…</> : <>Get 10 tattoo ideas</>}
           </Button>
         </div>
+
+        {/* Results */}
+        {suggestions.length > 0 && (
+          <div className="mt-10">
+            <h2 className="font-heading text-2xl font-bold mb-5">Your 10 Designs</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {suggestions.map((s, i) => (
+                <div key={i} className="bg-card border border-border rounded-xl overflow-hidden hover:border-gold/30 transition-colors">
+                  <div className="aspect-square bg-secondary flex items-center justify-center overflow-hidden">
+                    {s.image ? (
+                      <img src={s.image} alt={s.title} loading="lazy" className="w-full h-full object-cover" />
+                    ) : (
+                      <ImageIcon className="w-10 h-10 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="p-4 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="font-heading font-semibold text-foreground leading-tight">{s.title}</h3>
+                      <span className="text-[10px] uppercase tracking-wider text-gold whitespace-nowrap">#{i + 1}</span>
+                    </div>
+                    <p className="text-gold text-xs">{s.style} • {s.size}</p>
+                    <p className="text-muted-foreground text-xs leading-relaxed line-clamp-3">{s.description}</p>
+                    <p className="text-muted-foreground text-[11px] italic">Placement: {s.placement}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
