@@ -1,35 +1,69 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Sparkles, MessageSquare, Loader2 } from "lucide-react";
+import { Sparkles, MessageSquare, Loader2, RefreshCw } from "lucide-react";
 import { Navbar } from "@/components/layout/Navbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { SEO } from "@/lib/seo";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+
+const PAGE = 15;
 
 const ChatsPage = () => {
   const { user } = useAuth();
   const [chats, setChats] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const pageRef = useRef(0);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  const fetchPage = useCallback(async (reset = false) => {
     if (!user) { setLoading(false); return; }
-    (async () => {
-      const { data: cs } = await supabase
+    const from = reset ? 0 : pageRef.current * PAGE;
+    const to = from + PAGE - 1;
+    if (reset) { setLoading(true); setError(null); pageRef.current = 0; }
+    else setLoadingMore(true);
+
+    try {
+      const { data: cs, error: e1 } = await supabase
         .from("consultations")
         .select("*")
         .eq("customer_id", user.id)
-        .order("updated_at", { ascending: false });
+        .order("updated_at", { ascending: false })
+        .range(from, to);
+      if (e1) throw e1;
       const list = cs || [];
-      // hydrate artist info
       const artistUserIds = Array.from(new Set(list.map((c: any) => c.artist_id))).filter(Boolean);
       const { data: artists } = artistUserIds.length
         ? await supabase.from("artists").select("user_id,name,avatar_url,specialty").in("user_id", artistUserIds)
         : { data: [] as any[] };
       const byUser = new Map((artists || []).map((a: any) => [a.user_id, a]));
-      setChats(list.map((c: any) => ({ ...c, artist: byUser.get(c.artist_id) })));
+      const hydrated = list.map((c: any) => ({ ...c, artist: byUser.get(c.artist_id) }));
+      setChats(prev => reset ? hydrated : [...prev, ...hydrated]);
+      setHasMore(list.length === PAGE);
+      pageRef.current += 1;
+    } catch (err: any) {
+      setError(err?.message || "Could not load chats");
+    } finally {
       setLoading(false);
-    })();
+      setLoadingMore(false);
+    }
   }, [user]);
+
+  useEffect(() => { fetchPage(true); }, [fetchPage]);
+
+  // Infinite scroll observer
+  useEffect(() => {
+    if (!sentinelRef.current || !hasMore || loading) return;
+    const obs = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && !loadingMore) fetchPage(false);
+    }, { rootMargin: "200px" });
+    obs.observe(sentinelRef.current);
+    return () => obs.disconnect();
+  }, [hasMore, loading, loadingMore, fetchPage]);
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -61,7 +95,24 @@ const ChatsPage = () => {
         </div>
 
         {loading ? (
-          <div className="py-10 flex justify-center"><Loader2 className="w-5 h-5 animate-spin text-gold" /></div>
+          <div className="space-y-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="bg-card border border-border rounded-lg p-4 flex items-center gap-3">
+                <Skeleton className="w-11 h-11 rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-3 w-1/3" />
+                  <Skeleton className="h-3 w-2/3" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : error ? (
+          <div className="bg-card border border-border rounded-xl p-6 text-center">
+            <p className="text-muted-foreground text-sm mb-3">{error}</p>
+            <Button variant="gold-outline" size="sm" onClick={() => fetchPage(true)}>
+              <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Retry
+            </Button>
+          </div>
         ) : chats.length === 0 ? (
           <div className="bg-card border border-border rounded-xl p-8 text-center">
             <p className="text-muted-foreground text-sm">No artist chats yet.</p>
@@ -79,6 +130,10 @@ const ChatsPage = () => {
                 <span className={`text-[10px] px-2 py-0.5 rounded-full ${c.status === "active" ? "bg-emerald-500/10 text-emerald-400" : c.status === "pending" ? "bg-gold/10 text-gold" : "bg-primary/10 text-primary"}`}>{c.status}</span>
               </Link>
             ))}
+            <div ref={sentinelRef} className="py-4 flex justify-center">
+              {loadingMore && <Loader2 className="w-4 h-4 animate-spin text-gold" />}
+              {!hasMore && chats.length > 0 && <span className="text-muted-foreground text-xs">— end —</span>}
+            </div>
           </div>
         )}
       </div>
