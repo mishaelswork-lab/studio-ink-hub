@@ -30,11 +30,8 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
 
-const PageFallback = () => (
-  <div className="min-h-screen bg-background flex items-center justify-center">
-    <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
-  </div>
-);
+import { QuotesLoader } from "@/components/QuotesLoader";
+const PageFallback = () => <QuotesLoader fullScreen />;
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
