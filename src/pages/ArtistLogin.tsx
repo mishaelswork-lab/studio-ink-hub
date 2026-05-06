@@ -18,16 +18,15 @@ const ArtistLogin = () => {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
 
-      // Check artist role
-      const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", data.user.id).eq("role", "artist");
-      if (!roles?.length) {
-        await supabase.auth.signOut();
-        toast.error("This account is not registered as an artist.");
-        return;
-      }
-
+      const rolePromise = supabase.from("user_roles").select("role").eq("user_id", data.user.id).eq("role", "artist").maybeSingle();
       toast.success("Welcome back, artist!");
       navigate("/artist-dashboard");
+      const { data: role } = await rolePromise;
+      if (!role) {
+        await supabase.auth.signOut();
+        toast.error("This account is not registered as an artist.");
+        navigate("/artist-login");
+      }
     } catch (error: any) {
       toast.error(error.message || "Login failed");
     } finally {
