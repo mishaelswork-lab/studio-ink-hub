@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { MapPin, Star, Users, Play, Sparkles } from "lucide-react";
+import { MapPin, Star, Users, Play, Sparkles, Sparkle } from "lucide-react";
 import { studios, artists } from "@/data/mockData";
 import { reels } from "@/data/mockReels";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import logo from "@/assets/artspace-logo.jpg";
 import { Navbar } from "@/components/layout/Navbar";
 import { SEO } from "@/lib/seo";
 import { supabase } from "@/integrations/supabase/client";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 
 // Warm caches so navigating into Discover/Profile/Artist feels instant.
 const prefetchHomeData = () => {
