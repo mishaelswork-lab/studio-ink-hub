@@ -24,47 +24,69 @@ const prefetchHomeData = () => {
   });
 };
 
-const Hero = () => (
+const Hero = () => {
+  const [reduced, setReduced] = useReducedMotion();
+  return (
   <section className="relative min-h-[92vh] flex items-center justify-center overflow-hidden">
-    {/* Multilayered gradient background — no photo */}
-    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_hsl(38_50%_15%/0.5),_transparent_60%),_radial-gradient(ellipse_at_bottom_right,_hsl(38_45%_25%/0.35),_transparent_55%),_linear-gradient(180deg,_hsl(240_10%_4%),_hsl(240_8%_6%))]" />
-    {/* Animated gold orbs */}
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      <div className="absolute top-[15%] left-[10%] w-[420px] h-[420px] rounded-full bg-gold/15 blur-[140px] animate-pulse" style={{ animationDuration: "8s" }} />
-      <div className="absolute bottom-[10%] right-[8%] w-[360px] h-[360px] rounded-full bg-gold/10 blur-[120px] animate-pulse" style={{ animationDuration: "10s", animationDelay: "1s" }} />
-      <div className="absolute top-[55%] left-[55%] w-[280px] h-[280px] rounded-full bg-amber-500/5 blur-[100px]" />
-    </div>
-    {/* Subtle grain / line pattern */}
+    {/* Refined deep gradient backdrop */}
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,_hsl(38_55%_22%/0.45),_transparent_55%),_radial-gradient(circle_at_75%_80%,_hsl(38_45%_18%/0.4),_transparent_55%),_linear-gradient(180deg,_hsl(240_10%_4%),_hsl(240_8%_6%))]" />
+
+    {/* Animated orbs — disabled when reduced */}
+    {!reduced && (
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-[12%] left-[8%] w-[460px] h-[460px] rounded-full bg-gold/12 blur-[150px] animate-pulse" style={{ animationDuration: "9s" }} />
+        <div className="absolute bottom-[8%] right-[6%] w-[380px] h-[380px] rounded-full bg-gold/10 blur-[130px] animate-pulse" style={{ animationDuration: "11s", animationDelay: "1s" }} />
+        <div className="absolute top-[55%] left-[55%] w-[300px] h-[300px] rounded-full bg-amber-500/6 blur-[110px]" />
+      </div>
+    )}
+    {reduced && (
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-[15%] left-[10%] w-[420px] h-[420px] rounded-full bg-gold/8 blur-[140px]" />
+        <div className="absolute bottom-[10%] right-[8%] w-[360px] h-[360px] rounded-full bg-gold/6 blur-[120px]" />
+      </div>
+    )}
+
+    {/* Subtle crosshatch */}
     <div
-      className="absolute inset-0 opacity-[0.07] mix-blend-overlay pointer-events-none"
+      className="absolute inset-0 opacity-[0.06] mix-blend-overlay pointer-events-none"
       style={{
         backgroundImage:
           "repeating-linear-gradient(45deg, hsl(var(--gold)) 0 1px, transparent 1px 14px), repeating-linear-gradient(-45deg, hsl(var(--gold)) 0 1px, transparent 1px 14px)",
       }}
     />
-    {/* Vignette */}
     <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
+
+    {/* Reduced-motion toggle */}
+    <button
+      onClick={() => setReduced(!reduced)}
+      aria-pressed={reduced}
+      title={reduced ? "Enable animations" : "Reduce motion"}
+      className="absolute top-24 right-4 z-20 flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-gold/80 hover:text-gold border border-gold/30 hover:border-gold/60 bg-background/40 backdrop-blur-md rounded-full px-3 py-1.5 transition-colors"
+    >
+      <Sparkle className={`w-3 h-3 ${reduced ? "" : "animate-pulse"}`} />
+      {reduced ? "Calm mode" : "Reduce motion"}
+    </button>
 
     <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
       <img
         src={logo}
         alt="ArtSpace logo"
-        className="w-28 h-28 md:w-36 md:h-36 mx-auto mb-6 rounded-full object-cover ring-1 ring-gold/40 shadow-[var(--shadow-gold)] animate-fade-in"
+        className={`w-28 h-28 md:w-36 md:h-36 mx-auto mb-6 rounded-full object-cover ring-1 ring-gold/40 shadow-[var(--shadow-gold)] ${reduced ? "" : "animate-fade-in"}`}
         width={144}
         height={144}
       />
-      <p className="text-gold font-body text-sm tracking-[0.3em] uppercase mb-4 animate-fade-in">Premium Art Experiences</p>
-      <h1 className="font-heading text-5xl md:text-7xl lg:text-8xl font-bold mb-4 tracking-wider animate-fade-in" style={{ animationDelay: "0.1s" }}>
+      <p className={`text-gold font-body text-sm tracking-[0.3em] uppercase mb-4 ${reduced ? "" : "animate-fade-in"}`}>Premium Art Experiences</p>
+      <h1 className={`font-heading text-5xl md:text-7xl lg:text-8xl font-bold mb-4 tracking-wider ${reduced ? "" : "animate-fade-in"}`} style={reduced ? undefined : { animationDelay: "0.1s" }}>
         <span className="text-foreground">ART</span>
         <span className="text-gradient-gold">SPACE</span>
       </h1>
-      <p className="font-heading italic text-gold/90 text-lg md:text-xl mb-3 animate-fade-in" style={{ animationDelay: "0.15s" }}>
+      <p className={`font-heading italic text-gold/90 text-lg md:text-xl mb-3 ${reduced ? "" : "animate-fade-in"}`} style={reduced ? undefined : { animationDelay: "0.15s" }}>
         A space for your "Let's do it" moment
       </p>
-      <p className="text-muted-foreground text-base md:text-lg max-w-2xl mx-auto mb-10 animate-fade-in" style={{ animationDelay: "0.2s" }}>
+      <p className={`text-muted-foreground text-base md:text-lg max-w-2xl mx-auto mb-10 ${reduced ? "" : "animate-fade-in"}`} style={reduced ? undefined : { animationDelay: "0.2s" }}>
         Discover India's finest artists. Book your next masterpiece with confidence.
       </p>
-      <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in" style={{ animationDelay: "0.3s" }}>
+      <div className={`flex flex-col sm:flex-row gap-4 justify-center ${reduced ? "" : "animate-fade-in"}`} style={reduced ? undefined : { animationDelay: "0.3s" }}>
         <a href="#studios">
           <Button variant="gold" size="xl">Explore Studios</Button>
         </a>
@@ -74,7 +96,8 @@ const Hero = () => (
       </div>
     </div>
   </section>
-);
+  );
+};
 
 const FeaturedStrip = () => {
   const [items, setItems] = useState<any[]>([]);
