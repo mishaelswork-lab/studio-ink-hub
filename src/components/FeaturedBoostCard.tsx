@@ -1,12 +1,30 @@
 import { useEffect, useState } from "react";
-import { Sparkles, Loader2, CheckCircle2 } from "lucide-react";
+import { Sparkles, Loader2, CheckCircle2, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+
+const BOOST_PRICE = 999; // ₹999 / 30-day featured slot (starter)
+
+declare global {
+  interface Window { Razorpay: any }
+}
+
+const loadRazorpay = () =>
+  new Promise<boolean>((resolve) => {
+    if (window.Razorpay) return resolve(true);
+    const s = document.createElement("script");
+    s.src = "https://checkout.razorpay.com/v1/checkout.js";
+    s.onload = () => resolve(true);
+    s.onerror = () => resolve(false);
+    document.body.appendChild(s);
+  });
 
 export const FeaturedBoostCard = ({ artistId }: { artistId: string }) => {
+  const { user } = useAuth();
   const [existing, setExisting] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -27,18 +45,83 @@ export const FeaturedBoostCard = ({ artistId }: { artistId: string }) => {
     })();
   }, [artistId]);
 
-  const submit = async () => {
-    setSubmitting(true);
+  const submitRequestRow = async (paid: boolean, paymentId?: string) => {
     const { data, error } = await supabase.from("featured_requests").insert({
       artist_id: artistId,
-      message: form.message.trim() || null,
+      message: [form.message.trim(), paid ? `[PAID via Razorpay: ${paymentId}]` : null].filter(Boolean).join(" — ") || null,
       contact_email: form.contact_email.trim() || null,
       contact_phone: form.contact_phone.trim() || null,
+      status: paid ? "paid" : "pending",
     }).select().single();
-    setSubmitting(false);
-    if (error) { toast.error("Could not submit request"); return; }
-    toast.success("Request sent! Our team will reach out for the best deal.");
-    setExisting(data);
+    if (error) throw error;
+    return data;
+  };
+
+  const submitFree = async () => {
+    setSubmitting(true);
+    try {
+      const data = await submitRequestRow(false);
+      toast.success("Request sent! Our team will reach out for the best deal.");
+      setExisting(data);
+    } catch {
+      toast.error("Could not submit request");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const submitPaid = async () => {
+    if (!user) { toast.error("Please sign in"); return; }
+    setSubmitting(true);
+    try {
+      const ok = await loadRazorpay();
+      if (!ok) throw new Error("Could not load checkout");
+
+      const { data: order, error } = await supabase.functions.invoke("create-razorpay-order", {
+        body: { amount: BOOST_PRICE, payment_type: "featured_boost" },
+      });
+      if (error || !order?.order_id) throw new Error("Order failed");
+
+      await new Promise<void>((resolve, reject) => {
+        const rzp = new window.Razorpay({
+          key: order.key_id,
+          amount: order.amount,
+          currency: order.currency,
+          name: "ArtSpace",
+          description: "Featured Artist Boost",
+          order_id: order.order_id,
+          prefill: { email: form.contact_email || user.email, contact: form.contact_phone || "" },
+          theme: { color: "#c7974a" },
+          handler: async (resp: any) => {
+            try {
+              await supabase.functions.invoke("verify-razorpay-payment", {
+                body: {
+                  razorpay_order_id: resp.razorpay_order_id,
+                  razorpay_payment_id: resp.razorpay_payment_id,
+                  razorpay_signature: resp.razorpay_signature,
+                  customer_id: user.id,
+                  amount: BOOST_PRICE,
+                  payment_type: "featured_boost",
+                },
+              });
+              const row = await submitRequestRow(true, resp.razorpay_payment_id);
+              setExisting(row);
+              toast.success("Payment received — boost request submitted!");
+              resolve();
+            } catch (e) {
+              toast.error("Payment captured, but request failed. Contact support.");
+              reject(e);
+            }
+          },
+          modal: { ondismiss: () => reject(new Error("cancelled")) },
+        });
+        rzp.open();
+      }).catch(() => {});
+    } catch (e: any) {
+      toast.error(e?.message || "Payment failed");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (loading) return <div className="py-6 flex justify-center"><Loader2 className="w-4 h-4 animate-spin text-gold" /></div>;
@@ -50,7 +133,7 @@ export const FeaturedBoostCard = ({ artistId }: { artistId: string }) => {
         <h3 className="font-heading text-foreground font-semibold">Get Featured</h3>
       </div>
       <p className="text-muted-foreground text-sm mb-4">
-        Appear above regular search results in your area. Contact our team for the best deal.
+        Appear above regular search results in your area for 30 days. Pay now to instantly submit, or request a custom deal.
       </p>
 
       {existing && existing.status !== "rejected" ? (
@@ -58,7 +141,7 @@ export const FeaturedBoostCard = ({ artistId }: { artistId: string }) => {
           <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
           <div className="flex-1">
             <p className="text-foreground text-sm font-medium">Request received — status: <span className="text-gold capitalize">{existing.status}</span></p>
-            <p className="text-muted-foreground text-xs mt-1">Our team will contact you shortly with custom pricing.</p>
+            <p className="text-muted-foreground text-xs mt-1">Our team will contact you shortly.</p>
             {existing.admin_notes && <p className="text-muted-foreground text-xs mt-2 italic">Note: {existing.admin_notes}</p>}
           </div>
         </div>
@@ -75,10 +158,14 @@ export const FeaturedBoostCard = ({ artistId }: { artistId: string }) => {
             <Input value={form.contact_email} onChange={e => setForm(p => ({ ...p, contact_email: e.target.value }))} placeholder="Email (optional)" className="bg-secondary border-border" />
             <Input value={form.contact_phone} onChange={e => setForm(p => ({ ...p, contact_phone: e.target.value }))} placeholder="Phone (optional)" className="bg-secondary border-border" />
           </div>
-          <Button variant="gold" className="w-full" onClick={submit} disabled={submitting}>
-            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Request a Featured Slot"}
+          <Button variant="gold" className="w-full gap-2" onClick={submitPaid} disabled={submitting}>
+            <Crown className="w-4 h-4" />
+            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : `Pay ₹${BOOST_PRICE} & Get Featured (30 days)`}
           </Button>
-          <p className="text-muted-foreground text-[11px] text-center">We'll contact you with the best deal.</p>
+          <Button variant="outline" className="w-full" onClick={submitFree} disabled={submitting}>
+            Or request a custom deal
+          </Button>
+          <p className="text-muted-foreground text-[11px] text-center">Secured by Razorpay. Approval typically within 24h.</p>
         </div>
       )}
     </div>

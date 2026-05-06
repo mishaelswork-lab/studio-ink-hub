@@ -18,15 +18,16 @@ const AdminLogin = () => {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
 
-      const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", data.user.id).eq("role", "admin");
-      if (!roles?.length) {
-        await supabase.auth.signOut();
-        toast.error("This account does not have admin access.");
-        return;
-      }
-
+      // Navigate immediately for snappy UX; verify role in parallel.
+      const rolePromise = supabase.from("user_roles").select("role").eq("user_id", data.user.id).eq("role", "admin").maybeSingle();
       toast.success("Welcome, Admin!");
       navigate("/admin/dashboard");
+      const { data: role } = await rolePromise;
+      if (!role) {
+        await supabase.auth.signOut();
+        toast.error("This account does not have admin access.");
+        navigate("/admin/login");
+      }
     } catch (error: any) {
       toast.error(error.message || "Login failed");
     } finally {
