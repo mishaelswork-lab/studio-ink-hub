@@ -1,14 +1,15 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Send, ImagePlus, Check, CheckCheck, AlertCircle, Loader2 } from "lucide-react";
+import { ArrowLeft, Send, ImagePlus, Check, CheckCheck, AlertCircle, Loader2, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/layout/Navbar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { enqueueMessage, subscribeQueue, flushQueue, removeFromQueue, type QueuedMessage } from "@/lib/offlineQueue";
 
-type DeliveryStatus = "sending" | "sent" | "failed";
+type DeliveryStatus = "queued" | "sending" | "sent" | "read" | "failed";
 
 interface Message {
   id: string;
@@ -16,6 +17,7 @@ interface Message {
   message: string | null;
   image_url: string | null;
   created_at: string;
+  read_at?: string | null;
   _status?: DeliveryStatus;
   _tempId?: string;
 }
@@ -28,19 +30,24 @@ const ConsultationChat = () => {
   const [consultation, setConsultation] = useState<any>(null);
   const [otherParty, setOtherParty] = useState<any>(null);
   const [input, setInput] = useState("");
-  const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [online, setOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
+  const [queueCount, setQueueCount] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const on = () => setOnline(true);
+    const off = () => setOnline(false);
+    window.addEventListener("online", on);
+    window.addEventListener("offline", off);
+    return () => { window.removeEventListener("online", on); window.removeEventListener("offline", off); };
+  }, []);
 
   useEffect(() => {
     if (!user || !consultationId) return;
     const fetchData = async () => {
       const { data: c } = await supabase
-        .from("consultations")
-        .select("*")
-        .eq("id", consultationId)
-        .maybeSingle();
-
+        .from("consultations").select("*").eq("id", consultationId).maybeSingle();
       if (!c) { navigate("/dashboard"); return; }
       setConsultation(c);
 
@@ -52,11 +59,13 @@ const ConsultationChat = () => {
       setOtherParty(artist || profile || { display_name: "User", avatar_url: null });
 
       const { data: msgs } = await supabase
-        .from("consultation_messages")
-        .select("*")
+        .from("consultation_messages").select("*")
         .eq("consultation_id", consultationId)
         .order("created_at", { ascending: true });
-      setMessages((msgs || []).map(m => ({ ...m, _status: "sent" as DeliveryStatus })));
+      setMessages((msgs || []).map(m => ({
+        ...m,
+        _status: (m.sender_id === user.id ? (m.read_at ? "read" : "sent") : "sent") as DeliveryStatus,
+      })));
       setLoading(false);
 
       if (c.status === "pending") {
@@ -66,97 +75,121 @@ const ConsultationChat = () => {
     fetchData();
   }, [user, consultationId, navigate]);
 
-  // Realtime subscription — reconcile with optimistic msgs
+  // Subscribe to local offline queue for this consultation
   useEffect(() => {
-    if (!consultationId) return;
+    if (!consultationId || !user) return;
+    const unsub = subscribeQueue((q: QueuedMessage[]) => {
+      const mine = q.filter(m => m.consultationId === consultationId);
+      setQueueCount(mine.length);
+      setMessages(prev => {
+        const withoutQueued = prev.filter(m => m._status !== "queued");
+        const queuedMsgs: Message[] = mine.map(qm => ({
+          id: qm.tempId,
+          _tempId: qm.tempId,
+          sender_id: qm.senderId,
+          message: qm.message,
+          image_url: null,
+          created_at: new Date(qm.createdAt).toISOString(),
+          _status: "queued",
+        }));
+        return [...withoutQueued, ...queuedMsgs].sort(
+          (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        );
+      });
+    });
+
+    const onSent = (e: any) => {
+      const { tempId, message } = e.detail;
+      setMessages(prev => {
+        const filtered = prev.filter(m => m._tempId !== tempId);
+        if (filtered.some(m => m.id === message.id)) return filtered;
+        return [...filtered, { ...message, _status: "sent" }].sort(
+          (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        );
+      });
+      // fire push notification (best effort)
+      supabase.functions.invoke("notify-new-message", {
+        body: { consultationId, senderId: user.id, preview: message.message },
+      }).catch(() => {});
+    };
+    window.addEventListener("queue:sent", onSent);
+    return () => { unsub(); window.removeEventListener("queue:sent", onSent); };
+  }, [consultationId, user]);
+
+  // Realtime: incoming messages + read receipt updates
+  useEffect(() => {
+    if (!consultationId || !user) return;
     const channel = supabase
       .channel(`chat-${consultationId}`)
       .on("postgres_changes", {
-        event: "INSERT",
-        schema: "public",
-        table: "consultation_messages",
+        event: "INSERT", schema: "public", table: "consultation_messages",
         filter: `consultation_id=eq.${consultationId}`,
       }, (payload) => {
         const incoming = payload.new as Message;
         setMessages(prev => {
-          // dedupe optimistic — match on text+sender within last 30s
-          const idx = prev.findIndex(m =>
-            m._status === "sent" && m.id === incoming.id
-          );
-          if (idx >= 0) return prev;
-          // replace any sending optimistic from same sender with same text
-          const optIdx = prev.findIndex(m =>
-            m._status === "sending" &&
-            m.sender_id === incoming.sender_id &&
-            (m.message || "") === (incoming.message || "")
-          );
-          if (optIdx >= 0) {
-            const next = [...prev];
-            next[optIdx] = { ...incoming, _status: "sent" };
-            return next;
-          }
+          if (prev.some(m => m.id === incoming.id)) return prev;
           return [...prev, { ...incoming, _status: "sent" }];
         });
+        // mark read if from other party and tab visible
+        if (incoming.sender_id !== user.id && document.visibilityState === "visible") {
+          supabase.from("consultation_messages")
+            .update({ read_at: new Date().toISOString() })
+            .eq("id", incoming.id).then(() => {});
+        }
+      })
+      .on("postgres_changes", {
+        event: "UPDATE", schema: "public", table: "consultation_messages",
+        filter: `consultation_id=eq.${consultationId}`,
+      }, (payload) => {
+        const updated = payload.new as Message;
+        setMessages(prev => prev.map(m =>
+          m.id === updated.id
+            ? { ...m, read_at: updated.read_at, _status: m.sender_id === user.id ? (updated.read_at ? "read" : "sent") : m._status }
+            : m
+        ));
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [consultationId]);
+  }, [consultationId, user]);
+
+  // Mark unread incoming messages as read on load / when window focused
+  useEffect(() => {
+    if (!user || !consultationId || loading) return;
+    const markRead = async () => {
+      if (document.visibilityState !== "visible") return;
+      await supabase.from("consultation_messages")
+        .update({ read_at: new Date().toISOString() })
+        .eq("consultation_id", consultationId)
+        .neq("sender_id", user.id)
+        .is("read_at", null);
+    };
+    markRead();
+    const onVis = () => markRead();
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [user, consultationId, loading, messages.length]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
-  const handleSend = async () => {
-    if (!input.trim() || !user || sending) return;
+  const handleSend = () => {
+    if (!input.trim() || !user || !consultationId) return;
     const text = input.trim();
-    const tempId = `tmp-${Date.now()}`;
-    const optimistic: Message = {
-      id: tempId,
-      _tempId: tempId,
-      sender_id: user.id,
-      message: text,
-      image_url: null,
-      created_at: new Date().toISOString(),
-      _status: "sending",
-    };
-    setMessages(prev => [...prev, optimistic]);
+    const tempId = `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    enqueueMessage({ tempId, consultationId, senderId: user.id, message: text });
     setInput("");
-    setSending(true);
-
-    const { data, error } = await supabase
-      .from("consultation_messages")
-      .insert({ consultation_id: consultationId!, sender_id: user.id, message: text })
-      .select().single();
-
-    setMessages(prev => prev.map(m => {
-      if (m._tempId !== tempId) return m;
-      if (error) return { ...m, _status: "failed" };
-      return { ...(data as Message), _status: "sent" };
-    }));
-    if (error) toast.error("Failed to send. Tap message to retry.");
-    setSending(false);
   };
 
-  const retryFailed = async (msg: Message) => {
-    if (!user || msg._status !== "failed" || !msg.message) return;
-    setMessages(prev => prev.map(m => m._tempId === msg._tempId ? { ...m, _status: "sending" } : m));
-    const { data, error } = await supabase
-      .from("consultation_messages")
-      .insert({ consultation_id: consultationId!, sender_id: user.id, message: msg.message })
-      .select().single();
-    setMessages(prev => prev.map(m => {
-      if (m._tempId !== msg._tempId) return m;
-      if (error) return { ...m, _status: "failed" };
-      return { ...(data as Message), _status: "sent" };
-    }));
-    if (error) toast.error("Still failing — check your connection.");
+  const retryNow = (tempId: string) => {
+    removeFromQueue(tempId);
+    toast.info("Removed from queue");
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
     if (file.size > 5 * 1024 * 1024) { toast.error("Max 5MB"); return; }
-
     const ext = file.name.split(".").pop();
     const path = `consultations/${consultationId}/${Date.now()}.${ext}`;
     const { error: upErr } = await supabase.storage.from("reels-videos").upload(path, file);
@@ -167,14 +200,19 @@ const ConsultationChat = () => {
       sender_id: user.id,
       image_url: urlData.publicUrl,
     });
+    supabase.functions.invoke("notify-new-message", {
+      body: { consultationId, senderId: user.id, preview: "📷 Shared an image" },
+    }).catch(() => {});
   };
 
   const otherName = otherParty?.name || otherParty?.display_name || "Artist";
 
   const StatusIcon = ({ s }: { s?: DeliveryStatus }) => {
+    if (s === "queued") return <WifiOff className="w-3 h-3 text-amber-400" />;
     if (s === "sending") return <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />;
     if (s === "failed") return <AlertCircle className="w-3 h-3 text-red-400" />;
-    if (s === "sent") return <CheckCheck className="w-3 h-3 text-gold/70" />;
+    if (s === "read") return <CheckCheck className="w-3 h-3 text-sky-400" />;
+    if (s === "sent") return <CheckCheck className="w-3 h-3 text-muted-foreground" />;
     return <Check className="w-3 h-3 text-muted-foreground" />;
   };
 
@@ -209,10 +247,20 @@ const ConsultationChat = () => {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <img src={otherParty?.avatar_url || "https://via.placeholder.com/40"} alt={otherName} className="w-9 h-9 rounded-full object-cover border border-gold/30" />
-          <div>
+          <div className="flex-1">
             <p className="text-foreground text-sm font-medium">{otherName}</p>
             <p className="text-muted-foreground text-xs">Design Consultation</p>
           </div>
+          {!online && (
+            <div className="flex items-center gap-1.5 text-xs text-amber-400 bg-amber-400/10 border border-amber-400/30 px-2 py-1 rounded-md">
+              <WifiOff className="w-3 h-3" /> Offline
+            </div>
+          )}
+          {online && queueCount > 0 && (
+            <div className="text-xs text-amber-400 bg-amber-400/10 border border-amber-400/30 px-2 py-1 rounded-md">
+              Sending {queueCount}…
+            </div>
+          )}
         </div>
 
         {consultation?.design_description && (
@@ -235,10 +283,12 @@ const ConsultationChat = () => {
             return (
               <div key={msg.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                 <button
-                  onClick={() => msg._status === "failed" && retryFailed(msg)}
+                  onClick={() => msg._status === "queued" && msg._tempId && retryNow(msg._tempId)}
                   className={`max-w-[75%] text-left rounded-lg px-4 py-2.5 text-sm transition-opacity ${
                     mine ? "bg-gold/20 text-foreground border border-gold/20" : "bg-card text-foreground border border-border"
-                  } ${msg._status === "sending" ? "opacity-70" : ""} ${msg._status === "failed" ? "border-red-400/40 cursor-pointer" : ""}`}
+                  } ${msg._status === "queued" || msg._status === "sending" ? "opacity-70" : ""} ${
+                    msg._status === "failed" ? "border-red-400/40 cursor-pointer" : ""
+                  }`}
                 >
                   {msg.image_url && (
                     <img src={msg.image_url} alt="shared" className="rounded-md max-w-full mb-2 max-h-48 object-cover" />
@@ -250,7 +300,9 @@ const ConsultationChat = () => {
                     </p>
                     {mine && <StatusIcon s={msg._status} />}
                   </div>
-                  {msg._status === "failed" && <p className="text-[10px] text-red-400 mt-1">Tap to retry</p>}
+                  {msg._status === "queued" && (
+                    <p className="text-[10px] text-amber-400 mt-1">Will send when reconnected — tap to cancel</p>
+                  )}
                 </button>
               </div>
             );
@@ -267,11 +319,11 @@ const ConsultationChat = () => {
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === "Enter" && handleSend()}
-            placeholder="Type your message..."
+            placeholder={online ? "Type your message..." : "Offline — messages will queue"}
             className="flex-1 h-12 px-4 rounded-lg bg-card border border-border text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-gold placeholder:text-muted-foreground"
           />
-          <Button variant="gold" size="icon" className="h-12 w-12" onClick={handleSend} disabled={sending}>
-            {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+          <Button variant="gold" size="icon" className="h-12 w-12" onClick={handleSend}>
+            <Send className="w-5 h-5" />
           </Button>
         </div>
       </div>
