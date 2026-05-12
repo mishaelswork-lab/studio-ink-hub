@@ -1,3 +1,4 @@
+import { QuotesLoader } from "@/components/QuotesLoader";
 import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { CalendarDays, Clock, MapPin, Search, Star, Bell, LogOut, Compass, Heart, Gift, MessageSquare, Copy, Check, Crown } from "lucide-react";

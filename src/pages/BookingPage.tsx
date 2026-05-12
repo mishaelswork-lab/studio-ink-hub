@@ -1,3 +1,4 @@
+import { QuotesLoader } from "@/components/QuotesLoader";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useState, useEffect } from "react";

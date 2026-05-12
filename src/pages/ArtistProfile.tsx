@@ -1,3 +1,4 @@
+import { QuotesLoader } from "@/components/QuotesLoader";
 import { useParams, Link } from "react-router-dom";
 import { Star, MapPin, Clock, ArrowLeft, Heart, MessageSquare, Share2, Award } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
