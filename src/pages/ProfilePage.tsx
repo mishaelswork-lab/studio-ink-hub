@@ -1,3 +1,4 @@
+import { QuotesLoader } from "@/components/QuotesLoader";
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Camera, ArrowLeft, Mail, Phone, User as UserIcon, Heart, Star, Trash2 } from "lucide-react";
