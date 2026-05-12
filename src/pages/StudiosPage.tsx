@@ -1,24 +1,25 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { MapPin, Star, Users, Sparkles } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { studios, artists } from "@/data/mockData";
 import { Navbar } from "@/components/layout/Navbar";
 import { supabase } from "@/integrations/supabase/client";
 
 const StudiosPage = () => {
-  const [featured, setFeatured] = useState<any[]>([]);
-
-  useEffect(() => {
-    (async () => {
+  const { data: featured = [] } = useQuery({
+    queryKey: ["featured_artists_studios"],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    queryFn: async () => {
       const { data } = await supabase
         .from("featured_artists")
-        .select("*, artists(id,name,avatar_url,specialty,studio_name,rating)")
+        .select("id,priority,artists(id,name,avatar_url,specialty,studio_name,rating)")
         .eq("active", true)
         .order("priority", { ascending: false })
         .limit(6);
-      setFeatured((data || []).filter((f: any) => f.artists));
-    })();
-  }, []);
+      return (data || []).filter((f: any) => f.artists);
+    },
+  });
 
   return (
     <div className="min-h-screen bg-background">
