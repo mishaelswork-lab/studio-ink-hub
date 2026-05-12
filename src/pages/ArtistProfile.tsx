@@ -190,7 +190,9 @@ const ArtistProfile = () => {
 
         <div>
           <h2 className="font-heading text-2xl font-bold text-foreground mb-6">Portfolio</h2>
-          <CinematicGallery images={portfolio} alt={`${name} portfolio`} />
+          <Suspense fallback={<div className="grid grid-cols-2 md:grid-cols-3 gap-4">{portfolio.slice(0, 6).map((_, i) => <div key={i} className="aspect-square rounded-lg bg-muted animate-pulse" />)}</div>}>
+            <CinematicGallery images={portfolio} alt={`${name} portfolio`} />
+          </Suspense>
         </div>
 
         {reviews.length > 0 && (
