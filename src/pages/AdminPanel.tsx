@@ -274,7 +274,9 @@ const AdminPanel = () => {
           <div>
             <div className="flex items-center justify-between mb-6">
               <h2 className="font-heading text-2xl font-bold text-foreground">Manage Artists</h2>
-              <AddArtistDialog onAdded={fetchData} />
+              <Suspense fallback={<Button variant="gold" size="sm" disabled>Loading…</Button>}>
+                <AddArtistDialog onAdded={fetchData} />
+              </Suspense>
             </div>
             <div className="bg-card rounded-lg border border-border overflow-hidden">
               <div className="overflow-x-auto">
