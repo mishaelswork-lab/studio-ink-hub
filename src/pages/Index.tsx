@@ -135,7 +135,8 @@ const FeaturedStrip = memo(() => {
       </div>
     </div>
   );
-};
+});
+FeaturedStrip.displayName = "FeaturedStrip";
 
 const StudiosSection = () => (
   <section id="studios" className="py-20 px-4 scroll-mt-20">
