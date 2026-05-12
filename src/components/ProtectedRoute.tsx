@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { QuotesLoader } from "@/components/QuotesLoader";
 
 interface Props {
   children: React.ReactNode;
