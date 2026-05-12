@@ -1,3 +1,4 @@
+import { QuotesLoader } from "@/components/QuotesLoader";
 import { useParams, Link } from "react-router-dom";
 import { Star, MapPin, Clock, ArrowLeft, Heart, MessageSquare, Share2, Award } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
@@ -65,7 +66,7 @@ const ArtistProfile = () => {
   }, [dbArtist, mockArtist]);
 
   if (loading) {
-    return <div className="min-h-screen bg-background flex items-center justify-center"><div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" /></div>;
+    return <QuotesLoader fullScreen />;
   }
   const artist = dbArtist || mockArtist;
   if (!artist) return <div className="min-h-screen bg-background flex items-center justify-center"><p className="text-muted-foreground">Artist not found.</p></div>;

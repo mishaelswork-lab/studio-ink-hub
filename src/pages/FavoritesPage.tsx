@@ -1,3 +1,4 @@
+import { QuotesLoader } from "@/components/QuotesLoader";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Heart, Star, Trash2, ArrowLeft } from "lucide-react";
@@ -57,9 +58,7 @@ const FavoritesPage = () => {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <div className="pt-24 flex items-center justify-center">
-          <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
-        </div>
+        <QuotesLoader />
       </div>
     );
   }

@@ -1,3 +1,4 @@
+import { QuotesLoader } from "@/components/QuotesLoader";
 import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { CalendarDays, Clock, MapPin, Search, Star, Bell, LogOut, Compass, Heart, Gift, MessageSquare, Copy, Check, Crown } from "lucide-react";
@@ -118,7 +119,7 @@ const CustomerDashboard = () => {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <div className="pt-24 flex items-center justify-center"><div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" /></div>
+        <QuotesLoader />
       </div>
     );
   }

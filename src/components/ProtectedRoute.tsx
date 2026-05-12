@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { QuotesLoader } from "@/components/QuotesLoader";
 
 interface Props {
   children: React.ReactNode;
@@ -31,11 +32,7 @@ const ProtectedRoute = ({ children, requiredRole, redirectTo = "/login" }: Props
   }, [requiredRole, session]);
 
   if (loading || (requiredRole === "admin" && session && serverChecked === null)) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
+    return <QuotesLoader fullScreen />;
   }
 
   if (!user) return <Navigate to={redirectTo} replace />;
