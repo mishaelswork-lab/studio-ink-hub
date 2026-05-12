@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, memo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Navbar } from "@/components/layout/Navbar";
 import { Heart, Share2, ExternalLink, Image as ImageIcon, Play } from "lucide-react";
 import { reels } from "@/data/mockReels";
@@ -67,26 +68,27 @@ const DesignCard = ({ design }: { design: DesignRow }) => {
 };
 
 const DesignsFeed = () => {
-  const [designs, setDesigns] = useState<DesignRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const qc = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
-
-  const load = async () => {
-    const { data } = await supabase.from("daily_designs").select("*").order("fetched_at", { ascending: false }).limit(60);
-    setDesigns(data || []);
-    setLoading(false);
-  };
-
-  useEffect(() => { load(); }, []);
+  const { data: designs = [], isLoading } = useQuery<DesignRow[]>({
+    queryKey: ["daily_designs"],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    queryFn: async () => {
+      const { data } = await supabase.from("daily_designs").select("*").order("fetched_at", { ascending: false }).limit(60);
+      return data || [];
+    },
+  });
 
   const triggerRefresh = async () => {
     setRefreshing(true);
     const { error } = await supabase.functions.invoke("refresh-designs");
-    if (error) toast.error("Refresh failed"); else { toast.success("Designs refreshed"); await load(); }
+    if (error) toast.error("Refresh failed");
+    else { toast.success("Designs refreshed"); await qc.invalidateQueries({ queryKey: ["daily_designs"] }); }
     setRefreshing(false);
   };
 
-  if (loading) return <div className="flex justify-center py-10"><div className="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin" /></div>;
+  if (isLoading) return <div className="flex justify-center py-10"><div className="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin" /></div>;
 
   if (designs.length === 0) {
     return (

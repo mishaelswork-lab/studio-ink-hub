@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, memo } from "react";
 import { Link } from "react-router-dom";
 import { MapPin, Star, Users, Play, Sparkles, Sparkle } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { studios, artists } from "@/data/mockData";
 import { reels } from "@/data/mockReels";
 import { Button } from "@/components/ui/button";
@@ -99,14 +100,18 @@ const Hero = () => {
   );
 };
 
-const FeaturedStrip = () => {
-  const [items, setItems] = useState<any[]>([]);
-  useEffect(() => {
-    supabase.from("featured_artists")
-      .select("id,priority,artists(id,name,avatar_url,specialty)")
-      .eq("active", true).order("priority", { ascending: false }).limit(6)
-      .then(({ data }) => setItems((data || []).filter((d: any) => d.artists)));
-  }, []);
+const FeaturedStrip = memo(() => {
+  const { data: items = [] } = useQuery({
+    queryKey: ["featured_artists_strip"],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    queryFn: async () => {
+      const { data } = await supabase.from("featured_artists")
+        .select("id,priority,artists(id,name,avatar_url,specialty)")
+        .eq("active", true).order("priority", { ascending: false }).limit(6);
+      return (data || []).filter((d: any) => d.artists);
+    },
+  });
   if (items.length === 0) return null;
   return (
     <div className="mb-10">
@@ -130,7 +135,8 @@ const FeaturedStrip = () => {
       </div>
     </div>
   );
-};
+});
+FeaturedStrip.displayName = "FeaturedStrip";
 
 const StudiosSection = () => (
   <section id="studios" className="py-20 px-4 scroll-mt-20">

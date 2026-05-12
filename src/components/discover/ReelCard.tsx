@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, memo } from "react";
 import { Link } from "react-router-dom";
 import { Heart, Eye, Play, Volume2, VolumeX, Bookmark, Share2 } from "lucide-react";
 import { Reel } from "@/data/mockReels";
@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useFavorite } from "@/hooks/useFavorite";
 import { shareLink } from "@/lib/share";
 
-export const ReelCard = ({ reel }: { reel: Reel }) => {
+const ReelCardImpl = ({ reel }: { reel: Reel }) => {
   const { user } = useAuth();
   const videoRef = useRef<HTMLVideoElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -87,3 +87,6 @@ export const ReelCard = ({ reel }: { reel: Reel }) => {
     </div>
   );
 };
+
+export const ReelCard = memo(ReelCardImpl);
+ReelCard.displayName = "ReelCard";

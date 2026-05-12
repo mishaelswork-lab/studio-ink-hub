@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { registerPush } from "@/lib/push";
 import type { User, Session } from "@supabase/supabase-js";
@@ -20,22 +20,39 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
+const ROLES_KEY = "artspace.roles";
+const ARTIST_KEY = "artspace.artistProfile";
+
+const cacheGet = <T,>(k: string): T | null => {
+  try { const v = sessionStorage.getItem(k); return v ? JSON.parse(v) : null; } catch { return null; }
+};
+const cacheSet = (k: string, v: unknown) => {
+  try { sessionStorage.setItem(k, JSON.stringify(v)); } catch { /* noop */ }
+};
+const cacheClear = () => {
+  try { sessionStorage.removeItem(ROLES_KEY); sessionStorage.removeItem(ARTIST_KEY); } catch { /* noop */ }
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [roles, setRoles] = useState<string[]>([]);
-  const [artistProfile, setArtistProfile] = useState<any | null>(null);
+  // Hydrate from sessionStorage so re-mounts don't re-fetch.
+  const [roles, setRoles] = useState<string[]>(() => cacheGet<string[]>(ROLES_KEY) || []);
+  const [artistProfile, setArtistProfile] = useState<any | null>(() => cacheGet<any>(ARTIST_KEY));
 
   const fetchRoles = async (userId: string) => {
     const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
-    setRoles(data?.map(r => r.role) || []);
-    return data?.map(r => r.role) || [];
+    const next = data?.map(r => r.role) || [];
+    setRoles(next);
+    cacheSet(ROLES_KEY, next);
+    return next;
   };
 
   const fetchArtistProfile = async (userId: string) => {
     const { data } = await supabase.from("artists").select("*").eq("user_id", userId).maybeSingle();
     setArtistProfile(data);
+    cacheSet(ARTIST_KEY, data);
   };
 
   const refreshProfile = async () => {
@@ -45,37 +62,40 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const updateLastActive = async (userId: string) => {
-    await supabase.from("profiles").update({ last_active_at: new Date().toISOString() }).eq("user_id", userId);
+  const updateLastActive = (userId: string) => {
+    // Fire-and-forget; never block UI.
+    supabase.from("profiles").update({ last_active_at: new Date().toISOString() }).eq("user_id", userId);
   };
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await fetchRoles(session.user.id);
-        await fetchArtistProfile(session.user.id);
-        updateLastActive(session.user.id);
-        // Register web push (silent if denied)
-        setTimeout(() => { registerPush(session.user.id); }, 1500);
+    let bootstrapped = false;
+    const hydrate = (s: Session | null) => {
+      setSession(s);
+      setUser(s?.user ?? null);
+      if (s?.user) {
+        // Defer non-critical work; don't block first paint.
+        setTimeout(() => {
+          fetchRoles(s.user.id);
+          fetchArtistProfile(s.user.id);
+          updateLastActive(s.user.id);
+          registerPush(s.user.id);
+        }, 0);
       } else {
         setRoles([]);
         setArtistProfile(null);
+        cacheClear();
       }
       setLoading(false);
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+      if (!bootstrapped) return; // initial getSession will hydrate first
+      hydrate(s);
     });
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await fetchRoles(session.user.id);
-        await fetchArtistProfile(session.user.id);
-        updateLastActive(session.user.id);
-        setTimeout(() => { registerPush(session.user.id); }, 1500);
-      }
-      setLoading(false);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      bootstrapped = true;
+      hydrate(session);
     });
 
     return () => subscription.unsubscribe();
@@ -87,11 +107,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setSession(null);
     setRoles([]);
     setArtistProfile(null);
+    cacheClear();
   };
 
-  return (
-    <AuthContext.Provider value={{ user, session, loading, roles, artistProfile, signOut, refreshProfile }}>
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo(
+    () => ({ user, session, loading, roles, artistProfile, signOut, refreshProfile }),
+    [user, session, loading, roles, artistProfile]
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
