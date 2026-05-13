@@ -67,6 +67,14 @@ const DesignCard = ({ design }: { design: DesignRow }) => {
   );
 };
 
+// Heuristic: only show designs whose description/photographer reads as a tattoo on skin or a sketch.
+// Keep human elements minimal — exclude generic portraits/scenery without tattoo context.
+const TATTOO_KEYWORDS = /\b(tattoo|tatt|ink(ed)?|sketch|drawing|line\s?work|stencil|design|illustration|skin\s?art|body\s?art)\b/i;
+const isTattooOrSketch = (d: DesignRow) => {
+  const blob = `${d.description || ""} ${d.photographer || ""}`.toLowerCase();
+  return TATTOO_KEYWORDS.test(blob);
+};
+
 const DesignsFeed = () => {
   const qc = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
@@ -75,8 +83,8 @@ const DesignsFeed = () => {
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     queryFn: async () => {
-      const { data } = await supabase.from("daily_designs").select("*").order("fetched_at", { ascending: false }).limit(60);
-      return data || [];
+      const { data } = await supabase.from("daily_designs").select("*").order("fetched_at", { ascending: false }).limit(120);
+      return (data || []).filter(isTattooOrSketch);
     },
   });
 

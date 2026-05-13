@@ -4,6 +4,19 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Hide scrollbars globally while keeping scroll functionality */
+@layer base {
+  * {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+  }
+  *::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
+}
+
 @layer base {
   :root {
     --background: 240 10% 4%;

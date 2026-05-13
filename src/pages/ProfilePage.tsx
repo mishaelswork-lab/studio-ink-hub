@@ -109,7 +109,7 @@ const ProfilePage = () => {
         <Tabs defaultValue="profile" className="w-full">
           <TabsList className="grid grid-cols-2 w-full mb-6 bg-card">
             <TabsTrigger value="profile">Profile</TabsTrigger>
-            <TabsTrigger value="favorites" className="gap-1.5"><Heart className="w-3.5 h-3.5" /> Favorites</TabsTrigger>
+            <TabsTrigger value="favorites" className="gap-1.5"><Heart className="w-3.5 h-3.5" /> Saved Ideas</TabsTrigger>
           </TabsList>
 
           <TabsContent value="profile">
