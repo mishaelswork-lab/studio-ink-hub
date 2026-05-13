@@ -21,8 +21,8 @@ const flush = async () => {
         value: r.value ?? null,
         url: r.url ?? location.pathname,
         user_id: user?.id ?? null,
-        meta: r.meta ?? {},
-      }))
+        meta: (r.meta ?? {}) as any,
+      })) as any
     );
   } catch {
     /* swallow — perf telemetry must never break the app */
