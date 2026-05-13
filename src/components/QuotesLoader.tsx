@@ -9,7 +9,7 @@ interface Props {
   fullScreen?: boolean;
 }
 
-export const QuotesLoader = ({ intervalMs = 3500, className = "", fullScreen = false }: Props) => {
+export const QuotesLoader = ({ intervalMs = 60000, className = "", fullScreen = false }: Props) => {
   const [idx, setIdx] = useState(() => Math.floor(Math.random() * ART_QUOTES.length));
 
   useEffect(() => {
