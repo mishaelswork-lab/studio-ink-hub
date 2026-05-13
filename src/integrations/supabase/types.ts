@@ -528,6 +528,36 @@ export type Database = {
           },
         ]
       }
+      perf_metrics: {
+        Row: {
+          created_at: string
+          event: string
+          id: string
+          meta: Json | null
+          url: string | null
+          user_id: string | null
+          value: number | null
+        }
+        Insert: {
+          created_at?: string
+          event: string
+          id?: string
+          meta?: Json | null
+          url?: string | null
+          user_id?: string | null
+          value?: number | null
+        }
+        Update: {
+          created_at?: string
+          event?: string
+          id?: string
+          meta?: Json | null
+          url?: string | null
+          user_id?: string | null
+          value?: number | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
