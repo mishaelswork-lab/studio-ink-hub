@@ -1,6 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
-import { Users, CalendarDays, BarChart3, Settings, LogOut, Star, TrendingUp, IndianRupee, Film, Trash2, Shield, Check, X, ScrollText, Sparkles } from "lucide-react";
+import { Users, CalendarDays, BarChart3, Settings, LogOut, Star, TrendingUp, IndianRupee, Film, Trash2, Shield, Check, X, ScrollText, Sparkles, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -17,6 +17,7 @@ const adminTabs = [
   { id: "moderation", label: "Moderation", icon: Shield },
   { id: "featured", label: "Featured", icon: Sparkles },
   { id: "audit", label: "Audit Log", icon: ScrollText },
+  { id: "metrics", label: "Metrics", icon: Activity },
   { id: "settings", label: "Settings", icon: Settings },
 ] as const;
 
