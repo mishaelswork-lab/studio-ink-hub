@@ -5,7 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { studios, artists } from "@/data/mockData";
 import { reels } from "@/data/mockReels";
 import { Button } from "@/components/ui/button";
-import logo from "@/assets/artspace-logo.jpg";
+import logoAsset from "@/assets/artspace-logo.webp.asset.json";
+const logo = logoAsset.url;
 import { Navbar } from "@/components/layout/Navbar";
 import { SEO } from "@/lib/seo";
 import { supabase } from "@/integrations/supabase/client";
@@ -291,7 +292,14 @@ const DiscoverReels = () => (
 );
 
 const Index = () => {
-  useEffect(() => { prefetchHomeData(); }, []);
+  useEffect(() => {
+    const idle = (window as any).requestIdleCallback || ((cb: any) => setTimeout(cb, 1));
+    const id = idle(prefetchHomeData);
+    return () => {
+      const cancel = (window as any).cancelIdleCallback;
+      if (cancel) cancel(id);
+    };
+  }, []);
   return (
   <div className="min-h-screen bg-background">
     <SEO

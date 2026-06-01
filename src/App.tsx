@@ -28,7 +28,16 @@ const ChatsPage = lazy(() => import("./pages/ChatsPage"));
 const ArtistChatsPage = lazy(() => import("./pages/ArtistChatsPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,      // 5 min — avoid refetch storms
+      gcTime: 30 * 60 * 1000,        // 30 min cache retention
+      refetchOnWindowFocus: false,    // big perf win for tabbed users
+      retry: 1,
+    },
+  },
+});
 
 import { QuotesLoader } from "@/components/QuotesLoader";
 const PageFallback = () => <QuotesLoader fullScreen />;

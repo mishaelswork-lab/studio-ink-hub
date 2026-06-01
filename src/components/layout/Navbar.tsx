@@ -3,7 +3,8 @@ import { Menu, X, Home, Compass, User, LayoutDashboard, LogIn, MessageSquare } f
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import logo from "@/assets/artspace-logo.jpg";
+import logoAsset from "@/assets/artspace-logo.webp.asset.json";
+const logo = logoAsset.url;
 
 export const Navbar = () => {
   const [open, setOpen] = useState(false);
