@@ -292,7 +292,14 @@ const DiscoverReels = () => (
 );
 
 const Index = () => {
-  useEffect(() => { prefetchHomeData(); }, []);
+  useEffect(() => {
+    const idle = (window as any).requestIdleCallback || ((cb: any) => setTimeout(cb, 1));
+    const id = idle(prefetchHomeData);
+    return () => {
+      const cancel = (window as any).cancelIdleCallback;
+      if (cancel) cancel(id);
+    };
+  }, []);
   return (
   <div className="min-h-screen bg-background">
     <SEO
