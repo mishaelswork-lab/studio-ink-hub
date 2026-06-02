@@ -206,7 +206,7 @@ const FeaturedArtists = () => (
           <Link key={artist.id} to={`/artist/${artist.id}`} className="group">
             <div className="bg-card rounded-lg overflow-hidden border border-border hover:border-gold/30 transition-all duration-300 hover:shadow-[var(--shadow-gold)]">
               <div className="aspect-[4/3] overflow-hidden">
-                <img src={artist.portfolio[0]} alt={artist.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                <img src={artist.portfolio[0]} alt={artist.name} loading="lazy" decoding="async" width={600} height={600} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
               </div>
               <div className="p-5">
                 <div className="flex items-center gap-3 mb-3">
@@ -266,7 +266,7 @@ const DiscoverReels = () => (
         {reels.slice(0, 5).map(reel => (
           <Link key={reel.id} to="/discover" className="flex-shrink-0 w-48 md:w-56 snap-start group">
             <div className="relative aspect-[9/16] rounded-xl overflow-hidden border border-border hover:border-gold/30 transition-all">
-              <img src={reel.thumbnail} alt={reel.caption} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+              <img src={reel.thumbnail} alt={reel.caption} loading="lazy" decoding="async" width={400} height={600} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
               <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                 <Play className="w-12 h-12 text-white/90 fill-white/90" />

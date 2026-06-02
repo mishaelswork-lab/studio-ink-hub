@@ -60,7 +60,7 @@ const StudiosPage = () => {
             return (
               <div key={studio.id} className="bg-card rounded-lg overflow-hidden border border-border hover:border-gold/30 transition-all duration-300 group">
                 <div className="aspect-video overflow-hidden">
-                  <img src={studio.image} alt={studio.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <img src={studio.image} alt={studio.name} loading="lazy" decoding="async" width={800} height={450} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                 </div>
                 <div className="p-5">
                   <h3 className="font-heading text-xl font-semibold text-foreground mb-1">{studio.name}</h3>
