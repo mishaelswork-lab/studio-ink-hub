@@ -324,7 +324,7 @@ const ArtistDashboard = () => {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {(artistProfile.portfolio_images || []).map((img: string, i: number) => (
                 <div key={i} className="aspect-square rounded-lg overflow-hidden border border-border">
-                  <img src={img} alt={`Work ${i + 1}`} className="w-full h-full object-cover" />
+                  <img src={img} alt={`Work ${i + 1}`} loading="lazy" decoding="async" width={600} height={600} className="w-full h-full object-cover" />
                 </div>
               ))}
               <label className="aspect-square rounded-lg border-2 border-dashed border-border flex items-center justify-center hover:border-gold/30 transition-colors cursor-pointer">
