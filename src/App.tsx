@@ -27,6 +27,7 @@ const StartConsultation = lazy(() => import("./pages/StartConsultation"));
 const ChatsPage = lazy(() => import("./pages/ChatsPage"));
 const ArtistChatsPage = lazy(() => import("./pages/ArtistChatsPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const StagingCheck = lazy(() => import("./pages/StagingCheck"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -69,6 +70,7 @@ const App = () => (
               <Route path="/artist-dashboard" element={<ProtectedRoute requiredRole="artist" redirectTo="/artist-login"><ArtistDashboard /></ProtectedRoute>} />
               <Route path="/admin" element={<AdminLogin />} />
               <Route path="/admin/dashboard" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin"><AdminPanel /></ProtectedRoute>} />
+              <Route path="/staging-check" element={<StagingCheck />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
