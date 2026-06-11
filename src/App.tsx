@@ -70,6 +70,7 @@ const App = () => (
               <Route path="/artist-dashboard" element={<ProtectedRoute requiredRole="artist" redirectTo="/artist-login"><ArtistDashboard /></ProtectedRoute>} />
               <Route path="/admin" element={<AdminLogin />} />
               <Route path="/admin/dashboard" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin"><AdminPanel /></ProtectedRoute>} />
+              <Route path="/staging-check" element={<StagingCheck />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
