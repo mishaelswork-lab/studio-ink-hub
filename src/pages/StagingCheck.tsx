@@ -22,16 +22,16 @@ const StatusDot = ({ s }: { s: Status }) => {
   return <span className={`inline-block w-2.5 h-2.5 rounded-full ${cls}`} />;
 };
 
+const initialChecks: Check[] = [
+  ...ROUTES.map(r => ({ name: r.name, path: r.path, status: "pending" as Status })),
+  { name: "Supabase: artists query", status: "pending" as Status },
+  { name: "Supabase: auth session", status: "pending" as Status },
+  { name: "Edge function: verify-admin reachable", status: "pending" as Status },
+  { name: "Asset: OG image", status: "pending" as Status },
+];
+
 const StagingCheck = () => {
-  const [checks, setChecks] = useState<Check[]>(
-    ROUTES.map(r => ({ name: r.name, path: r.path, status: "pending" as Status }))
-      .concat([
-        { name: "Supabase: artists query", status: "pending" },
-        { name: "Supabase: auth session", status: "pending" },
-        { name: "Edge function: verify-admin reachable", status: "pending" },
-        { name: "Asset: OG image", status: "pending" },
-      ])
-  );
+  const [checks, setChecks] = useState<Check[]>(initialChecks);
   const [running, setRunning] = useState(false);
 
   const update = (name: string, patch: Partial<Check>) =>

@@ -27,6 +27,7 @@ const StartConsultation = lazy(() => import("./pages/StartConsultation"));
 const ChatsPage = lazy(() => import("./pages/ChatsPage"));
 const ArtistChatsPage = lazy(() => import("./pages/ArtistChatsPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const StagingCheck = lazy(() => import("./pages/StagingCheck"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
