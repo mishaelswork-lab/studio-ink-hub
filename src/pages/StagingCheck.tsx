@@ -61,21 +61,21 @@ const StagingCheck = () => {
     );
 
     if (includeBackend) {
-      const t = performance.now();
-      const { error, data } = await supabase.from("artists").select("id").limit(1);
-      const ms = Math.round(performance.now() - t);
+      const artistsStart = performance.now();
+      const { error: artistsError, data } = await supabase.from("artists").select("id").limit(1);
+      const artistsMs = Math.round(performance.now() - artistsStart);
       update("Backend: artists query", {
-        status: error ? "fail" : "ok",
-        detail: error ? error.message : `${data?.length ?? 0} row(s)`,
-        ms,
+        status: artistsError ? "fail" : "ok",
+        detail: artistsError ? artistsError.message : `${data?.length ?? 0} row(s)`,
+        ms: artistsMs,
       });
 
-      const t = performance.now();
-      const { error } = await supabase.auth.getSession();
+      const authStart = performance.now();
+      const { error: authError } = await supabase.auth.getSession();
       update("Backend: auth session", {
-        status: error ? "fail" : "ok",
-        detail: error?.message,
-        ms: Math.round(performance.now() - t),
+        status: authError ? "fail" : "ok",
+        detail: authError?.message,
+        ms: Math.round(performance.now() - authStart),
       });
 
       const fnStart = performance.now();
