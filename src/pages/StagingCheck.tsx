@@ -24,9 +24,9 @@ const StatusDot = ({ s }: { s: Status }) => {
 
 const initialChecks: Check[] = [
   ...ROUTES.map(r => ({ name: r.name, path: r.path, status: "pending" as Status })),
-  { name: "Supabase: artists query", status: "pending" as Status },
-  { name: "Supabase: auth session", status: "pending" as Status },
-  { name: "Edge function: verify-admin reachable", status: "pending" as Status },
+  { name: "Backend: artists query", status: "warn" as Status, detail: "Manual check skipped to save Cloud credits" },
+  { name: "Backend: auth session", status: "warn" as Status, detail: "Manual check skipped to save Cloud credits" },
+  { name: "Function: verify-admin reachable", status: "warn" as Status, detail: "Manual check skipped to save Cloud credits" },
   { name: "Asset: OG image", status: "pending" as Status },
 ];
 
@@ -37,9 +37,14 @@ const StagingCheck = () => {
   const update = (name: string, patch: Partial<Check>) =>
     setChecks(prev => prev.map(c => (c.name === name ? { ...c, ...patch } : c)));
 
-  const run = async () => {
+  const run = async (includeBackend = false) => {
     setRunning(true);
-    setChecks(prev => prev.map(c => ({ ...c, status: "pending", detail: undefined, ms: undefined })));
+    setChecks(prev => prev.map(c => ({
+      ...c,
+      status: c.name.startsWith("Backend:") || c.name.startsWith("Function:") ? (includeBackend ? "pending" : "warn") : "pending",
+      detail: c.name.startsWith("Backend:") || c.name.startsWith("Function:") ? (includeBackend ? undefined : "Manual check skipped to save Cloud credits") : undefined,
+      ms: undefined,
+    })));
 
     // Route reachability — same-origin HEAD/GET. In a SPA all routes return index.html (200).
     await Promise.all(
@@ -55,43 +60,36 @@ const StagingCheck = () => {
       })
     );
 
-    // Supabase artists query
-    {
-      const t = performance.now();
-      const { error, data } = await supabase.from("artists").select("id").limit(1);
-      const ms = Math.round(performance.now() - t);
-      update("Supabase: artists query", {
-        status: error ? "fail" : "ok",
-        detail: error ? error.message : `${data?.length ?? 0} row(s)`,
-        ms,
+    if (includeBackend) {
+      const artistsStart = performance.now();
+      const { error: artistsError, data } = await supabase.from("artists").select("id").limit(1);
+      const artistsMs = Math.round(performance.now() - artistsStart);
+      update("Backend: artists query", {
+        status: artistsError ? "fail" : "ok",
+        detail: artistsError ? artistsError.message : `${data?.length ?? 0} row(s)`,
+        ms: artistsMs,
       });
-    }
 
-    // Auth session reachable
-    {
-      const t = performance.now();
-      const { error } = await supabase.auth.getSession();
-      update("Supabase: auth session", {
-        status: error ? "fail" : "ok",
-        detail: error?.message,
-        ms: Math.round(performance.now() - t),
+      const authStart = performance.now();
+      const { error: authError } = await supabase.auth.getSession();
+      update("Backend: auth session", {
+        status: authError ? "fail" : "ok",
+        detail: authError?.message,
+        ms: Math.round(performance.now() - authStart),
       });
-    }
 
-    // verify-admin (expect 401 without token => reachable)
-    {
-      const t = performance.now();
+      const fnStart = performance.now();
       try {
         const { error } = await supabase.functions.invoke("verify-admin", {});
-        const ms = Math.round(performance.now() - t);
+        const ms = Math.round(performance.now() - fnStart);
         // Without a valid admin token we expect a non-2xx from the function — that still proves reachability.
-        update("Edge function: verify-admin reachable", {
+        update("Function: verify-admin reachable", {
           status: "ok",
           detail: error ? "reachable (auth required)" : "reachable",
           ms,
         });
       } catch (e: any) {
-        update("Edge function: verify-admin reachable", { status: "fail", detail: e?.message });
+        update("Function: verify-admin reachable", { status: "fail", detail: e?.message });
       }
     }
 
@@ -111,7 +109,7 @@ const StagingCheck = () => {
     setRunning(false);
   };
 
-  useEffect(() => { run(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+  useEffect(() => { run(false); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
   const total = checks.length;
   const okCount = checks.filter(c => c.status === "ok").length;
@@ -128,7 +126,10 @@ const StagingCheck = () => {
               Verifies key routes, backend, and assets. Run before publishing.
             </p>
           </div>
-          <Button variant="gold" disabled={running} onClick={run}>{running ? "Running…" : "Re-run"}</Button>
+          <div className="flex gap-2">
+            <Button variant="gold-outline" disabled={running} onClick={() => run(false)}>{running ? "Running…" : "Routes only"}</Button>
+            <Button variant="gold" disabled={running} onClick={() => run(true)}>{running ? "Running…" : "Include backend"}</Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-4 gap-3 mb-6">

@@ -16,23 +16,27 @@ Deno.serve(async (req) => {
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     let inserted = 0;
+    const rows: Record<string, unknown>[] = [];
     for (const q of QUERIES) {
       const url = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(q)}&per_page=20&content_filter=high&orientation=portrait`;
       const r = await fetch(url, { headers: { Authorization: `Client-ID ${key}` } });
       if (!r.ok) { console.error("unsplash err", q, r.status); continue; }
       const data = await r.json();
       for (const photo of data.results || []) {
-        const row = {
+        rows.push({
           external_id: `unsplash:${photo.id}`,
           image_url: photo.urls.regular,
           thumb_url: photo.urls.small,
           source_url: photo.links.html,
           photographer: photo.user?.name,
           description: photo.alt_description || photo.description || q,
-        };
-        const { error } = await supabase.from("daily_designs").upsert(row, { onConflict: "external_id" });
-        if (!error) inserted++;
+        });
       }
+    }
+
+    if (rows.length) {
+      const { error } = await supabase.from("daily_designs").upsert(rows, { onConflict: "external_id" });
+      if (!error) inserted = rows.length;
     }
 
     // Trim to most recent 500

@@ -1,7 +1,6 @@
-import { useEffect, memo } from "react";
+import { memo } from "react";
 import { Link } from "react-router-dom";
 import { MapPin, Star, Users, Play, Sparkles, Sparkle } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
 import { studios, artists } from "@/data/mockData";
 import { reels } from "@/data/mockReels";
 import { Button } from "@/components/ui/button";
@@ -9,22 +8,7 @@ import logoAsset from "@/assets/artspace-logo.webp.asset.json";
 const logo = logoAsset.url;
 import { Navbar } from "@/components/layout/Navbar";
 import { SEO } from "@/lib/seo";
-import { supabase } from "@/integrations/supabase/client";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
-
-// Warm caches so navigating into Discover/Profile/Artist feels instant.
-const prefetchHomeData = () => {
-  // Fire-and-forget; results sit in the HTTP cache + supabase JS internal cache.
-  supabase.from("artists").select("id,name,avatar_url,studio_name,specialty,hourly_rate,rating,available,portfolio_images").limit(20);
-  supabase.from("reels").select("id,artist_id,video_url,thumbnail_url,caption,likes,views").eq("moderation_status", "approved").order("created_at", { ascending: false }).limit(20);
-  supabase.from("daily_designs").select("id,image_url,thumb_url,description").order("fetched_at", { ascending: false }).limit(30);
-  supabase.auth.getSession().then(({ data }) => {
-    if (data.session?.user) {
-      supabase.from("profiles").select("*").eq("user_id", data.session.user.id).maybeSingle();
-      supabase.from("favorites").select("*").eq("user_id", data.session.user.id);
-    }
-  });
-};
 
 const Hero = () => {
   const [reduced, setReduced] = useReducedMotion();
@@ -102,18 +86,7 @@ const Hero = () => {
 };
 
 const FeaturedStrip = memo(() => {
-  const { data: items = [] } = useQuery({
-    queryKey: ["featured_artists_strip"],
-    staleTime: 5 * 60 * 1000,
-    gcTime: 30 * 60 * 1000,
-    queryFn: async () => {
-      const { data } = await supabase.from("featured_artists")
-        .select("id,priority,artists(id,name,avatar_url,specialty)")
-        .eq("active", true).order("priority", { ascending: false }).limit(6);
-      return (data || []).filter((d: any) => d.artists);
-    },
-  });
-  if (items.length === 0) return null;
+  const items = artists.slice(0, 6);
   return (
     <div className="mb-10">
       <div className="flex items-center gap-2 mb-4">
@@ -121,13 +94,13 @@ const FeaturedStrip = memo(() => {
         <h3 className="font-heading text-lg font-semibold text-foreground">Featured Artists</h3>
       </div>
       <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-        {items.map((f: any) => (
-          <Link key={f.id} to={`/artist/${f.artists.id}`} className="flex-shrink-0 w-56 bg-gradient-to-br from-gold/10 to-card border border-gold/30 rounded-xl p-4 hover:border-gold/50 transition-colors">
+        {items.map((artist) => (
+          <Link key={artist.id} to={`/artist/${artist.id}`} className="flex-shrink-0 w-56 bg-gradient-to-br from-gold/10 to-card border border-gold/30 rounded-xl p-4 hover:border-gold/50 transition-colors">
             <div className="flex items-center gap-3 mb-2">
-              <img src={f.artists.avatar_url || "https://via.placeholder.com/40"} alt={f.artists.name} className="w-10 h-10 rounded-full object-cover border border-gold/30" />
+              <img src={artist.avatar} alt={artist.name} className="w-10 h-10 rounded-full object-cover border border-gold/30" />
               <div className="min-w-0">
-                <p className="text-foreground text-sm font-medium truncate">{f.artists.name}</p>
-                <p className="text-gold text-xs truncate">{f.artists.specialty}</p>
+                <p className="text-foreground text-sm font-medium truncate">{artist.name}</p>
+                <p className="text-gold text-xs truncate">{artist.specialty}</p>
               </div>
             </div>
             <span className="text-[10px] uppercase tracking-wider text-gold">Featured</span>
@@ -292,14 +265,6 @@ const DiscoverReels = () => (
 );
 
 const Index = () => {
-  useEffect(() => {
-    const idle = (window as any).requestIdleCallback || ((cb: any) => setTimeout(cb, 1));
-    const id = idle(prefetchHomeData);
-    return () => {
-      const cancel = (window as any).cancelIdleCallback;
-      if (cancel) cancel(id);
-    };
-  }, []);
   return (
   <div className="min-h-screen bg-background">
     <SEO
