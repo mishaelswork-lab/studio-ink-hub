@@ -1,32 +1,18 @@
 /**
  * Real-user performance monitoring.
- * Captures TTFB, LCP, and failed resource loads, batches them, and ships
- * to the perf_metrics table. Anonymous-friendly (no auth required).
+ * Disabled by default to avoid background Cloud database writes on every visit.
+ * Set VITE_ENABLE_CLOUD_TELEMETRY=true only during a short diagnostic window.
  */
-import { supabase } from "@/integrations/supabase/client";
 
 type PerfRow = { event: string; value?: number; url?: string; meta?: Record<string, unknown> };
 
+const telemetryEnabled = import.meta.env.VITE_ENABLE_CLOUD_TELEMETRY === "true";
 let buffer: PerfRow[] = [];
 let timer: number | null = null;
 
 const flush = async () => {
   if (!buffer.length) return;
-  const rows = buffer.splice(0, buffer.length);
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    await supabase.from("perf_metrics").insert(
-      rows.map(r => ({
-        event: r.event,
-        value: r.value ?? null,
-        url: r.url ?? location.pathname,
-        user_id: user?.id ?? null,
-        meta: (r.meta ?? {}) as any,
-      })) as any
-    );
-  } catch {
-    /* swallow — perf telemetry must never break the app */
-  }
+  buffer = [];
 };
 
 const schedule = () => {
@@ -35,6 +21,7 @@ const schedule = () => {
 };
 
 export const recordPerf = (row: PerfRow) => {
+  if (!telemetryEnabled) return;
   buffer.push(row);
   if (buffer.length >= 10) flush();
   else schedule();
@@ -42,7 +29,7 @@ export const recordPerf = (row: PerfRow) => {
 
 let initialized = false;
 export const initPerf = () => {
-  if (initialized || typeof window === "undefined") return;
+  if (!telemetryEnabled || initialized || typeof window === "undefined") return;
   initialized = true;
 
   // TTFB / nav timing
@@ -81,6 +68,7 @@ export const initPerf = () => {
 
 /** Wrap a Supabase query to record its latency. */
 export const trackQuery = async <T>(label: string, run: () => Promise<T>): Promise<T> => {
+  if (!telemetryEnabled) return run();
   const t0 = performance.now();
   try {
     const r = await run();

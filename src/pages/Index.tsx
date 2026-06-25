@@ -1,4 +1,4 @@
-import { useEffect, memo } from "react";
+import { memo } from "react";
 import { Link } from "react-router-dom";
 import { MapPin, Star, Users, Play, Sparkles, Sparkle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -11,20 +11,6 @@ import { Navbar } from "@/components/layout/Navbar";
 import { SEO } from "@/lib/seo";
 import { supabase } from "@/integrations/supabase/client";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
-
-// Warm caches so navigating into Discover/Profile/Artist feels instant.
-const prefetchHomeData = () => {
-  // Fire-and-forget; results sit in the HTTP cache + supabase JS internal cache.
-  supabase.from("artists").select("id,name,avatar_url,studio_name,specialty,hourly_rate,rating,available,portfolio_images").limit(20);
-  supabase.from("reels").select("id,artist_id,video_url,thumbnail_url,caption,likes,views").eq("moderation_status", "approved").order("created_at", { ascending: false }).limit(20);
-  supabase.from("daily_designs").select("id,image_url,thumb_url,description").order("fetched_at", { ascending: false }).limit(30);
-  supabase.auth.getSession().then(({ data }) => {
-    if (data.session?.user) {
-      supabase.from("profiles").select("*").eq("user_id", data.session.user.id).maybeSingle();
-      supabase.from("favorites").select("*").eq("user_id", data.session.user.id);
-    }
-  });
-};
 
 const Hero = () => {
   const [reduced, setReduced] = useReducedMotion();
@@ -292,14 +278,6 @@ const DiscoverReels = () => (
 );
 
 const Index = () => {
-  useEffect(() => {
-    const idle = (window as any).requestIdleCallback || ((cb: any) => setTimeout(cb, 1));
-    const id = idle(prefetchHomeData);
-    return () => {
-      const cancel = (window as any).cancelIdleCallback;
-      if (cancel) cancel(id);
-    };
-  }, []);
   return (
   <div className="min-h-screen bg-background">
     <SEO

@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { registerPush } from "@/lib/push";
 import type { User, Session } from "@supabase/supabase-js";
 
 interface AuthContextType {
@@ -62,11 +61,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const updateLastActive = (userId: string) => {
-    // Fire-and-forget; never block UI.
-    supabase.from("profiles").update({ last_active_at: new Date().toISOString() }).eq("user_id", userId);
-  };
-
   useEffect(() => {
     let bootstrapped = false;
     const hydrate = (s: Session | null) => {
@@ -77,8 +71,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setTimeout(() => {
           fetchRoles(s.user.id);
           fetchArtistProfile(s.user.id);
-          updateLastActive(s.user.id);
-          registerPush(s.user.id);
         }, 0);
       } else {
         setRoles([]);
