@@ -35,7 +35,7 @@ const UsageHotspotsPanel = () => {
   const load = async () => {
     setLoading(true);
     const since = new Date(Date.now() - hours * 3600 * 1000).toISOString();
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from("usage_events")
       .select("*")
       .gte("created_at", since)
@@ -44,6 +44,7 @@ const UsageHotspotsPanel = () => {
     setRows((data as Row[]) || []);
     setLoading(false);
   };
+
 
   useEffect(() => { void load(); /* eslint-disable-next-line */ }, [hours]);
 

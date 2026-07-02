@@ -22,16 +22,17 @@ const flush = async () => {
   const rows = buffer.map((r) => ({
     category: r.category,
     event: r.event,
-    meta: r.meta ?? {},
+    meta: (r.meta ?? {}) as any,
     created_at: r.at,
   }));
   buffer = [];
   try {
-    await supabase.from("usage_events").insert(rows);
+    await (supabase as any).from("usage_events").insert(rows);
   } catch {
     /* best-effort */
   }
 };
+
 
 const schedule = () => {
   if (timer || typeof window === "undefined") return;
