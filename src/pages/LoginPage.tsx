@@ -18,6 +18,20 @@ const LoginPage = () => {
   const [otpSent, setOtpSent] = useState(false);
   const navigate = useNavigate();
 
+  // Route artists straight to /artist-dashboard, everyone else to /dashboard.
+  const routeAfterLogin = async () => {
+    try {
+      const { data: { user: u } } = await supabase.auth.getUser();
+      if (!u) { navigate("/dashboard"); return; }
+      const { data } = await supabase.from("user_roles").select("role").eq("user_id", u.id);
+      const roles = (data || []).map((r: any) => r.role);
+      if (roles.includes("artist")) { navigate("/artist-dashboard"); return; }
+      navigate("/dashboard");
+    } catch {
+      navigate("/dashboard");
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -29,12 +43,12 @@ const LoginPage = () => {
         });
         if (error) throw error;
         toast.success("Account created! You're now signed in.");
-        navigate("/dashboard");
+        await routeAfterLogin();
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast.success("Welcome back!");
-        navigate("/dashboard");
+        await routeAfterLogin();
       }
     } catch (error: any) {
       toast.error(error.message || "Authentication failed");
@@ -67,7 +81,7 @@ const LoginPage = () => {
       const { error } = await supabase.auth.verifyOtp({ phone: fullPhone, token: otp, type: "sms" });
       if (error) throw error;
       toast.success("Phone verified! Welcome!");
-      navigate("/dashboard");
+      await routeAfterLogin();
     } catch (error: any) {
       toast.error(error.message || "OTP verification failed");
     } finally {
@@ -88,12 +102,13 @@ const LoginPage = () => {
       }
       if (result.redirected) return;
       toast.success("Welcome!");
-      navigate("/dashboard");
+      await routeAfterLogin();
     } catch (error: any) {
       toast.error(error.message || "Google sign-in failed");
       setLoading(false);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-background">
