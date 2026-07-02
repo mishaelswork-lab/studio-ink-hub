@@ -50,7 +50,10 @@ const AIConsultant = () => {
     setLoading(true);
     setSuggestions([]);
     setError(null);
+    const t0 = performance.now();
     try {
+      const { logUsage } = await import("@/lib/usage");
+      logUsage("ai", "tattoo-suggest", { hasImage: !!imageBase64, bodyArea: bodyArea || null });
       const invokePromise = supabase.functions.invoke("tattoo-suggest", {
         body: { imageBase64, bodyArea, notes },
       });
@@ -60,9 +63,13 @@ const AIConsultant = () => {
       const { data, error: fnErr } = (await Promise.race([invokePromise, timeoutPromise])) as any;
       if (fnErr) throw fnErr;
       if (data?.error) throw new Error(data.error);
-      const list: Suggestion[] = data?.suggestions || [];
+      // Strictly only art suggestions — filter any accidental non-art rows.
+      const raw: Suggestion[] = data?.suggestions || [];
+      const list = raw.filter((s) => !!s?.title && !!s?.style);
       setSuggestions(list);
+      logUsage("ai", "tattoo-suggest-done", { count: list.length, ms: Math.round(performance.now() - t0) });
       if (!list.length) setError("No suggestions returned. Try a different photo or area.");
+
     } catch (e: any) {
       const msg = e?.message || "Failed to get suggestions";
       setError(msg);
