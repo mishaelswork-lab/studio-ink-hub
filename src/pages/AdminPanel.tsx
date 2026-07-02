@@ -1,6 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
-import { Users, CalendarDays, BarChart3, Settings, LogOut, Star, TrendingUp, IndianRupee, Film, Trash2, Shield, Check, X, ScrollText, Sparkles, Activity } from "lucide-react";
+import { Users, CalendarDays, BarChart3, Settings, LogOut, Star, TrendingUp, IndianRupee, Film, Trash2, Shield, Check, X, ScrollText, Sparkles, Activity, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Textarea } from "@/components/ui/textarea";
 const AddArtistDialog = lazy(() => import("@/components/admin/AddArtistDialog"));
 const PerfMetricsPanel = lazy(() => import("@/components/admin/PerfMetricsPanel"));
+const UsageHotspotsPanel = lazy(() => import("@/components/admin/UsageHotspotsPanel"));
 
 const adminTabs = [
   { id: "overview", label: "Overview", icon: BarChart3 },
@@ -19,10 +20,12 @@ const adminTabs = [
   { id: "featured", label: "Featured", icon: Sparkles },
   { id: "audit", label: "Audit Log", icon: ScrollText },
   { id: "metrics", label: "Metrics", icon: Activity },
+  { id: "usage", label: "Usage", icon: Zap },
   { id: "settings", label: "Settings", icon: Settings },
 ] as const;
 
 type AdminTab = typeof adminTabs[number]["id"];
+
 
 // AddArtistDialog moved to its own lazy chunk for smaller initial admin bundle.
 
@@ -531,6 +534,13 @@ const AdminPanel = () => {
             <PerfMetricsPanel />
           </Suspense>
         )}
+
+        {activeTab === "usage" && (
+          <Suspense fallback={<p className="text-muted-foreground text-sm">Loading usage…</p>}>
+            <UsageHotspotsPanel />
+          </Suspense>
+        )}
+
 
         {activeTab === "settings" && (
           <div>

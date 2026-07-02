@@ -141,23 +141,21 @@ const ArtistDashboard = () => {
     setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b));
   };
 
-  // Safeguard: only allow tattoo/art uploads (AI moderation + admin override)
+  // Safeguard: only allow tattoo/art uploads (AI moderation + admin override).
+  // Uses a debounced+cached wrapper so preview/intermediate calls collapse into
+  // a single moderation round-trip per final image URL.
   const moderate = async (imageUrl: string): Promise<boolean> => {
-    try {
-      const { data } = await supabase.functions.invoke("moderate-image", { body: { imageUrl } });
-      if (data?.allowed) return true;
-      toast.error(`Upload blocked: ${data?.reason || "not tattoo/art"}. An admin can override.`);
-      return false;
-    } catch {
-      // Fail open with warning so artists aren't fully blocked on outages
-      toast.warning("Couldn't verify image — flagged for admin review");
-      return true;
-    }
+    const { moderateImage } = await import("@/lib/moderate");
+    const r = await moderateImage(imageUrl);
+    if (!r.allowed) toast.error(`Upload blocked: ${r.reason || "not tattoo/art"}. An admin can override.`);
+    return r.allowed;
   };
 
   const handleInstagramImport = async (url: string, caption: string) => {
     if (!artistProfile) return;
     const ok = await moderate(url);
+    const { logUsage } = await import("@/lib/usage");
+    logUsage("media", "reel-insert", { source: "instagram" });
     const { error } = await supabase.from("reels").insert({
       artist_id: artistProfile.id,
       video_url: url,
@@ -190,25 +188,28 @@ const ArtistDashboard = () => {
     if (!file || !artistProfile) return;
     if (file.size > 5 * 1024 * 1024) { toast.error("Max 5MB"); return; }
 
-    const ext = file.name.split(".").pop();
-    const path = `portfolio/${artistProfile.id}/${Date.now()}.${ext}`;
-    const { error: upErr } = await supabase.storage.from("reels-videos").upload(path, file);
-    if (upErr) { toast.error("Upload failed"); return; }
-
-    const { data: urlData } = supabase.storage.from("reels-videos").getPublicUrl(path);
-    const ok = await moderate(urlData.publicUrl);
-    if (!ok) {
-      await supabase.storage.from("reels-videos").remove([path]);
-      return;
+    // Upload via S3+CloudFront when configured (falls back to Supabase Storage).
+    const { uploadMedia } = await import("@/lib/mediaUpload");
+    let publicUrl: string;
+    try {
+      publicUrl = await uploadMedia(file, "portfolio", artistProfile.id);
+    } catch {
+      toast.error("Upload failed"); return;
     }
+
+    // Moderate ONLY the final URL (debounced + cached — no calls on previews).
+    const ok = await moderate(publicUrl);
+    if (!ok) return;
+
     const currentImages = artistProfile.portfolio_images || [];
     const { error } = await supabase.from("artists").update({
-      portfolio_images: [...currentImages, urlData.publicUrl],
+      portfolio_images: [...currentImages, publicUrl],
     }).eq("id", artistProfile.id);
     if (error) { toast.error("Failed to save"); return; }
-    artistProfile.portfolio_images = [...currentImages, urlData.publicUrl];
+    artistProfile.portfolio_images = [...currentImages, publicUrl];
     toast.success("Photo added to portfolio!");
   };
+
 
   const handleSaveAvailability = async () => {
     if (!artistProfile) return;

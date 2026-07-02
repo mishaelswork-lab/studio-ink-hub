@@ -737,6 +737,30 @@ export type Database = {
         }
         Relationships: []
       }
+      usage_events: {
+        Row: {
+          category: string
+          created_at: string
+          event: string
+          id: string
+          meta: Json
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          event: string
+          id?: string
+          meta?: Json
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          event?: string
+          id?: string
+          meta?: Json
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string

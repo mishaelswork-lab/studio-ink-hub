@@ -67,13 +67,22 @@ const DesignCard = ({ design }: { design: DesignRow }) => {
   );
 };
 
-// Heuristic: only show designs whose description/photographer reads as a tattoo on skin or a sketch.
-// Keep human elements minimal — exclude generic portraits/scenery without tattoo context.
-const TATTOO_KEYWORDS = /\b(tattoo|tatt|ink(ed)?|sketch|drawing|line\s?work|stencil|design|illustration|skin\s?art|body\s?art)\b/i;
+// Strict heuristic: only surface real tattoo art / sketches. Description must
+// mention tattoo/ink/sketch/flash terms; generic portraits, scenery, and
+// lifestyle photos without artwork context are dropped.
+const TATTOO_TERMS = /\b(tattoo(s|ed|ing)?|tatt|ink(ed|ing)?|flash|stencil|dot\s?work|black\s?work|neo[-\s]?traditional|traditional|fine[-\s]?line|line\s?work|geometric|mandala|linework)\b/i;
+const ART_TERMS = /\b(sketch|drawing|illustration|design|art(work)?|painting)\b/i;
+const HUMAN_ONLY = /\b(portrait|selfie|face|hair|makeup|smile|beauty|couple|family|wedding|fashion)\b/i;
+
 const isTattooOrSketch = (d: DesignRow) => {
   const blob = `${d.description || ""} ${d.photographer || ""}`.toLowerCase();
-  return TATTOO_KEYWORDS.test(blob);
+  // Must mention tattoo/ink; sketches are only kept when explicitly tattoo art.
+  if (!TATTOO_TERMS.test(blob) && !(ART_TERMS.test(blob) && /tattoo|ink/.test(blob))) return false;
+  // Drop human-centric photos that don't ALSO reference tattoo art.
+  if (HUMAN_ONLY.test(blob) && !TATTOO_TERMS.test(blob)) return false;
+  return true;
 };
+
 
 const DesignsFeed = () => {
   const qc = useQueryClient();
