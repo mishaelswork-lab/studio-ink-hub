@@ -14,7 +14,7 @@ const tabs = [
   { id: "bookings", label: "Bookings", icon: CalendarDays },
   { id: "portfolio", label: "Portfolio", icon: ImagePlus },
   { id: "reels", label: "Reels", icon: Film },
-  { id: "certifications", label: "Certs", icon: Award },
+  { id: "certifications", label: "Certifications", icon: Award },
   { id: "consultations", label: "Chats", icon: MessageSquare },
   { id: "boost", label: "Get Featured", icon: Sparkles },
   { id: "availability", label: "Hours", icon: Clock },
