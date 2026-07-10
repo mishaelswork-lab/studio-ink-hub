@@ -1,5 +1,5 @@
-import { memo } from "react";
-import { Link } from "react-router-dom";
+import { memo, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { MapPin, Star, Users, Play, Sparkles, Sparkle } from "lucide-react";
 import { studios, artists } from "@/data/mockData";
 import { reels } from "@/data/mockReels";
@@ -9,6 +9,8 @@ const logo = logoAsset.url;
 import { Navbar } from "@/components/layout/Navbar";
 import { SEO } from "@/lib/seo";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { useAuth } from "@/contexts/AuthContext";
+
 
 const Hero = () => {
   const [reduced, setReduced] = useReducedMotion();
@@ -265,8 +267,14 @@ const DiscoverReels = () => (
 );
 
 const Index = () => {
+  const { roles, loading } = useAuth();
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (!loading && roles.includes("artist")) navigate("/artist-dashboard", { replace: true });
+  }, [loading, roles, navigate]);
   return (
   <div className="min-h-screen bg-background">
+
     <SEO
       title="ArtSpace — Premium Art & Tattoo Experiences in India"
       description="Discover India's finest tattoo and body-art artists. Browse portfolios, watch reels, get design ideas and book your next masterpiece on ArtSpace."
