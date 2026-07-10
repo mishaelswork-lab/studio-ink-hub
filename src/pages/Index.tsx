@@ -267,8 +267,14 @@ const DiscoverReels = () => (
 );
 
 const Index = () => {
+  const { roles, loading } = useAuth();
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (!loading && roles.includes("artist")) navigate("/artist-dashboard", { replace: true });
+  }, [loading, roles, navigate]);
   return (
   <div className="min-h-screen bg-background">
+
     <SEO
       title="ArtSpace — Premium Art & Tattoo Experiences in India"
       description="Discover India's finest tattoo and body-art artists. Browse portfolios, watch reels, get design ideas and book your next masterpiece on ArtSpace."
