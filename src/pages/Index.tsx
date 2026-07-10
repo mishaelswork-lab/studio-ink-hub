@@ -1,5 +1,5 @@
-import { memo } from "react";
-import { Link } from "react-router-dom";
+import { memo, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { MapPin, Star, Users, Play, Sparkles, Sparkle } from "lucide-react";
 import { studios, artists } from "@/data/mockData";
 import { reels } from "@/data/mockReels";
@@ -9,6 +9,8 @@ const logo = logoAsset.url;
 import { Navbar } from "@/components/layout/Navbar";
 import { SEO } from "@/lib/seo";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { useAuth } from "@/contexts/AuthContext";
+
 
 const Hero = () => {
   const [reduced, setReduced] = useReducedMotion();
