@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, memo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Navbar } from "@/components/layout/Navbar";
-import { Heart, Share2, ExternalLink, Image as ImageIcon, Play } from "lucide-react";
+import { Heart, Share2, ExternalLink, Image as ImageIcon, Play, Download, Printer } from "lucide-react";
 import { reels } from "@/data/mockReels";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
