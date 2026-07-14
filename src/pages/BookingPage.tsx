@@ -30,7 +30,7 @@ const BookingPage = () => {
   const [referralDiscount, setReferralDiscount] = useState(0);
   const [referralChecked, setReferralChecked] = useState(false);
   const [form, setForm] = useState({
-    date: "", time: "", style: "", placement: "", size: "Medium", description: "",
+    serviceType: "Tattoo", date: "", time: "", style: "", placement: "", size: "Medium", description: "",
   });
 
   const mockArtist = mockArtists.find(a => a.id === artistId);
@@ -126,7 +126,7 @@ const BookingPage = () => {
         customer_name: user.user_metadata?.display_name || user.email || "Customer",
         date: form.date,
         time: form.time,
-        style: form.style,
+        style: `[${form.serviceType}] ${form.style}`,
         placement: form.placement,
         size: form.size,
         description: form.description,
@@ -221,6 +221,20 @@ const BookingPage = () => {
           <p className="text-muted-foreground text-sm mb-6">with {artistName} · {artistStudio}</p>
 
           <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="text-sm text-muted-foreground mb-1.5 block">Service</label>
+              <div className="grid grid-cols-2 gap-2">
+                {["Tattoo", "Piercing"].map(s => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setForm(p => ({ ...p, serviceType: s }))}
+                    className={`h-10 rounded-md border text-sm transition-colors ${form.serviceType === s ? "bg-gold text-background border-gold" : "bg-secondary border-border text-foreground hover:border-gold/40"}`}
+                  >{s}</button>
+                ))}
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm text-muted-foreground mb-1.5 block">Date</label>
@@ -236,8 +250,8 @@ const BookingPage = () => {
             </div>
 
             <div>
-              <label className="text-sm text-muted-foreground mb-1.5 block">Art Style</label>
-              <input type="text" required placeholder="e.g. Japanese Dragon, Mandala..." value={form.style} onChange={e => setForm(p => ({...p, style: e.target.value}))} className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-gold placeholder:text-muted-foreground" />
+              <label className="text-sm text-muted-foreground mb-1.5 block">{form.serviceType === "Piercing" ? "Piercing type" : "Art Style"}</label>
+              <input type="text" required placeholder={form.serviceType === "Piercing" ? "e.g. Helix, Septum, Nostril..." : "e.g. Japanese Dragon, Mandala..."} value={form.style} onChange={e => setForm(p => ({...p, style: e.target.value}))} className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-gold placeholder:text-muted-foreground" />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
