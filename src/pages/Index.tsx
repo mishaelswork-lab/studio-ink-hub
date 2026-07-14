@@ -69,7 +69,7 @@ const Hero = () => {
         <span className="text-gradient-gold">SPACE</span>
       </h1>
       <p className={`font-heading italic text-gold/90 text-lg md:text-xl mb-3 ${reduced ? "" : "animate-fade-in"}`} style={reduced ? undefined : { animationDelay: "0.15s" }}>
-        A space for your "Let's do it" moment
+        the last space for your art
       </p>
       <p className={`text-muted-foreground text-base md:text-lg max-w-2xl mx-auto mb-10 ${reduced ? "" : "animate-fade-in"}`} style={reduced ? undefined : { animationDelay: "0.2s" }}>
         Discover India's finest artists. Book your next masterpiece with confidence.
