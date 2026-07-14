@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, memo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Navbar } from "@/components/layout/Navbar";
-import { Heart, Share2, ExternalLink, Image as ImageIcon, Play } from "lucide-react";
+import { Heart, Share2, ExternalLink, Image as ImageIcon, Play, Download, Printer } from "lucide-react";
 import { reels } from "@/data/mockReels";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,10 +28,34 @@ const DesignCard = ({ design }: { design: DesignRow }) => {
   const { isFavorite, toggle } = useFavorite("design", design.id);
 
   const handleShare = () => shareLink({
-    title: "Tattoo design idea",
-    text: design.description || "Check out this tattoo design",
+    title: "Tattoo stencil idea",
+    text: design.description || "Check out this tattoo stencil",
     url: design.source_url || design.image_url,
   });
+
+  const downloadDesign = async () => {
+    try {
+      const res = await fetch(design.image_url);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `artspace-stencil-${design.external_id.replace(/[^a-z0-9]/gi, "-")}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error("Download failed — try again");
+    }
+  };
+
+  const printDesign = () => {
+    const w = window.open("", "_blank");
+    if (!w) { toast.error("Popup blocked — allow popups to print"); return; }
+    w.document.write(`<html><head><title>ArtSpace Stencil</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#fff}img{max-width:100%;max-height:100vh}@media print{@page{margin:12mm}}</style></head><body><img src="${design.image_url}" crossorigin="anonymous" onload="window.print();"/></body></html>`);
+    w.document.close();
+  };
 
   const sendToArtist = async () => {
     if (!user) { toast.error("Sign in to share with an artist"); return; }
@@ -41,20 +65,26 @@ const DesignCard = ({ design }: { design: DesignRow }) => {
     if (!cons) { toast.error("Start a consultation first to share designs"); return; }
     await supabase.from("consultation_messages").insert({
       consultation_id: cons.id, sender_id: user.id, image_url: design.image_url,
-      message: "Sharing this design idea",
+      message: "Sharing this stencil idea",
     });
     toast.success(`Sent to ${(cons as any).artists?.name || "artist"}`);
   };
 
   return (
-    <div className="break-inside-avoid mb-3 group relative rounded-lg overflow-hidden border border-border bg-card">
-      <img src={design.thumb_url || design.image_url} alt={design.description || "Tattoo design"} loading="lazy" className="w-full object-cover" />
+    <div className="break-inside-avoid mb-3 group relative rounded-lg overflow-hidden border border-border bg-white">
+      <img src={design.thumb_url || design.image_url} alt={design.description || "Tattoo stencil"} loading="lazy" className="w-full object-cover" />
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
       <div className="absolute bottom-0 left-0 right-0 p-2.5 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity">
         <button onClick={toggle} className="bg-black/50 backdrop-blur rounded-full p-2">
           <Heart className={`w-4 h-4 ${isFavorite ? "fill-red-500 text-red-500" : "text-white"}`} />
         </button>
         <div className="flex gap-1.5">
+          <button onClick={downloadDesign} className="bg-black/50 backdrop-blur rounded-full p-2" title="Download stencil">
+            <Download className="w-4 h-4 text-white" />
+          </button>
+          <button onClick={printDesign} className="bg-black/50 backdrop-blur rounded-full p-2" title="Print stencil">
+            <Printer className="w-4 h-4 text-white" />
+          </button>
           <button onClick={sendToArtist} className="bg-black/50 backdrop-blur rounded-full p-2" title="Send to artist">
             <ExternalLink className="w-4 h-4 text-white" />
           </button>
@@ -67,19 +97,15 @@ const DesignCard = ({ design }: { design: DesignRow }) => {
   );
 };
 
-// Strict heuristic: only surface real tattoo art / sketches. Description must
-// mention tattoo/ink/sketch/flash terms; generic portraits, scenery, and
-// lifestyle photos without artwork context are dropped.
-const TATTOO_TERMS = /\b(tattoo(s|ed|ing)?|tatt|ink(ed|ing)?|flash|stencil|dot\s?work|black\s?work|neo[-\s]?traditional|traditional|fine[-\s]?line|line\s?work|geometric|mandala|linework)\b/i;
-const ART_TERMS = /\b(sketch|drawing|illustration|design|art(work)?|painting)\b/i;
-const HUMAN_ONLY = /\b(portrait|selfie|face|hair|makeup|smile|beauty|couple|family|wedding|fashion)\b/i;
+// Strict stencil-only heuristic: pure tattoo art / stencil / flash on white
+// background. Reject anything mentioning humans, skin, body parts, or lifestyle.
+const STENCIL_TERMS = /\b(tattoo|stencil|flash|linework|line\s?art|blackwork|dotwork|fine[-\s]?line|sketch|drawing|illustration|design)\b/i;
+const HUMAN_ONLY = /\b(person|people|man|woman|girl|boy|portrait|selfie|face|hair|makeup|smile|beauty|couple|family|wedding|fashion|arm|leg|hand|back|chest|skin|body|model|shoulder|torso)\b/i;
 
 const isTattooOrSketch = (d: DesignRow) => {
   const blob = `${d.description || ""} ${d.photographer || ""}`.toLowerCase();
-  // Must mention tattoo/ink; sketches are only kept when explicitly tattoo art.
-  if (!TATTOO_TERMS.test(blob) && !(ART_TERMS.test(blob) && /tattoo|ink/.test(blob))) return false;
-  // Drop human-centric photos that don't ALSO reference tattoo art.
-  if (HUMAN_ONLY.test(blob) && !TATTOO_TERMS.test(blob)) return false;
+  if (!STENCIL_TERMS.test(blob)) return false;
+  if (HUMAN_ONLY.test(blob)) return false;
   return true;
 };
 

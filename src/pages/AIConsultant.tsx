@@ -2,30 +2,23 @@ import { useRef, useState } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Sparkles, Upload, Loader2, Image as ImageIcon, X, RotateCw, AlertCircle } from "lucide-react";
+import { Sparkles, Upload, Loader2, X, RotateCw, AlertCircle, Download, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { SEO } from "@/lib/seo";
 
-interface Suggestion {
+interface Design {
   title: string;
   style: string;
-  description: string;
-  placement: string;
-  size: string;
-  keyword: string;
-  image?: string;
+  image: string; // data URL
 }
-
-const BODY_AREAS = ["Forearm", "Upper arm", "Shoulder", "Back", "Chest", "Ribs", "Thigh", "Calf", "Ankle", "Wrist", "Neck", "Hand"];
 
 const AIConsultant = () => {
   const [preview, setPreview] = useState<string | null>(null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
-  const [bodyArea, setBodyArea] = useState<string>("");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [designs, setDesigns] = useState<Design[]>([]);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -43,35 +36,29 @@ const AIConsultant = () => {
   const clearImage = () => { setPreview(null); setImageBase64(null); if (fileRef.current) fileRef.current.value = ""; };
 
   const handleSubmit = async () => {
-    if (!imageBase64 && !bodyArea) {
-      toast.error("Upload a photo or pick a body area");
-      return;
-    }
+    if (!imageBase64) { toast.error("Upload a reference artwork first"); return; }
     setLoading(true);
-    setSuggestions([]);
+    setDesigns([]);
     setError(null);
     const t0 = performance.now();
     try {
       const { logUsage } = await import("@/lib/usage");
-      logUsage("ai", "tattoo-suggest", { hasImage: !!imageBase64, bodyArea: bodyArea || null });
-      const invokePromise = supabase.functions.invoke("tattoo-suggest", {
-        body: { imageBase64, bodyArea, notes },
+      logUsage("ai", "generate-tattoo-designs", {});
+      const invokePromise = supabase.functions.invoke("generate-tattoo-designs", {
+        body: { imageBase64, notes, count: 6 },
       });
       const timeoutPromise = new Promise<any>((_, reject) =>
-        setTimeout(() => reject(new Error("Taking too long — please retry.")), 30000)
+        setTimeout(() => reject(new Error("Taking too long — please retry.")), 90000)
       );
       const { data, error: fnErr } = (await Promise.race([invokePromise, timeoutPromise])) as any;
       if (fnErr) throw fnErr;
       if (data?.error) throw new Error(data.error);
-      // Strictly only art suggestions — filter any accidental non-art rows.
-      const raw: Suggestion[] = data?.suggestions || [];
-      const list = raw.filter((s) => !!s?.title && !!s?.style);
-      setSuggestions(list);
-      logUsage("ai", "tattoo-suggest-done", { count: list.length, ms: Math.round(performance.now() - t0) });
-      if (!list.length) setError("No suggestions returned. Try a different photo or area.");
-
+      const list: Design[] = (data?.designs || []).filter((d: any) => d?.image);
+      setDesigns(list);
+      logUsage("ai", "generate-tattoo-designs-done", { count: list.length, ms: Math.round(performance.now() - t0) });
+      if (!list.length) setError("No designs generated. Try a different reference.");
     } catch (e: any) {
-      const msg = e?.message || "Failed to get suggestions";
+      const msg = e?.message || "Failed to generate designs";
       setError(msg);
       toast.error(msg);
     } finally {
@@ -79,27 +66,42 @@ const AIConsultant = () => {
     }
   };
 
+  const downloadDesign = (d: Design, i: number) => {
+    const a = document.createElement("a");
+    a.href = d.image;
+    a.download = `artspace-stencil-${i + 1}-${d.style.replace(/\s+/g, "-")}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
+  const printDesign = (d: Design) => {
+    const w = window.open("", "_blank");
+    if (!w) { toast.error("Popup blocked — allow popups to print"); return; }
+    w.document.write(`<html><head><title>ArtSpace Stencil</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#fff}img{max-width:100%;max-height:100vh}@media print{@page{margin:12mm}}</style></head><body><img src="${d.image}" onload="window.print();"/></body></html>`);
+    w.document.close();
+  };
+
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="AI Tattoo Match — ArtSpace" description="Upload a photo of where you want a tattoo and get 10 design ideas instantly." />
+      <SEO title="AI Tattoo Designer — ArtSpace" description="Upload your reference art and get 6 unique black & white tattoo stencils generated by AI. Download or print for your artist." />
       <Navbar />
       <div className="pt-24 pb-24 px-4 max-w-5xl mx-auto">
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 text-gold mb-2">
             <Sparkles className="w-5 h-5" />
-            <span className="text-sm tracking-[0.2em] uppercase">AI Tattoo Match</span>
+            <span className="text-sm tracking-[0.2em] uppercase">AI Tattoo Designer</span>
           </div>
-          <h1 className="font-heading text-3xl md:text-4xl font-bold text-foreground">Find 10 designs for your spot</h1>
-          <p className="text-muted-foreground text-sm mt-2">Upload a photo of the area or pick a body part — we'll suggest 10 tattoos that work.</p>
+          <h1 className="font-heading text-3xl md:text-4xl font-bold text-foreground">Turn your art into stencil-ready tattoos</h1>
+          <p className="text-muted-foreground text-sm mt-2 max-w-xl mx-auto">Upload your own reference — sketch, photo, or inspiration — and we'll generate 6 unique black &amp; white tattoo designs incorporating it.</p>
         </div>
 
         <div className="bg-card border border-border rounded-xl p-5 md:p-6 space-y-5">
-          {/* Upload */}
           <div>
-            <label className="text-xs uppercase tracking-wider text-muted-foreground mb-2 block">Photo of your skin / body area</label>
+            <label className="text-xs uppercase tracking-wider text-muted-foreground mb-2 block">Your reference artwork</label>
             {preview ? (
               <div className="relative inline-block">
-                <img src={preview} alt="Preview" className="max-h-60 rounded-lg border border-border" />
+                <img src={preview} alt="Reference" className="max-h-60 rounded-lg border border-border" />
                 <button onClick={clearImage} className="absolute -top-2 -right-2 bg-background border border-border rounded-full p-1">
                   <X className="w-4 h-4" />
                 </button>
@@ -110,30 +112,15 @@ const AIConsultant = () => {
                 className="w-full border-2 border-dashed border-border rounded-lg py-10 flex flex-col items-center gap-2 hover:border-gold/40 transition-colors"
               >
                 <Upload className="w-6 h-6 text-gold" />
-                <span className="text-sm text-foreground">Click to upload a photo</span>
-                <span className="text-xs text-muted-foreground">JPG/PNG up to 8MB</span>
+                <span className="text-sm text-foreground">Upload your art or reference</span>
+                <span className="text-xs text-muted-foreground">JPG/PNG up to 8MB — sketches, photos, ideas</span>
               </button>
             )}
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
           </div>
 
-          {/* Body area picker */}
           <div>
-            <label className="text-xs uppercase tracking-wider text-muted-foreground mb-2 block">Or pick a body area</label>
-            <div className="flex flex-wrap gap-2">
-              {BODY_AREAS.map(a => (
-                <button
-                  key={a}
-                  onClick={() => setBodyArea(bodyArea === a ? "" : a)}
-                  className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${bodyArea === a ? "bg-gold text-background border-gold" : "border-border text-muted-foreground hover:text-foreground hover:border-gold/40"}`}
-                >{a}</button>
-              ))}
-            </div>
-          </div>
-
-          {/* Notes */}
-          <div>
-            <label className="text-xs uppercase tracking-wider text-muted-foreground mb-2 block">Style or theme (optional)</label>
+            <label className="text-xs uppercase tracking-wider text-muted-foreground mb-2 block">Style notes (optional)</label>
             <input
               value={notes} onChange={(e) => setNotes(e.target.value)}
               placeholder="e.g. minimal, mythological, floral, geometric…"
@@ -141,15 +128,15 @@ const AIConsultant = () => {
             />
           </div>
 
-          <Button variant="gold" size="lg" className="w-full" onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Generating 10 ideas…</> : <>Get 10 tattoo ideas</>}
+          <Button variant="gold" size="lg" className="w-full" onClick={handleSubmit} disabled={loading || !imageBase64}>
+            {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Generating designs…</> : <>Generate 6 B&amp;W designs</>}
           </Button>
+          <p className="text-[11px] text-muted-foreground text-center">All outputs are strictly black &amp; white, stencil-ready, and free to download or print.</p>
         </div>
 
-        {/* Loading skeletons */}
         {loading && (
           <div className="mt-10">
-            <h2 className="font-heading text-2xl font-bold mb-5">Generating 10 designs…</h2>
+            <h2 className="font-heading text-2xl font-bold mb-5">Rendering your designs…</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} className="bg-card border border-border rounded-xl overflow-hidden">
@@ -157,7 +144,6 @@ const AIConsultant = () => {
                   <div className="p-4 space-y-2">
                     <Skeleton className="h-4 w-2/3" />
                     <Skeleton className="h-3 w-1/2" />
-                    <Skeleton className="h-3 w-full" />
                   </div>
                 </div>
               ))}
@@ -165,7 +151,6 @@ const AIConsultant = () => {
           </div>
         )}
 
-        {/* Error + retry */}
         {!loading && error && (
           <div className="mt-10 bg-destructive/5 border border-destructive/30 rounded-xl p-6 text-center">
             <AlertCircle className="w-8 h-8 text-destructive mx-auto mb-2" />
@@ -177,28 +162,31 @@ const AIConsultant = () => {
           </div>
         )}
 
-        {/* Results */}
-        {!loading && suggestions.length > 0 && (
+        {!loading && designs.length > 0 && (
           <div className="mt-10">
-            <h2 className="font-heading text-2xl font-bold mb-5">Your 10 Designs</h2>
+            <h2 className="font-heading text-2xl font-bold mb-5">Your Stencils</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {suggestions.map((s, i) => (
+              {designs.map((d, i) => (
                 <div key={i} className="bg-card border border-border rounded-xl overflow-hidden hover:border-gold/30 transition-colors">
-                  <div className="aspect-square bg-secondary flex items-center justify-center overflow-hidden">
-                    {s.image ? (
-                      <img src={s.image} alt={s.title} loading="lazy" className="w-full h-full object-cover" />
-                    ) : (
-                      <ImageIcon className="w-10 h-10 text-muted-foreground" />
-                    )}
+                  <div className="aspect-square bg-white flex items-center justify-center overflow-hidden">
+                    <img src={d.image} alt={`${d.style} tattoo stencil`} loading="lazy" className="w-full h-full object-contain" />
                   </div>
-                  <div className="p-4 space-y-2">
+                  <div className="p-4 space-y-3">
                     <div className="flex items-start justify-between gap-2">
-                      <h3 className="font-heading font-semibold text-foreground leading-tight">{s.title}</h3>
+                      <div>
+                        <h3 className="font-heading font-semibold text-foreground leading-tight">{d.title}</h3>
+                        <p className="text-gold text-xs mt-0.5 capitalize">{d.style}</p>
+                      </div>
                       <span className="text-[10px] uppercase tracking-wider text-gold whitespace-nowrap">#{i + 1}</span>
                     </div>
-                    <p className="text-gold text-xs">{s.style} • {s.size}</p>
-                    <p className="text-muted-foreground text-xs leading-relaxed line-clamp-3">{s.description}</p>
-                    <p className="text-muted-foreground text-[11px] italic">Placement: {s.placement}</p>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="gold-outline" className="flex-1 gap-1.5" onClick={() => downloadDesign(d, i)}>
+                        <Download className="w-3.5 h-3.5" /> Download
+                      </Button>
+                      <Button size="sm" variant="gold-outline" className="flex-1 gap-1.5" onClick={() => printDesign(d)}>
+                        <Printer className="w-3.5 h-3.5" /> Print
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}
