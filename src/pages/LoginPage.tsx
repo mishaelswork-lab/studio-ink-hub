@@ -50,7 +50,10 @@ const LoginPage = () => {
       if (isSignUp) {
         const { error } = await supabase.auth.signUp({
           email, password,
-          options: { data: { display_name: displayName || email } },
+          options: {
+            data: { display_name: displayName || email },
+            emailRedirectTo: window.location.origin + (nextPath ?? ""),
+          },
         });
         if (error) throw error;
         toast.success("Account created! You're now signed in.");
@@ -104,7 +107,7 @@ const LoginPage = () => {
     setLoading(true);
     try {
       const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
+        redirect_uri: window.location.origin + (nextPath ?? ""),
       });
       if (result.error) {
         toast.error("Google sign-in failed");
