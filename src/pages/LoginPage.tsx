@@ -1,10 +1,17 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/layout/Navbar";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
+
+// Accept only same-origin relative paths as the post-login redirect target.
+const safeNext = (raw: string | null): string | null => {
+  if (!raw) return null;
+  if (!raw.startsWith("/") || raw.startsWith("//")) return null;
+  return raw;
+};
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
@@ -17,9 +24,13 @@ const LoginPage = () => {
   const [authMode, setAuthMode] = useState<"email" | "phone">("email");
   const [otpSent, setOtpSent] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const nextPath = safeNext(searchParams.get("next"));
 
-  // Route artists straight to /artist-dashboard, everyone else to /dashboard.
+  // Route artists straight to /artist-dashboard, everyone else to /dashboard —
+  // unless a `next` param is present (e.g. OAuth consent), in which case honor it.
   const routeAfterLogin = async () => {
+    if (nextPath) { window.location.href = nextPath; return; }
     try {
       const { data: { user: u } } = await supabase.auth.getUser();
       if (!u) { navigate("/dashboard"); return; }

@@ -28,6 +28,7 @@ const ChatsPage = lazy(() => import("./pages/ChatsPage"));
 const ArtistChatsPage = lazy(() => import("./pages/ArtistChatsPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const StagingCheck = lazy(() => import("./pages/StagingCheck"));
+const OAuthConsent = lazy(() => import("./pages/OAuthConsent"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -71,6 +72,7 @@ const App = () => (
               <Route path="/admin" element={<AdminLogin />} />
               <Route path="/admin/dashboard" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin"><AdminPanel /></ProtectedRoute>} />
               <Route path="/staging-check" element={<StagingCheck />} />
+              <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
