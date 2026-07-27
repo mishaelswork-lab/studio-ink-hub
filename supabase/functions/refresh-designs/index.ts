@@ -41,6 +41,7 @@ Deno.serve(async (req) => {
     if (!r.ok) throw new Error(`Pinterest RSS ${r.status}`);
     const xml = await r.text();
     const items = parseItems(xml);
+    console.log("fetched", xml.length, "bytes, parsed", items.length, "items");
 
     const rows = items.map((it) => {
       // Upgrade thumbnail to a larger image; 736x is reliably served.
