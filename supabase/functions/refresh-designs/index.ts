@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
       inserted = rows.length;
     }
 
-    return new Response(JSON.stringify({ inserted, board: BOARD_RSS }), {
+    return new Response(JSON.stringify({ inserted, items: items.length, bytes: xml.length, board: BOARD_RSS }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
