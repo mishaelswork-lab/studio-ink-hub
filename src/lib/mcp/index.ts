@@ -3,6 +3,10 @@ import listStudios from "./tools/list-studios";
 import listArtists from "./tools/list-artists";
 import getArtist from "./tools/get-artist";
 import listMyBookings from "./tools/list-my-bookings";
+import createBooking from "./tools/create-booking";
+import cancelBooking from "./tools/cancel-booking";
+import listMyBookingNotifications from "./tools/list-my-booking-notifications";
+import markBookingNotificationRead from "./tools/mark-booking-notification-read";
 import listMyConsultations from "./tools/list-my-consultations";
 import sendConsultationMessage from "./tools/send-consultation-message";
 import listMyFavorites from "./tools/list-my-favorites";
@@ -13,9 +17,9 @@ const projectRef = import.meta.env.VITE_SUPABASE_PROJECT_ID ?? "project-ref-unse
 export default defineMcp({
   name: "artspace-mcp",
   title: "ArtSpace",
-  version: "0.1.0",
+  version: "0.2.0",
   instructions:
-    "ArtSpace tools: browse tattoo studios and artists, and — for the signed-in user — read bookings, consultations, favorites, and send messages in existing consultation threads. All per-user tools run as the authenticated user under RLS.",
+    "ArtSpace tools: browse tattoo studios and artists; for the signed-in user, create/cancel bookings (tattoo or piercing, ₹500 cover charge via Razorpay), read bookings, poll booking status-change notifications, read consultations and send messages in existing threads, and read saved favorites. All per-user tools run as the authenticated user under RLS.",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated",
@@ -25,6 +29,10 @@ export default defineMcp({
     listArtists,
     getArtist,
     listMyBookings,
+    createBooking,
+    cancelBooking,
+    listMyBookingNotifications,
+    markBookingNotificationRead,
     listMyConsultations,
     sendConsultationMessage,
     listMyFavorites,

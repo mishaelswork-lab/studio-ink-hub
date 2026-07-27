@@ -12,7 +12,7 @@
   "mcp": {
     "server": {
       "name": "artspace-mcp",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "title": "ArtSpace"
     },
     "tools": [
@@ -110,6 +110,165 @@
               "maximum": 100
             }
           }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "create_booking",
+        "title": "Create booking",
+        "description": "Create a tattoo or piercing booking for the signed-in user and initialize the ₹500 cover-charge Razorpay order. Returns the booking id plus a payment_intent the user completes at /booking to confirm.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "artist_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "description": "Artist to book with."
+            },
+            "service_type": {
+              "type": "string",
+              "enum": [
+                "tattoo",
+                "piercing"
+              ],
+              "description": "Service being booked."
+            },
+            "date": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Preferred date, e.g. 2026-08-14."
+            },
+            "time": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Preferred time slot, e.g. 3:00 PM."
+            },
+            "style": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Tattoo style or piercing type (e.g. 'Fine line', 'Helix')."
+            },
+            "placement": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Body placement, e.g. 'left forearm'."
+            },
+            "size": {
+              "description": "Approx size (Small/Medium/Large). Defaults to Medium.",
+              "type": "string"
+            },
+            "description": {
+              "description": "Any extra detail for the artist.",
+              "type": "string"
+            },
+            "customer_name": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Customer's full name."
+            },
+            "customer_phone": {
+              "description": "Contact phone number.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "artist_id",
+            "service_type",
+            "date",
+            "time",
+            "style",
+            "placement",
+            "customer_name"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "cancel_booking",
+        "title": "Cancel booking",
+        "description": "Cancel one of the signed-in user's bookings. Sets status to 'cancelled'. Optionally records a reason in the description.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "booking_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "description": "Booking to cancel."
+            },
+            "reason": {
+              "description": "Optional cancellation reason (appended to description).",
+              "type": "string"
+            }
+          },
+          "required": [
+            "booking_id"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_my_booking_notifications",
+        "title": "List booking notifications",
+        "description": "List booking status-change notifications (accepted/rejected/cancelled/updated) for the signed-in user. Poll this to proactively inform the user of new updates.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "unread_only": {
+              "description": "Only return unread notifications.",
+              "type": "boolean"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "mark_booking_notification_read",
+        "title": "Mark booking notification read",
+        "description": "Mark one of the signed-in user's booking notifications as read.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "description": "Notification id."
+            }
+          },
+          "required": [
+            "id"
+          ]
         },
         "outputSchema": null
       },

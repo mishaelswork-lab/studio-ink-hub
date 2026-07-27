@@ -102,7 +102,7 @@ var list_my_bookings_default = defineTool4({
   }
 });
 
-// src/lib/mcp/tools/list-my-consultations.ts
+// src/lib/mcp/tools/create-booking.ts
 import { createClient as createClient5 } from "npm:@supabase/supabase-js@^2.101.1";
 import { defineTool as defineTool5 } from "npm:@lovable.dev/mcp-js@0.24.0";
 import { z as z5 } from "npm:zod@^4.4.3";
@@ -112,21 +112,85 @@ function userClient2(ctx) {
     auth: { persistSession: false, autoRefreshToken: false }
   });
 }
-var list_my_consultations_default = defineTool5({
-  name: "list_my_consultations",
-  title: "List my consultations",
-  description: "List the signed-in user's artist chats/consultations.",
-  inputSchema: { limit: z5.number().int().min(1).max(100).optional() },
-  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async ({ limit }, ctx) => {
-    if (!ctx.isAuthenticated()) return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
-    const { data, error } = await userClient2(ctx).from("consultations").select("*").order("created_at", { ascending: false }).limit(limit ?? 20);
-    if (error) return { content: [{ type: "text", text: error.message }], isError: true };
-    return { content: [{ type: "text", text: JSON.stringify(data) }], structuredContent: { consultations: data ?? [] } };
+var COVER_CHARGE_INR = 500;
+var create_booking_default = defineTool5({
+  name: "create_booking",
+  title: "Create booking",
+  description: "Create a tattoo or piercing booking for the signed-in user and initialize the \u20B9500 cover-charge Razorpay order. Returns the booking id plus a payment_intent the user completes at /booking to confirm.",
+  inputSchema: {
+    artist_id: z5.string().uuid().describe("Artist to book with."),
+    service_type: z5.enum(["tattoo", "piercing"]).describe("Service being booked."),
+    date: z5.string().min(1).describe("Preferred date, e.g. 2026-08-14."),
+    time: z5.string().min(1).describe("Preferred time slot, e.g. 3:00 PM."),
+    style: z5.string().min(1).describe("Tattoo style or piercing type (e.g. 'Fine line', 'Helix')."),
+    placement: z5.string().min(1).describe("Body placement, e.g. 'left forearm'."),
+    size: z5.string().optional().describe("Approx size (Small/Medium/Large). Defaults to Medium."),
+    description: z5.string().optional().describe("Any extra detail for the artist."),
+    customer_name: z5.string().min(1).describe("Customer's full name."),
+    customer_phone: z5.string().optional().describe("Contact phone number.")
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+  handler: async (input, ctx) => {
+    if (!ctx.isAuthenticated())
+      return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
+    const sb = userClient2(ctx);
+    const styleTagged = input.service_type === "piercing" ? `[Piercing] ${input.style}` : input.style;
+    const { data: booking, error } = await sb.from("bookings").insert({
+      customer_id: ctx.getUserId(),
+      artist_id: input.artist_id,
+      customer_name: input.customer_name,
+      customer_phone: input.customer_phone ?? null,
+      date: input.date,
+      time: input.time,
+      style: styleTagged,
+      placement: input.placement,
+      size: input.size ?? "Medium",
+      description: input.description ?? null,
+      status: "pending",
+      total_estimate: 0
+    }).select().maybeSingle();
+    if (error || !booking)
+      return { content: [{ type: "text", text: error?.message ?? "Failed to create booking" }], isError: true };
+    let paymentIntent = null;
+    let paymentNote = null;
+    try {
+      const resp = await fetch(`${process.env.SUPABASE_URL}/functions/v1/create-razorpay-order`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${ctx.getToken()}`,
+          apikey: process.env.SUPABASE_PUBLISHABLE_KEY
+        },
+        body: JSON.stringify({
+          amount: COVER_CHARGE_INR,
+          currency: "INR",
+          booking_id: booking.id,
+          payment_type: "cover_charge"
+        })
+      });
+      const body = await resp.json();
+      if (resp.ok) paymentIntent = body;
+      else paymentNote = body?.error ?? `Razorpay order failed (HTTP ${resp.status})`;
+    } catch (e) {
+      paymentNote = e.message;
+    }
+    const summary = {
+      booking_id: booking.id,
+      status: booking.status,
+      service_type: input.service_type,
+      cover_charge_inr: COVER_CHARGE_INR,
+      payment_intent: paymentIntent,
+      payment_note: paymentNote,
+      complete_payment_url: `/booking?resume=${booking.id}`
+    };
+    return {
+      content: [{ type: "text", text: JSON.stringify(summary) }],
+      structuredContent: summary
+    };
   }
 });
 
-// src/lib/mcp/tools/send-consultation-message.ts
+// src/lib/mcp/tools/cancel-booking.ts
 import { createClient as createClient6 } from "npm:@supabase/supabase-js@^2.101.1";
 import { defineTool as defineTool6 } from "npm:@lovable.dev/mcp-js@0.24.0";
 import { z as z6 } from "npm:zod@^4.4.3";
@@ -136,24 +200,35 @@ function userClient3(ctx) {
     auth: { persistSession: false, autoRefreshToken: false }
   });
 }
-var send_consultation_message_default = defineTool6({
-  name: "send_consultation_message",
-  title: "Send consultation message",
-  description: "Send a message in one of the signed-in user's consultation threads.",
+var cancel_booking_default = defineTool6({
+  name: "cancel_booking",
+  title: "Cancel booking",
+  description: "Cancel one of the signed-in user's bookings. Sets status to 'cancelled'. Optionally records a reason in the description.",
   inputSchema: {
-    consultation_id: z6.string().uuid().describe("Consultation thread id."),
-    message: z6.string().min(1).describe("Message body.")
+    booking_id: z6.string().uuid().describe("Booking to cancel."),
+    reason: z6.string().optional().describe("Optional cancellation reason (appended to description).")
   },
-  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
-  handler: async ({ consultation_id, message }, ctx) => {
-    if (!ctx.isAuthenticated()) return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
-    const { data, error } = await userClient3(ctx).from("consultation_messages").insert({ consultation_id, sender_id: ctx.getUserId(), message }).select().maybeSingle();
+  annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
+  handler: async ({ booking_id, reason }, ctx) => {
+    if (!ctx.isAuthenticated())
+      return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
+    const sb = userClient3(ctx);
+    const patch = { status: "cancelled" };
+    if (reason) {
+      const { data: cur } = await sb.from("bookings").select("description").eq("id", booking_id).maybeSingle();
+      patch.description = `${cur?.description ?? ""}
+[Cancelled: ${reason}]`.trim();
+    }
+    const { data, error } = await sb.from("bookings").update(patch).eq("id", booking_id).select().maybeSingle();
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
-    return { content: [{ type: "text", text: JSON.stringify(data) }], structuredContent: { sent: data } };
+    return {
+      content: [{ type: "text", text: JSON.stringify(data) }],
+      structuredContent: { cancelled: data }
+    };
   }
 });
 
-// src/lib/mcp/tools/list-my-favorites.ts
+// src/lib/mcp/tools/list-my-booking-notifications.ts
 import { createClient as createClient7 } from "npm:@supabase/supabase-js@^2.101.1";
 import { defineTool as defineTool7 } from "npm:@lovable.dev/mcp-js@0.24.0";
 import { z as z7 } from "npm:zod@^4.4.3";
@@ -163,15 +238,124 @@ function userClient4(ctx) {
     auth: { persistSession: false, autoRefreshToken: false }
   });
 }
-var list_my_favorites_default = defineTool7({
-  name: "list_my_favorites",
-  title: "List my saved ideas",
-  description: "List the signed-in user's saved tattoo ideas / favorites.",
-  inputSchema: { limit: z7.number().int().min(1).max(100).optional() },
+var list_my_booking_notifications_default = defineTool7({
+  name: "list_my_booking_notifications",
+  title: "List booking notifications",
+  description: "List booking status-change notifications (accepted/rejected/cancelled/updated) for the signed-in user. Poll this to proactively inform the user of new updates.",
+  inputSchema: {
+    unread_only: z7.boolean().optional().describe("Only return unread notifications."),
+    limit: z7.number().int().min(1).max(100).optional()
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ unread_only, limit }, ctx) => {
+    if (!ctx.isAuthenticated())
+      return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
+    let q = userClient4(ctx).from("booking_notifications").select("*").order("created_at", { ascending: false }).limit(limit ?? 25);
+    if (unread_only) q = q.is("read_at", null);
+    const { data, error } = await q;
+    if (error) return { content: [{ type: "text", text: error.message }], isError: true };
+    return {
+      content: [{ type: "text", text: JSON.stringify(data) }],
+      structuredContent: { notifications: data ?? [] }
+    };
+  }
+});
+
+// src/lib/mcp/tools/mark-booking-notification-read.ts
+import { createClient as createClient8 } from "npm:@supabase/supabase-js@^2.101.1";
+import { defineTool as defineTool8 } from "npm:@lovable.dev/mcp-js@0.24.0";
+import { z as z8 } from "npm:zod@^4.4.3";
+function userClient5(ctx) {
+  return createClient8(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
+    global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
+}
+var mark_booking_notification_read_default = defineTool8({
+  name: "mark_booking_notification_read",
+  title: "Mark booking notification read",
+  description: "Mark one of the signed-in user's booking notifications as read.",
+  inputSchema: { id: z8.string().uuid().describe("Notification id.") },
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+  handler: async ({ id }, ctx) => {
+    if (!ctx.isAuthenticated())
+      return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
+    const { data, error } = await userClient5(ctx).from("booking_notifications").update({ read_at: (/* @__PURE__ */ new Date()).toISOString() }).eq("id", id).select().maybeSingle();
+    if (error) return { content: [{ type: "text", text: error.message }], isError: true };
+    return { content: [{ type: "text", text: JSON.stringify(data) }], structuredContent: { updated: data } };
+  }
+});
+
+// src/lib/mcp/tools/list-my-consultations.ts
+import { createClient as createClient9 } from "npm:@supabase/supabase-js@^2.101.1";
+import { defineTool as defineTool9 } from "npm:@lovable.dev/mcp-js@0.24.0";
+import { z as z9 } from "npm:zod@^4.4.3";
+function userClient6(ctx) {
+  return createClient9(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
+    global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
+}
+var list_my_consultations_default = defineTool9({
+  name: "list_my_consultations",
+  title: "List my consultations",
+  description: "List the signed-in user's artist chats/consultations.",
+  inputSchema: { limit: z9.number().int().min(1).max(100).optional() },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ limit }, ctx) => {
     if (!ctx.isAuthenticated()) return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
-    const { data, error } = await userClient4(ctx).from("favorites").select("*").order("created_at", { ascending: false }).limit(limit ?? 50);
+    const { data, error } = await userClient6(ctx).from("consultations").select("*").order("created_at", { ascending: false }).limit(limit ?? 20);
+    if (error) return { content: [{ type: "text", text: error.message }], isError: true };
+    return { content: [{ type: "text", text: JSON.stringify(data) }], structuredContent: { consultations: data ?? [] } };
+  }
+});
+
+// src/lib/mcp/tools/send-consultation-message.ts
+import { createClient as createClient10 } from "npm:@supabase/supabase-js@^2.101.1";
+import { defineTool as defineTool10 } from "npm:@lovable.dev/mcp-js@0.24.0";
+import { z as z10 } from "npm:zod@^4.4.3";
+function userClient7(ctx) {
+  return createClient10(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
+    global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
+}
+var send_consultation_message_default = defineTool10({
+  name: "send_consultation_message",
+  title: "Send consultation message",
+  description: "Send a message in one of the signed-in user's consultation threads.",
+  inputSchema: {
+    consultation_id: z10.string().uuid().describe("Consultation thread id."),
+    message: z10.string().min(1).describe("Message body.")
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+  handler: async ({ consultation_id, message }, ctx) => {
+    if (!ctx.isAuthenticated()) return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
+    const { data, error } = await userClient7(ctx).from("consultation_messages").insert({ consultation_id, sender_id: ctx.getUserId(), message }).select().maybeSingle();
+    if (error) return { content: [{ type: "text", text: error.message }], isError: true };
+    return { content: [{ type: "text", text: JSON.stringify(data) }], structuredContent: { sent: data } };
+  }
+});
+
+// src/lib/mcp/tools/list-my-favorites.ts
+import { createClient as createClient11 } from "npm:@supabase/supabase-js@^2.101.1";
+import { defineTool as defineTool11 } from "npm:@lovable.dev/mcp-js@0.24.0";
+import { z as z11 } from "npm:zod@^4.4.3";
+function userClient8(ctx) {
+  return createClient11(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
+    global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
+}
+var list_my_favorites_default = defineTool11({
+  name: "list_my_favorites",
+  title: "List my saved ideas",
+  description: "List the signed-in user's saved tattoo ideas / favorites.",
+  inputSchema: { limit: z11.number().int().min(1).max(100).optional() },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ limit }, ctx) => {
+    if (!ctx.isAuthenticated()) return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
+    const { data, error } = await userClient8(ctx).from("favorites").select("*").order("created_at", { ascending: false }).limit(limit ?? 50);
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
     return { content: [{ type: "text", text: JSON.stringify(data) }], structuredContent: { favorites: data ?? [] } };
   }
@@ -182,8 +366,8 @@ var projectRef = "ccfbfcbgljivdkqsayes";
 var mcp_default = defineMcp({
   name: "artspace-mcp",
   title: "ArtSpace",
-  version: "0.1.0",
-  instructions: "ArtSpace tools: browse tattoo studios and artists, and \u2014 for the signed-in user \u2014 read bookings, consultations, favorites, and send messages in existing consultation threads. All per-user tools run as the authenticated user under RLS.",
+  version: "0.2.0",
+  instructions: "ArtSpace tools: browse tattoo studios and artists; for the signed-in user, create/cancel bookings (tattoo or piercing, \u20B9500 cover charge via Razorpay), read bookings, poll booking status-change notifications, read consultations and send messages in existing threads, and read saved favorites. All per-user tools run as the authenticated user under RLS.",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated"
@@ -193,6 +377,10 @@ var mcp_default = defineMcp({
     list_artists_default,
     get_artist_default,
     list_my_bookings_default,
+    create_booking_default,
+    cancel_booking_default,
+    list_my_booking_notifications_default,
+    mark_booking_notification_read_default,
     list_my_consultations_default,
     send_consultation_message_default,
     list_my_favorites_default
