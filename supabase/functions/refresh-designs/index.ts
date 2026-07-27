@@ -37,9 +37,14 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const r = await fetch(BOARD_RSS, { headers: { "User-Agent": "Mozilla/5.0 ArtSpace" } });
-    if (!r.ok) throw new Error(`Pinterest RSS ${r.status}`);
+    const r = await fetch(BOARD_RSS, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+        "Accept": "application/rss+xml, application/xml, text/xml, */*",
+      },
+    });
     const xml = await r.text();
+    if (!r.ok) throw new Error(`Pinterest RSS ${r.status}: ${xml.slice(0, 200)}`);
     const items = parseItems(xml);
     console.log("fetched", xml.length, "bytes, parsed", items.length, "items");
 
