@@ -97,19 +97,6 @@ const DesignCard = ({ design }: { design: DesignRow }) => {
   );
 };
 
-// Strict stencil-only heuristic: pure tattoo art / stencil / flash on white
-// background. Reject anything mentioning humans, skin, body parts, or lifestyle.
-const STENCIL_TERMS = /\b(tattoo|stencil|flash|linework|line\s?art|blackwork|dotwork|fine[-\s]?line|sketch|drawing|illustration|design)\b/i;
-const HUMAN_ONLY = /\b(person|people|man|woman|girl|boy|portrait|selfie|face|hair|makeup|smile|beauty|couple|family|wedding|fashion|arm|leg|hand|back|chest|skin|body|model|shoulder|torso)\b/i;
-
-const isTattooOrSketch = (d: DesignRow) => {
-  const blob = `${d.description || ""} ${d.photographer || ""}`.toLowerCase();
-  if (!STENCIL_TERMS.test(blob)) return false;
-  if (HUMAN_ONLY.test(blob)) return false;
-  return true;
-};
-
-
 const DesignsFeed = () => {
   const qc = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
@@ -119,7 +106,7 @@ const DesignsFeed = () => {
     gcTime: 30 * 60 * 1000,
     queryFn: async () => {
       const { data } = await supabase.from("daily_designs").select("*").order("fetched_at", { ascending: false }).limit(120);
-      return (data || []).filter(isTattooOrSketch);
+      return data || [];
     },
   });
 
