@@ -21,7 +21,9 @@ function parseItems(xml: string) {
     const title = (/<title>([\s\S]*?)<\/title>/.exec(block)?.[1] || "").trim();
     const desc = /<description>([\s\S]*?)<\/description>/.exec(block)?.[1] || "";
     // description is HTML-escaped; decode &quot; then find <img src="...">
-    const decoded = desc.replace(/&quot;/g, '"').replace(/&amp;/g, "&");
+    const decoded = desc
+      .replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&");
     const img = /<img\s+src="([^"]+)"/i.exec(decoded)?.[1] || "";
     const pinId = /\/pin\/(\d+)/.exec(guid)?.[1] || "";
     if (pinId && img) items.push({ pinId, link, img, title });
