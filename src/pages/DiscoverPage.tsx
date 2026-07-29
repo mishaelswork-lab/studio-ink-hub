@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, memo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Navbar } from "@/components/layout/Navbar";
-import { Heart, Share2, ExternalLink, Image as ImageIcon, Play, Download, Printer } from "lucide-react";
+import { Heart, Share2, ExternalLink, Image as ImageIcon, Play, Download, Printer, Flag } from "lucide-react";
 import { reels } from "@/data/mockReels";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,6 +10,8 @@ import { shareLink } from "@/lib/share";
 import { ReelCard } from "@/components/discover/ReelCard";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { SEO } from "@/lib/seo";
 import { toast } from "sonner";
 
@@ -23,7 +25,15 @@ interface DesignRow {
   description: string | null;
 }
 
-const DesignCard = ({ design }: { design: DesignRow }) => {
+const REPORT_REASONS = [
+  "Not a tattoo/stencil",
+  "Inappropriate content",
+  "Contains a real person",
+  "Low quality / broken image",
+  "Other",
+];
+
+const DesignCard = ({ design, onReport }: { design: DesignRow; onReport: (d: DesignRow) => void }) => {
   const { user } = useAuth();
   const { isFavorite, toggle } = useFavorite("design", design.id);
 
@@ -91,6 +101,9 @@ const DesignCard = ({ design }: { design: DesignRow }) => {
           <button onClick={handleShare} className="bg-black/50 backdrop-blur rounded-full p-2" title="Share">
             <Share2 className="w-4 h-4 text-white" />
           </button>
+          <button onClick={() => onReport(design)} className="bg-black/50 backdrop-blur rounded-full p-2" title="Report design">
+            <Flag className="w-4 h-4 text-white" />
+          </button>
         </div>
       </div>
     </div>
@@ -99,16 +112,54 @@ const DesignCard = ({ design }: { design: DesignRow }) => {
 
 const DesignsFeed = () => {
   const qc = useQueryClient();
+  const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
+  const [reportDialog, setReportDialog] = useState<DesignRow | null>(null);
+  const [reportReason, setReportReason] = useState(REPORT_REASONS[0]);
+  const [reportNote, setReportNote] = useState("");
+  const [showSeen, setShowSeen] = useState(false);
+
   const { data: designs = [], isLoading } = useQuery<DesignRow[]>({
     queryKey: ["daily_designs"],
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     queryFn: async () => {
-      const { data } = await supabase.from("daily_designs").select("*").order("fetched_at", { ascending: false }).limit(120);
+      const { data } = await supabase
+        .from("daily_designs")
+        .select("*")
+        .like("external_id", "pinterest:%")
+        .order("fetched_at", { ascending: false })
+        .limit(240);
       return data || [];
     },
   });
+
+  const { data: seenIds = [] } = useQuery<string[]>({
+    queryKey: ["design_views", user?.id],
+    enabled: !!user,
+    staleTime: 60 * 1000,
+    queryFn: async () => {
+      const { data } = await supabase.from("design_views").select("design_id").eq("user_id", user!.id);
+      return (data || []).map((r: any) => r.design_id);
+    },
+  });
+
+  const seenSet = new Set(seenIds);
+  const visibleDesigns = showSeen ? designs : designs.filter(d => !seenSet.has(d.id));
+
+  // Mark visible designs as seen after they render (debounced, batched).
+  const markSeenRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!user || !visibleDesigns.length) return;
+    const toMark = visibleDesigns.slice(0, 30).map(d => d.id).filter(id => !seenSet.has(id) && !markSeenRef.current.has(id));
+    if (!toMark.length) return;
+    toMark.forEach(id => markSeenRef.current.add(id));
+    const timer = setTimeout(async () => {
+      await supabase.from("design_views").upsert(toMark.map(design_id => ({ user_id: user.id, design_id })), { onConflict: "user_id,design_id" });
+      qc.invalidateQueries({ queryKey: ["design_views", user.id] });
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [visibleDesigns, user?.id]);
 
   const triggerRefresh = async () => {
     setRefreshing(true);
@@ -118,13 +169,29 @@ const DesignsFeed = () => {
     setRefreshing(false);
   };
 
+  const submitReport = async () => {
+    if (!user) { toast.error("Sign in to report"); return; }
+    if (!reportDialog) return;
+    const reasonText = reportReason + (reportNote.trim() ? ` — ${reportNote.trim()}` : "");
+    const { error } = await supabase.from("design_reports").insert({
+      design_id: reportDialog.id, reporter_id: user.id, reason: reasonText,
+    });
+    if (error) {
+      if ((error as any).code === "23505") toast.error("You already reported this design");
+      else toast.error("Report failed — try again");
+    } else {
+      toast.success("Thanks — our team will review it");
+    }
+    setReportDialog(null); setReportNote(""); setReportReason(REPORT_REASONS[0]);
+  };
+
   if (isLoading) return <div className="flex justify-center py-10"><div className="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin" /></div>;
 
   if (designs.length === 0) {
     return (
       <div className="text-center py-12">
         <ImageIcon className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-        <p className="text-muted-foreground text-sm mb-4">No designs cached yet. Pull the daily feed now.</p>
+        <p className="text-muted-foreground text-sm mb-4">No designs cached yet. Pull the latest pins.</p>
         <Button variant="gold" size="sm" onClick={triggerRefresh} disabled={refreshing}>
           {refreshing ? "Loading…" : "Load designs"}
         </Button>
@@ -133,9 +200,51 @@ const DesignsFeed = () => {
   }
 
   return (
-    <div className="columns-2 md:columns-3 gap-3">
-      {designs.map(d => <DesignCard key={d.id} design={d} />)}
-    </div>
+    <>
+      {user && seenIds.length > 0 && visibleDesigns.length === 0 && !showSeen && (
+        <div className="text-center py-8 mb-2">
+          <p className="text-muted-foreground text-sm mb-3">You've seen everything on the board — new pins refresh every few hours.</p>
+          <div className="flex gap-2 justify-center">
+            <Button variant="outline" size="sm" onClick={() => setShowSeen(true)}>Show seen designs</Button>
+            <Button variant="gold" size="sm" onClick={triggerRefresh} disabled={refreshing}>{refreshing ? "…" : "Pull now"}</Button>
+          </div>
+        </div>
+      )}
+
+      {user && showSeen && (
+        <div className="mb-3 flex justify-end">
+          <Button variant="ghost" size="sm" onClick={() => setShowSeen(false)}>Hide seen</Button>
+        </div>
+      )}
+
+      <div className="columns-2 md:columns-3 gap-3">
+        {visibleDesigns.map(d => <DesignCard key={d.id} design={d} onReport={setReportDialog} />)}
+      </div>
+
+      <Dialog open={!!reportDialog} onOpenChange={(o) => { if (!o) setReportDialog(null); }}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-foreground">Report this design</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 mt-2">
+            <p className="text-muted-foreground text-sm">Help us keep the discovery feed clean. Our team will review your report.</p>
+            <div className="space-y-1.5">
+              {REPORT_REASONS.map(r => (
+                <label key={r} className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                  <input type="radio" name="reason" value={r} checked={reportReason === r} onChange={() => setReportReason(r)} className="accent-gold" />
+                  {r}
+                </label>
+              ))}
+            </div>
+            <Textarea value={reportNote} onChange={e => setReportNote(e.target.value)} placeholder="Additional details (optional)" className="bg-secondary border-border min-h-[70px] text-sm" maxLength={500} />
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" size="sm" onClick={() => setReportDialog(null)}>Cancel</Button>
+              <Button variant="gold" size="sm" onClick={submitReport}>Submit report</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 
