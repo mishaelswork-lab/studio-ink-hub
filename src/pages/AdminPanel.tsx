@@ -17,6 +17,7 @@ const adminTabs = [
   { id: "bookings", label: "Bookings", icon: CalendarDays },
   { id: "reels", label: "Reels", icon: Film },
   { id: "moderation", label: "Moderation", icon: Shield },
+  { id: "reports", label: "Design Reports", icon: Flag },
   { id: "featured", label: "Featured", icon: Sparkles },
   { id: "audit", label: "Audit Log", icon: ScrollText },
   { id: "metrics", label: "Metrics", icon: Activity },
