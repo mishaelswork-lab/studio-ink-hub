@@ -180,7 +180,28 @@ const AdminPanel = () => {
     fetchData();
   };
 
+  const handleReportAction = async (reportId: string, designId: string, action: "dismiss" | "remove") => {
+    if (!isAdmin) return;
+    if (action === "remove") {
+      const { error } = await supabase.from("daily_designs").delete().eq("id", designId);
+      if (error) { toast.error("Failed to remove design"); return; }
+      await writeAudit("design_removed", "design", designId, adminNote[reportId] || undefined);
+      toast.success("Design removed");
+    } else {
+      await writeAudit("design_report_dismissed", "design", designId, adminNote[reportId] || undefined);
+      toast.success("Report dismissed");
+    }
+    await supabase.from("design_reports").update({
+      status: action === "remove" ? "resolved" : "dismissed",
+      admin_notes: adminNote[reportId] || null,
+      reviewed_by: user!.id,
+      reviewed_at: new Date().toISOString(),
+    }).eq("id", reportId);
+    fetchData();
+  };
+
   const handleLogout = async () => { await signOut(); };
+
 
   return (
     <div className="min-h-screen bg-background">
