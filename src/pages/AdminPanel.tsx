@@ -65,7 +65,7 @@ const AdminPanel = () => {
 
   const fetchData = async () => {
     if (!serverAdmin) return;
-    const [artistsRes, bookingsRes, reelsRes, paymentsRes, flaggedRes, auditRes, fReqRes, fArtRes] = await Promise.all([
+    const [artistsRes, bookingsRes, reelsRes, paymentsRes, flaggedRes, auditRes, fReqRes, fArtRes, reportsRes] = await Promise.all([
       supabase.from("artists").select("*").order("created_at", { ascending: false }),
       supabase.from("bookings").select("*").order("created_at", { ascending: false }),
       supabase.from("reels").select("*").order("created_at", { ascending: false }),
@@ -74,6 +74,7 @@ const AdminPanel = () => {
       supabase.from("admin_audit_log").select("*").order("created_at", { ascending: false }).limit(200),
       supabase.from("featured_requests").select("*, artists(name, avatar_url, specialty)").order("created_at", { ascending: false }),
       supabase.from("featured_artists").select("*, artists(name, avatar_url, specialty)").order("priority", { ascending: false }),
+      supabase.from("design_reports").select("*, daily_designs(image_url, thumb_url, source_url, description)").order("created_at", { ascending: false }).limit(200),
     ]);
     setDbArtists(artistsRes.data || []);
     setDbBookings(bookingsRes.data || []);
@@ -83,6 +84,7 @@ const AdminPanel = () => {
     setAuditLog(auditRes.data || []);
     setFeaturedRequests(fReqRes.data || []);
     setFeaturedArtists(fArtRes.data || []);
+    setDesignReports(reportsRes.data || []);
   };
 
   useEffect(() => { if (serverAdmin) fetchData(); }, [serverAdmin]);
