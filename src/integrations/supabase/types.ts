@@ -341,6 +341,79 @@ export type Database = {
         }
         Relationships: []
       }
+      design_reports: {
+        Row: {
+          admin_notes: string | null
+          created_at: string
+          design_id: string
+          id: string
+          reason: string
+          reporter_id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          created_at?: string
+          design_id: string
+          id?: string
+          reason: string
+          reporter_id: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          created_at?: string
+          design_id?: string
+          id?: string
+          reason?: string
+          reporter_id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "design_reports_design_id_fkey"
+            columns: ["design_id"]
+            isOneToOne: false
+            referencedRelation: "daily_designs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      design_views: {
+        Row: {
+          design_id: string
+          user_id: string
+          viewed_at: string
+        }
+        Insert: {
+          design_id: string
+          user_id: string
+          viewed_at?: string
+        }
+        Update: {
+          design_id?: string
+          user_id?: string
+          viewed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "design_views_design_id_fkey"
+            columns: ["design_id"]
+            isOneToOne: false
+            referencedRelation: "daily_designs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       favorites: {
         Row: {
           created_at: string
