@@ -443,6 +443,60 @@ const AdminPanel = () => {
           </div>
         )}
 
+        {activeTab === "reports" && (
+          <div>
+            <h2 className="font-heading text-2xl font-bold text-foreground mb-2">Design Reports</h2>
+            <p className="text-muted-foreground text-sm mb-6">User-flagged discovery designs awaiting review</p>
+            {designReports.length === 0 ? (
+              <div className="bg-card rounded-lg border border-border p-12 text-center">
+                <Flag className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                <p className="text-muted-foreground text-sm">No design reports yet.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {designReports.map((r: any) => (
+                  <div key={r.id} className="bg-card rounded-lg border border-border overflow-hidden flex flex-col md:flex-row">
+                    <div className="w-full md:w-48 aspect-square bg-secondary flex-shrink-0">
+                      {r.daily_designs?.image_url ? (
+                        <img src={r.daily_designs.thumb_url || r.daily_designs.image_url} alt="reported" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">Design removed</div>
+                      )}
+                    </div>
+                    <div className="flex-1 p-4">
+                      <div className="flex items-start justify-between mb-2 gap-3">
+                        <div>
+                          <p className="text-foreground font-medium text-sm">{r.reason}</p>
+                          <p className="text-muted-foreground text-xs mt-0.5">Reported {new Date(r.created_at).toLocaleString()} · reporter <span className="font-mono">{String(r.reporter_id).slice(0, 8)}</span></p>
+                        </div>
+                        <span className={`text-xs px-2 py-1 rounded-full capitalize ${r.status === "resolved" ? "bg-emerald-500/10 text-emerald-400" : r.status === "dismissed" ? "bg-muted text-muted-foreground" : "bg-gold/10 text-gold"}`}>{r.status}</span>
+                      </div>
+                      {r.daily_designs?.source_url && (
+                        <a href={r.daily_designs.source_url} target="_blank" rel="noreferrer" className="text-gold text-xs hover:underline">View source ↗</a>
+                      )}
+                      {r.status === "pending" && (
+                        <div className="mt-3 space-y-2">
+                          <Textarea value={adminNote[r.id] || ""} onChange={(e) => setAdminNote(p => ({ ...p, [r.id]: e.target.value }))} placeholder="Internal note (optional)" className="bg-secondary border-border min-h-[50px] text-sm" />
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" className="gap-1 border-destructive/50 text-destructive hover:bg-destructive/10" onClick={() => handleReportAction(r.id, r.design_id, "remove")}>
+                              <Trash2 className="w-3.5 h-3.5" /> Remove design
+                            </Button>
+                            <Button size="sm" variant="outline" className="gap-1" onClick={() => handleReportAction(r.id, r.design_id, "dismiss")}>
+                              <X className="w-3.5 h-3.5" /> Dismiss
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                      {r.admin_notes && <p className="text-muted-foreground text-xs mt-2 italic">Note: {r.admin_notes}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+
         {activeTab === "audit" && (
           <div>
             <h2 className="font-heading text-2xl font-bold text-foreground mb-2">Admin Audit Log</h2>
