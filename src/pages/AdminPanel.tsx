@@ -1,6 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
-import { Users, CalendarDays, BarChart3, Settings, LogOut, Star, TrendingUp, IndianRupee, Film, Trash2, Shield, Check, X, ScrollText, Sparkles, Activity, Zap } from "lucide-react";
+import { Users, CalendarDays, BarChart3, Settings, LogOut, Star, TrendingUp, IndianRupee, Film, Trash2, Shield, Check, X, ScrollText, Sparkles, Activity, Zap, Flag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
