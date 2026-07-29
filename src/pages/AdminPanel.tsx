@@ -38,6 +38,7 @@ const AdminPanel = () => {
   const [dbReels, setDbReels] = useState<any[]>([]);
   const [dbPayments, setDbPayments] = useState<any[]>([]);
   const [flaggedReels, setFlaggedReels] = useState<any[]>([]);
+  const [designReports, setDesignReports] = useState<any[]>([]);
   const [auditLog, setAuditLog] = useState<any[]>([]);
   const [featuredRequests, setFeaturedRequests] = useState<any[]>([]);
   const [featuredArtists, setFeaturedArtists] = useState<any[]>([]);
