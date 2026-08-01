@@ -5,6 +5,8 @@ import { studios, artists } from "@/data/mockData";
 import { reels } from "@/data/mockReels";
 import { Button } from "@/components/ui/button";
 import logoAsset from "@/assets/artspace-logo.webp.asset.json";
+import { SUPPORT_EMAIL, SUPPORT_DRIVE_URL, mailto } from "@/lib/contact";
+
 const logo = logoAsset.url;
 import { Navbar } from "@/components/layout/Navbar";
 import { SEO } from "@/lib/seo";
@@ -291,9 +293,17 @@ const Index = () => {
     <DiscoverReels />
     <FeaturedArtists />
     <StudiosSection />
-    <footer className="py-10 border-t border-border text-center">
+    <footer className="py-10 border-t border-border text-center space-y-2">
+      <p className="text-muted-foreground text-sm">
+        Need help? <a href={mailto("ArtSpace support")} className="text-gold hover:underline">{SUPPORT_EMAIL}</a>
+      </p>
+      <p className="text-muted-foreground text-xs">
+        Artists: send portfolios &amp; certificates to our{" "}
+        <a href={SUPPORT_DRIVE_URL} target="_blank" rel="noopener noreferrer" className="text-gold hover:underline">Google Drive</a>
+      </p>
       <p className="text-muted-foreground text-sm">© 2026 ArtSpace. All rights reserved.</p>
     </footer>
+
   </div>
   );
 };
