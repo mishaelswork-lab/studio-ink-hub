@@ -197,18 +197,35 @@ const DesignCard = ({ design, onReport }: { design: DesignRow; onReport: (d: Des
   const [lightbox, setLightbox] = useState(false);
   const pressTimer = useRef<number | null>(null);
   const longPressed = useRef(false);
+  const startPos = useRef<{ x: number; y: number } | null>(null);
+  const MOVE_TOLERANCE = 12; // px — beyond this the gesture is a scroll, not a long press
 
-  const startPress = () => {
+  const cancelPress = () => {
+    if (pressTimer.current) { clearTimeout(pressTimer.current); pressTimer.current = null; }
+    startPos.current = null;
+  };
+
+  const startPress = (e: React.PointerEvent) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
     longPressed.current = false;
+    startPos.current = { x: e.clientX, y: e.clientY };
+    cancelPress();
+    startPos.current = { x: e.clientX, y: e.clientY };
     pressTimer.current = window.setTimeout(() => {
+      pressTimer.current = null;
       longPressed.current = true;
       if (navigator.vibrate) navigator.vibrate(12);
       setSheetOpen(true);
     }, 450);
   };
-  const cancelPress = () => {
-    if (pressTimer.current) { clearTimeout(pressTimer.current); pressTimer.current = null; }
+
+  const onMove = (e: React.PointerEvent) => {
+    if (!pressTimer.current || !startPos.current) return;
+    const dx = Math.abs(e.clientX - startPos.current.x);
+    const dy = Math.abs(e.clientY - startPos.current.y);
+    if (dx > MOVE_TOLERANCE || dy > MOVE_TOLERANCE) cancelPress();
   };
+
   const handleClick = () => {
     if (longPressed.current) { longPressed.current = false; return; }
     setLightbox(true);
@@ -217,14 +234,16 @@ const DesignCard = ({ design, onReport }: { design: DesignRow; onReport: (d: Des
   return (
     <>
       <div
-        className="break-inside-avoid mb-3 group relative rounded-lg overflow-hidden border border-border bg-white cursor-pointer select-none"
+        className="break-inside-avoid mb-3 group relative rounded-lg overflow-hidden border border-border bg-white cursor-pointer select-none touch-pan-y [-webkit-touch-callout:none]"
         onPointerDown={startPress}
+        onPointerMove={onMove}
         onPointerUp={cancelPress}
         onPointerLeave={cancelPress}
         onPointerCancel={cancelPress}
         onClick={handleClick}
-        onContextMenu={(e) => { e.preventDefault(); setSheetOpen(true); }}
+        onContextMenu={(e) => { e.preventDefault(); if (!longPressed.current) { longPressed.current = true; setSheetOpen(true); } }}
       >
+
         <img
           src={design.thumb_url || design.image_url}
           alt={design.description || "Tattoo stencil"}
