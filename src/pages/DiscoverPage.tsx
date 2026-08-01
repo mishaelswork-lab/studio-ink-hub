@@ -145,16 +145,18 @@ const ActionRow = ({
   design: DesignRow; onReport: (d: DesignRow) => void; onClose?: () => void;
   isFavorite: boolean; toggle: () => void; variant: "sheet" | "lightbox";
 }) => {
-  const { handleShare, downloadDesign, printDesign, sendToArtist } = useDesignActions(design);
+  const { handleShare, downloadPNG, downloadPDF, printDesign, sendToArtist } = useDesignActions(design);
 
   const items = [
     { label: isFavorite ? "Saved" : "Save idea", icon: Heart, onClick: toggle, active: isFavorite },
     { label: "Send to artist", icon: ExternalLink, onClick: sendToArtist },
     { label: "Print stencil", icon: Printer, onClick: printDesign },
-    { label: "Download", icon: Download, onClick: downloadDesign },
+    { label: "PNG", icon: Download, onClick: downloadPNG },
+    { label: "PDF", icon: FileText, onClick: downloadPDF },
     { label: "Share", icon: Share2, onClick: handleShare },
     { label: "Report", icon: Flag, onClick: () => onReport(design) },
   ];
+
 
   if (variant === "lightbox") {
     return (
