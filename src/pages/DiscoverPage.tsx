@@ -3,7 +3,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Navbar } from "@/components/layout/Navbar";
-import { Heart, Share2, ExternalLink, Image as ImageIcon, Play, Download, Printer, Flag } from "lucide-react";
+import { Heart, Share2, ExternalLink, Image as ImageIcon, Play, Download, Printer, Flag, FileText } from "lucide-react";
 import { reels } from "@/data/mockReels";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,29 +35,80 @@ const REPORT_REASONS = [
   "Other",
 ];
 
+const fileBase = (d: DesignRow) => `artspace-stencil-${d.external_id.replace(/[^a-z0-9]/gi, "-")}`;
+
+const loadImage = (src: string) =>
+  new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+
 const useDesignActions = (design: DesignRow) => {
   const { user } = useAuth();
 
-  const handleShare = () => shareLink({
-    title: "Tattoo stencil idea",
-    text: design.description || "Check out this tattoo stencil",
-    url: design.source_url || design.image_url,
-  });
+  const handleShare = async () => {
+    const ok = await shareLink({
+      title: "Tattoo stencil idea",
+      text: design.description || "Check out this tattoo stencil",
+      url: design.source_url || design.image_url,
+    });
+    return ok;
+  };
 
-  const downloadDesign = async () => {
+  const downloadPNG = async () => {
+    const t = toast.loading("Preparing PNG…");
     try {
       const res = await fetch(design.image_url);
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `artspace-stencil-${design.external_id.replace(/[^a-z0-9]/gi, "-")}.jpg`;
+      a.download = `${fileBase(design)}.png`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
+      toast.success("PNG downloaded", { id: t });
     } catch {
-      toast.error("Download failed — try again");
+      toast.error("Download failed — try again", { id: t });
+    }
+  };
+
+  const downloadPDF = async () => {
+    const t = toast.loading("Building PDF…");
+    try {
+      const { jsPDF } = await import("jspdf");
+      const img = await loadImage(design.image_url);
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("no ctx");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0);
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+
+      const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: img.naturalHeight >= img.naturalWidth ? "p" : "l" });
+      const pw = pdf.internal.pageSize.getWidth();
+      const ph = pdf.internal.pageSize.getHeight();
+      const margin = 12;
+      const maxW = pw - margin * 2;
+      const maxH = ph - margin * 2 - 10;
+      const ratio = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight);
+      const w = img.naturalWidth * ratio;
+      const h = img.naturalHeight * ratio;
+      pdf.addImage(dataUrl, "JPEG", (pw - w) / 2, margin, w, h);
+      pdf.setFontSize(9);
+      pdf.setTextColor(120);
+      pdf.text("ArtSpace — stencil reference", pw / 2, ph - margin / 2, { align: "center" });
+      pdf.save(`${fileBase(design)}.pdf`);
+      toast.success("PDF downloaded", { id: t });
+    } catch {
+      toast.error("PDF failed — try the PNG download", { id: t });
     }
   };
 
@@ -66,23 +117,27 @@ const useDesignActions = (design: DesignRow) => {
     if (!w) { toast.error("Popup blocked — allow popups to print"); return; }
     w.document.write(`<html><head><title>ArtSpace Stencil</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#fff}img{max-width:100%;max-height:100vh}@media print{@page{margin:12mm}}</style></head><body><img src="${design.image_url}" crossorigin="anonymous" onload="window.print();"/></body></html>`);
     w.document.close();
+    toast.success("Print sheet opened");
   };
 
   const sendToArtist = async () => {
     if (!user) { toast.error("Sign in to share with an artist"); return; }
+    const t = toast.loading("Sending to your artist…");
     const { data: cons } = await supabase
       .from("consultations").select("id, artist_id, artists!inner(name)")
       .eq("customer_id", user.id).eq("status", "active").limit(1).maybeSingle();
-    if (!cons) { toast.error("Start a consultation first to share designs"); return; }
-    await supabase.from("consultation_messages").insert({
+    if (!cons) { toast.error("Start a consultation first to share designs", { id: t }); return; }
+    const { error } = await supabase.from("consultation_messages").insert({
       consultation_id: cons.id, sender_id: user.id, image_url: design.image_url,
       message: "Sharing this stencil idea",
     });
-    toast.success(`Sent to ${(cons as any).artists?.name || "artist"}`);
+    if (error) toast.error("Could not send — try again", { id: t });
+    else toast.success(`Sent to ${(cons as any).artists?.name || "artist"}`, { id: t });
   };
 
-  return { handleShare, downloadDesign, printDesign, sendToArtist };
+  return { handleShare, downloadPNG, downloadPDF, printDesign, sendToArtist };
 };
+
 
 const ActionRow = ({
   design, onReport, onClose, isFavorite, toggle, variant,
@@ -90,16 +145,18 @@ const ActionRow = ({
   design: DesignRow; onReport: (d: DesignRow) => void; onClose?: () => void;
   isFavorite: boolean; toggle: () => void; variant: "sheet" | "lightbox";
 }) => {
-  const { handleShare, downloadDesign, printDesign, sendToArtist } = useDesignActions(design);
+  const { handleShare, downloadPNG, downloadPDF, printDesign, sendToArtist } = useDesignActions(design);
 
   const items = [
     { label: isFavorite ? "Saved" : "Save idea", icon: Heart, onClick: toggle, active: isFavorite },
     { label: "Send to artist", icon: ExternalLink, onClick: sendToArtist },
     { label: "Print stencil", icon: Printer, onClick: printDesign },
-    { label: "Download", icon: Download, onClick: downloadDesign },
+    { label: "PNG", icon: Download, onClick: downloadPNG },
+    { label: "PDF", icon: FileText, onClick: downloadPDF },
     { label: "Share", icon: Share2, onClick: handleShare },
     { label: "Report", icon: Flag, onClick: () => onReport(design) },
   ];
+
 
   if (variant === "lightbox") {
     return (
@@ -140,18 +197,35 @@ const DesignCard = ({ design, onReport }: { design: DesignRow; onReport: (d: Des
   const [lightbox, setLightbox] = useState(false);
   const pressTimer = useRef<number | null>(null);
   const longPressed = useRef(false);
+  const startPos = useRef<{ x: number; y: number } | null>(null);
+  const MOVE_TOLERANCE = 12; // px — beyond this the gesture is a scroll, not a long press
 
-  const startPress = () => {
+  const cancelPress = () => {
+    if (pressTimer.current) { clearTimeout(pressTimer.current); pressTimer.current = null; }
+    startPos.current = null;
+  };
+
+  const startPress = (e: React.PointerEvent) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
     longPressed.current = false;
+    cancelPress();
+    startPos.current = { x: e.clientX, y: e.clientY };
+
     pressTimer.current = window.setTimeout(() => {
+      pressTimer.current = null;
       longPressed.current = true;
       if (navigator.vibrate) navigator.vibrate(12);
       setSheetOpen(true);
     }, 450);
   };
-  const cancelPress = () => {
-    if (pressTimer.current) { clearTimeout(pressTimer.current); pressTimer.current = null; }
+
+  const onMove = (e: React.PointerEvent) => {
+    if (!pressTimer.current || !startPos.current) return;
+    const dx = Math.abs(e.clientX - startPos.current.x);
+    const dy = Math.abs(e.clientY - startPos.current.y);
+    if (dx > MOVE_TOLERANCE || dy > MOVE_TOLERANCE) cancelPress();
   };
+
   const handleClick = () => {
     if (longPressed.current) { longPressed.current = false; return; }
     setLightbox(true);
@@ -160,14 +234,16 @@ const DesignCard = ({ design, onReport }: { design: DesignRow; onReport: (d: Des
   return (
     <>
       <div
-        className="break-inside-avoid mb-3 group relative rounded-lg overflow-hidden border border-border bg-white cursor-pointer select-none"
+        className="break-inside-avoid mb-3 group relative rounded-lg overflow-hidden border border-border bg-white cursor-pointer select-none touch-pan-y [-webkit-touch-callout:none]"
         onPointerDown={startPress}
+        onPointerMove={onMove}
         onPointerUp={cancelPress}
         onPointerLeave={cancelPress}
         onPointerCancel={cancelPress}
         onClick={handleClick}
-        onContextMenu={(e) => { e.preventDefault(); setSheetOpen(true); }}
+        onContextMenu={(e) => { e.preventDefault(); if (!longPressed.current) { longPressed.current = true; setSheetOpen(true); } }}
       >
+
         <img
           src={design.thumb_url || design.image_url}
           alt={design.description || "Tattoo stencil"}
