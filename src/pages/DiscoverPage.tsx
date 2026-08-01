@@ -208,9 +208,9 @@ const DesignCard = ({ design, onReport }: { design: DesignRow; onReport: (d: Des
   const startPress = (e: React.PointerEvent) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
     longPressed.current = false;
-    startPos.current = { x: e.clientX, y: e.clientY };
     cancelPress();
     startPos.current = { x: e.clientX, y: e.clientY };
+
     pressTimer.current = window.setTimeout(() => {
       pressTimer.current = null;
       longPressed.current = true;
