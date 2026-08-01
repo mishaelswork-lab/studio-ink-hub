@@ -33,9 +33,8 @@ const REPORT_REASONS = [
   "Other",
 ];
 
-const DesignCard = ({ design, onReport }: { design: DesignRow; onReport: (d: DesignRow) => void }) => {
+const useDesignActions = (design: DesignRow) => {
   const { user } = useAuth();
-  const { isFavorite, toggle } = useFavorite("design", design.id);
 
   const handleShare = () => shareLink({
     title: "Tattoo stencil idea",
@@ -80,35 +79,134 @@ const DesignCard = ({ design, onReport }: { design: DesignRow; onReport: (d: Des
     toast.success(`Sent to ${(cons as any).artists?.name || "artist"}`);
   };
 
-  return (
-    <div className="break-inside-avoid mb-3 group relative rounded-lg overflow-hidden border border-border bg-white">
-      <img src={design.thumb_url || design.image_url} alt={design.description || "Tattoo stencil"} loading="lazy" className="w-full object-cover" />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-      <div className="absolute bottom-0 left-0 right-0 p-2.5 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity">
-        <button onClick={toggle} className="bg-black/50 backdrop-blur rounded-full p-2">
-          <Heart className={`w-4 h-4 ${isFavorite ? "fill-red-500 text-red-500" : "text-white"}`} />
-        </button>
-        <div className="flex gap-1.5">
-          <button onClick={downloadDesign} className="bg-black/50 backdrop-blur rounded-full p-2" title="Download stencil">
-            <Download className="w-4 h-4 text-white" />
+  return { handleShare, downloadDesign, printDesign, sendToArtist };
+};
+
+const ActionRow = ({
+  design, onReport, onClose, isFavorite, toggle, variant,
+}: {
+  design: DesignRow; onReport: (d: DesignRow) => void; onClose?: () => void;
+  isFavorite: boolean; toggle: () => void; variant: "sheet" | "lightbox";
+}) => {
+  const { handleShare, downloadDesign, printDesign, sendToArtist } = useDesignActions(design);
+
+  const items = [
+    { label: isFavorite ? "Saved" : "Save idea", icon: Heart, onClick: toggle, active: isFavorite },
+    { label: "Send to artist", icon: ExternalLink, onClick: sendToArtist },
+    { label: "Print stencil", icon: Printer, onClick: printDesign },
+    { label: "Download", icon: Download, onClick: downloadDesign },
+    { label: "Share", icon: Share2, onClick: handleShare },
+    { label: "Report", icon: Flag, onClick: () => onReport(design) },
+  ];
+
+  if (variant === "lightbox") {
+    return (
+      <div className="grid grid-cols-3 gap-2 p-3">
+        {items.map(it => (
+          <button
+            key={it.label}
+            onClick={() => { it.onClick(); }}
+            className="flex flex-col items-center gap-1 py-2.5 rounded-lg bg-secondary/60 border border-border text-xs text-foreground hover:bg-secondary transition-colors"
+          >
+            <it.icon className={`w-4 h-4 ${it.active ? "fill-red-500 text-red-500" : "text-gold"}`} />
+            {it.label}
           </button>
-          <button onClick={printDesign} className="bg-black/50 backdrop-blur rounded-full p-2" title="Print stencil">
-            <Printer className="w-4 h-4 text-white" />
-          </button>
-          <button onClick={sendToArtist} className="bg-black/50 backdrop-blur rounded-full p-2" title="Send to artist">
-            <ExternalLink className="w-4 h-4 text-white" />
-          </button>
-          <button onClick={handleShare} className="bg-black/50 backdrop-blur rounded-full p-2" title="Share">
-            <Share2 className="w-4 h-4 text-white" />
-          </button>
-          <button onClick={() => onReport(design)} className="bg-black/50 backdrop-blur rounded-full p-2" title="Report design">
-            <Flag className="w-4 h-4 text-white" />
-          </button>
-        </div>
+        ))}
       </div>
+    );
+  }
+
+  return (
+    <div className="divide-y divide-border">
+      {items.map(it => (
+        <button
+          key={it.label}
+          onClick={() => { it.onClick(); onClose?.(); }}
+          className="w-full flex items-center gap-3 px-4 py-3.5 text-sm text-foreground active:bg-secondary/60"
+        >
+          <it.icon className={`w-4 h-4 ${it.active ? "fill-red-500 text-red-500" : "text-gold"}`} />
+          {it.label}
+        </button>
+      ))}
     </div>
   );
 };
+
+const DesignCard = ({ design, onReport }: { design: DesignRow; onReport: (d: DesignRow) => void }) => {
+  const { isFavorite, toggle } = useFavorite("design", design.id);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [lightbox, setLightbox] = useState(false);
+  const pressTimer = useRef<number | null>(null);
+  const longPressed = useRef(false);
+
+  const startPress = () => {
+    longPressed.current = false;
+    pressTimer.current = window.setTimeout(() => {
+      longPressed.current = true;
+      if (navigator.vibrate) navigator.vibrate(12);
+      setSheetOpen(true);
+    }, 450);
+  };
+  const cancelPress = () => {
+    if (pressTimer.current) { clearTimeout(pressTimer.current); pressTimer.current = null; }
+  };
+  const handleClick = () => {
+    if (longPressed.current) { longPressed.current = false; return; }
+    setLightbox(true);
+  };
+
+  return (
+    <>
+      <div
+        className="break-inside-avoid mb-3 group relative rounded-lg overflow-hidden border border-border bg-white cursor-pointer select-none"
+        onPointerDown={startPress}
+        onPointerUp={cancelPress}
+        onPointerLeave={cancelPress}
+        onPointerCancel={cancelPress}
+        onClick={handleClick}
+        onContextMenu={(e) => { e.preventDefault(); setSheetOpen(true); }}
+      >
+        <img
+          src={design.thumb_url || design.image_url}
+          alt={design.description || "Tattoo stencil"}
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+          className="w-full object-cover pointer-events-none"
+        />
+        {isFavorite && (
+          <div className="absolute top-2 right-2 bg-black/50 backdrop-blur rounded-full p-1.5">
+            <Heart className="w-3.5 h-3.5 fill-red-500 text-red-500" />
+          </div>
+        )}
+      </div>
+
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent side="bottom" className="bg-card border-border p-0 pb-6 rounded-t-2xl">
+          <SheetHeader className="px-4 pt-4 pb-2 text-left">
+            <SheetTitle className="font-heading text-base text-foreground">Design options</SheetTitle>
+          </SheetHeader>
+          <ActionRow design={design} onReport={onReport} onClose={() => setSheetOpen(false)} isFavorite={isFavorite} toggle={toggle} variant="sheet" />
+        </SheetContent>
+      </Sheet>
+
+      <Dialog open={lightbox} onOpenChange={setLightbox}>
+        <DialogContent className="max-w-3xl bg-background/95 border-border p-0 overflow-hidden">
+          <div className="bg-white flex items-center justify-center max-h-[65vh]">
+            <img
+              src={design.image_url}
+              alt={design.description || "Tattoo stencil"}
+              className="max-h-[65vh] w-auto object-contain"
+            />
+          </div>
+          <ActionRow design={design} onReport={(d) => { setLightbox(false); onReport(d); }} isFavorite={isFavorite} toggle={toggle} variant="lightbox" />
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+};
+
+const PAGE = 30;
 
 const DesignsFeed = () => {
   const qc = useQueryClient();
@@ -117,7 +215,8 @@ const DesignsFeed = () => {
   const [reportDialog, setReportDialog] = useState<DesignRow | null>(null);
   const [reportReason, setReportReason] = useState(REPORT_REASONS[0]);
   const [reportNote, setReportNote] = useState("");
-  const [showSeen, setShowSeen] = useState(false);
+  const [count, setCount] = useState(PAGE);
+  const sentinel = useRef<HTMLDivElement>(null);
 
   const { data: designs = [], isLoading } = useQuery<DesignRow[]>({
     queryKey: ["daily_designs"],
@@ -129,37 +228,40 @@ const DesignsFeed = () => {
         .select("*")
         .like("external_id", "pinterest:%")
         .order("fetched_at", { ascending: false })
-        .limit(240);
+        .limit(500);
       return data || [];
     },
   });
 
-  const { data: seenIds = [] } = useQuery<string[]>({
-    queryKey: ["design_views", user?.id],
-    enabled: !!user,
-    staleTime: 60 * 1000,
-    queryFn: async () => {
-      const { data } = await supabase.from("design_views").select("design_id").eq("user_id", user!.id);
-      return (data || []).map((r: any) => r.design_id);
-    },
-  });
+  // Endless feed: cycle through the board, reshuffling order on each loop.
+  const feed = useMemo(() => {
+    if (!designs.length) return [] as { key: string; design: DesignRow }[];
+    const out: { key: string; design: DesignRow }[] = [];
+    let cycle = 0;
+    while (out.length < count) {
+      const round = designs.map((d, i) => ({ d, i }));
+      if (cycle > 0) {
+        // deterministic reshuffle per cycle so repeats don't feel identical
+        round.sort((a, b) => ((a.i * 9301 + cycle * 49297) % 233280) - ((b.i * 9301 + cycle * 49297) % 233280));
+      }
+      for (const { d } of round) {
+        out.push({ key: `${d.id}-${cycle}`, design: d });
+        if (out.length >= count) break;
+      }
+      cycle++;
+    }
+    return out;
+  }, [designs, count]);
 
-  const seenSet = new Set(seenIds);
-  const visibleDesigns = showSeen ? designs : designs.filter(d => !seenSet.has(d.id));
-
-  // Mark visible designs as seen after they render (debounced, batched).
-  const markSeenRef = useRef<Set<string>>(new Set());
   useEffect(() => {
-    if (!user || !visibleDesigns.length) return;
-    const toMark = visibleDesigns.slice(0, 30).map(d => d.id).filter(id => !seenSet.has(id) && !markSeenRef.current.has(id));
-    if (!toMark.length) return;
-    toMark.forEach(id => markSeenRef.current.add(id));
-    const timer = setTimeout(async () => {
-      await supabase.from("design_views").upsert(toMark.map(design_id => ({ user_id: user.id, design_id })), { onConflict: "user_id,design_id" });
-      qc.invalidateQueries({ queryKey: ["design_views", user.id] });
-    }, 2500);
-    return () => clearTimeout(timer);
-  }, [visibleDesigns, user?.id]);
+    const el = sentinel.current;
+    if (!el || !designs.length) return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) setCount(c => c + PAGE);
+    }, { rootMargin: "600px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [designs.length]);
 
   const triggerRefresh = async () => {
     setRefreshing(true);
@@ -201,24 +303,14 @@ const DesignsFeed = () => {
 
   return (
     <>
-      {user && seenIds.length > 0 && visibleDesigns.length === 0 && !showSeen && (
-        <div className="text-center py-8 mb-2">
-          <p className="text-muted-foreground text-sm mb-3">You've seen everything on the board — new pins refresh every few hours.</p>
-          <div className="flex gap-2 justify-center">
-            <Button variant="outline" size="sm" onClick={() => setShowSeen(true)}>Show seen designs</Button>
-            <Button variant="gold" size="sm" onClick={triggerRefresh} disabled={refreshing}>{refreshing ? "…" : "Pull now"}</Button>
-          </div>
-        </div>
-      )}
-
-      {user && showSeen && (
-        <div className="mb-3 flex justify-end">
-          <Button variant="ghost" size="sm" onClick={() => setShowSeen(false)}>Hide seen</Button>
-        </div>
-      )}
+      <p className="text-muted-foreground text-[11px] text-center mb-3">Tap to enlarge · Press and hold for quick options</p>
 
       <div className="columns-2 md:columns-3 gap-3">
-        {visibleDesigns.map(d => <DesignCard key={d.id} design={d} onReport={setReportDialog} />)}
+        {feed.map(({ key, design }) => <DesignCard key={key} design={design} onReport={setReportDialog} />)}
+      </div>
+
+      <div ref={sentinel} className="h-10 flex items-center justify-center">
+        <div className="w-4 h-4 border-2 border-gold/60 border-t-transparent rounded-full animate-spin" />
       </div>
 
       <Dialog open={!!reportDialog} onOpenChange={(o) => { if (!o) setReportDialog(null); }}>
@@ -247,6 +339,7 @@ const DesignsFeed = () => {
     </>
   );
 };
+
 
 const ReelsFeed = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
