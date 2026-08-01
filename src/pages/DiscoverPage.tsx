@@ -3,7 +3,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Navbar } from "@/components/layout/Navbar";
-import { Heart, Share2, ExternalLink, Image as ImageIcon, Play, Download, Printer, Flag } from "lucide-react";
+import { Heart, Share2, ExternalLink, Image as ImageIcon, Play, Download, Printer, Flag, FileText } from "lucide-react";
 import { reels } from "@/data/mockReels";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
