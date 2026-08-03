@@ -29,6 +29,9 @@ const ArtistChatsPage = lazy(() => import("./pages/ArtistChatsPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const StagingCheck = lazy(() => import("./pages/StagingCheck"));
 const OAuthConsent = lazy(() => import("./pages/OAuthConsent"));
+const PrivacyPolicy = lazy(() => import("./pages/legal/PrivacyPolicy"));
+const TermsOfService = lazy(() => import("./pages/legal/TermsOfService"));
+const GrievancePolicy = lazy(() => import("./pages/legal/GrievancePolicy"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -71,6 +74,9 @@ const App = () => (
               <Route path="/artist-dashboard" element={<ProtectedRoute requiredRole="artist" redirectTo="/artist-login"><ArtistDashboard /></ProtectedRoute>} />
               <Route path="/admin" element={<AdminLogin />} />
               <Route path="/admin/dashboard" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin"><AdminPanel /></ProtectedRoute>} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="/terms" element={<TermsOfService />} />
+              <Route path="/grievance" element={<GrievancePolicy />} />
               <Route path="/staging-check" element={<StagingCheck />} />
               <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
               <Route path="*" element={<NotFound />} />
