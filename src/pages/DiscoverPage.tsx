@@ -394,9 +394,21 @@ const DesignsFeed = () => {
         {feed.map(({ key, design }) => <DesignCard key={key} design={design} onReport={setReportDialog} />)}
       </div>
 
-      <div ref={sentinel} className="h-10 flex items-center justify-center">
-        <div className="w-4 h-4 border-2 border-gold/60 border-t-transparent rounded-full animate-spin" />
-      </div>
+      {isGuest ? (
+        <div className="mt-8 text-center space-y-3 border-t border-border pt-6">
+          <p className="text-muted-foreground text-sm">
+            You're viewing 30 free designs. Sign in to browse the full board.
+          </p>
+          <Link to="/login">
+            <Button variant="gold" size="sm">Sign in to see more</Button>
+          </Link>
+        </div>
+      ) : (
+        <div ref={sentinel} className="h-10 flex items-center justify-center">
+          <div className="w-4 h-4 border-2 border-gold/60 border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
+
 
       <Dialog open={!!reportDialog} onOpenChange={(o) => { if (!o) setReportDialog(null); }}>
         <DialogContent className="bg-card border-border">
