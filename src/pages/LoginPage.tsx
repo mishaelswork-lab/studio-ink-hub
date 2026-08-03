@@ -182,9 +182,32 @@ const LoginPage = () => {
                 <label className="text-sm text-muted-foreground mb-1.5 block">Password</label>
                 <input type="password" required value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-gold placeholder:text-muted-foreground" />
               </div>
-              <Button type="submit" variant="gold" className="w-full" disabled={loading}>
+              {isSignUp && (
+                <div className="space-y-2">
+                  <label className="flex items-start gap-2 text-xs text-muted-foreground cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={consent}
+                      onChange={e => setConsent(e.target.checked)}
+                      className="mt-0.5 accent-[hsl(var(--gold))]"
+                      aria-label="Consent to personal data processing"
+                    />
+                    <span>
+                      I consent to the collection and processing of my personal data as outlined in the{" "}
+                      <Link to="/privacy" className="text-gold hover:underline">Privacy Policy</Link>.
+                    </span>
+                  </label>
+                  <p className="text-[11px] text-muted-foreground">
+                    By creating an account you also agree to our{" "}
+                    <Link to="/terms" className="text-gold hover:underline">Terms of Service</Link> and{" "}
+                    <Link to="/grievance" className="text-gold hover:underline">Grievance Redressal Policy</Link>.
+                  </p>
+                </div>
+              )}
+              <Button type="submit" variant="gold" className="w-full" disabled={loading || (isSignUp && !consent)}>
                 {loading ? "Please wait..." : isSignUp ? "Create Account" : "Sign In"}
               </Button>
+
               <button type="button" onClick={() => setIsSignUp(!isSignUp)} className="w-full text-sm text-muted-foreground hover:text-gold transition-colors">
                 {isSignUp ? "Already have an account? Sign In" : "Don't have an account? Sign Up"}
               </button>
