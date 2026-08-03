@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo, memo } from "react";
+import { Link } from "react-router-dom";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -311,12 +312,16 @@ const DesignsFeed = () => {
     },
   });
 
-  // Endless feed: cycle through the board, reshuffling order on each loop.
+  // Guests see a capped preview of 30 designs; signed-in users get the endless feed.
+  const GUEST_LIMIT = 30;
+  const isGuest = !user;
+  const effectiveCount = isGuest ? Math.min(GUEST_LIMIT, designs.length) : count;
+
   const feed = useMemo(() => {
     if (!designs.length) return [] as { key: string; design: DesignRow }[];
     const out: { key: string; design: DesignRow }[] = [];
     let cycle = 0;
-    while (out.length < count) {
+    while (out.length < effectiveCount) {
       const round = designs.map((d, i) => ({ d, i }));
       if (cycle > 0) {
         // deterministic reshuffle per cycle so repeats don't feel identical
@@ -324,14 +329,15 @@ const DesignsFeed = () => {
       }
       for (const { d } of round) {
         out.push({ key: `${d.id}-${cycle}`, design: d });
-        if (out.length >= count) break;
+        if (out.length >= effectiveCount) break;
       }
       cycle++;
     }
     return out;
-  }, [designs, count]);
+  }, [designs, effectiveCount]);
 
   useEffect(() => {
+    if (isGuest) return;
     const el = sentinel.current;
     if (!el || !designs.length) return;
     const io = new IntersectionObserver((entries) => {
@@ -339,7 +345,9 @@ const DesignsFeed = () => {
     }, { rootMargin: "600px" });
     io.observe(el);
     return () => io.disconnect();
-  }, [designs.length]);
+  }, [designs.length, isGuest]);
+
+
 
   const triggerRefresh = async () => {
     setRefreshing(true);
@@ -387,9 +395,21 @@ const DesignsFeed = () => {
         {feed.map(({ key, design }) => <DesignCard key={key} design={design} onReport={setReportDialog} />)}
       </div>
 
-      <div ref={sentinel} className="h-10 flex items-center justify-center">
-        <div className="w-4 h-4 border-2 border-gold/60 border-t-transparent rounded-full animate-spin" />
-      </div>
+      {isGuest ? (
+        <div className="mt-8 text-center space-y-3 border-t border-border pt-6">
+          <p className="text-muted-foreground text-sm">
+            You're viewing 30 free designs. Sign in to browse the full board.
+          </p>
+          <Link to="/login">
+            <Button variant="gold" size="sm">Sign in to see more</Button>
+          </Link>
+        </div>
+      ) : (
+        <div ref={sentinel} className="h-10 flex items-center justify-center">
+          <div className="w-4 h-4 border-2 border-gold/60 border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
+
 
       <Dialog open={!!reportDialog} onOpenChange={(o) => { if (!o) setReportDialog(null); }}>
         <DialogContent className="bg-card border-border">

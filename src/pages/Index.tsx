@@ -301,8 +301,14 @@ const Index = () => {
         Artists: send portfolios &amp; certificates to our{" "}
         <a href={SUPPORT_DRIVE_URL} target="_blank" rel="noopener noreferrer" className="text-gold hover:underline">Google Drive</a>
       </p>
+      <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs">
+        <Link to="/privacy" className="text-muted-foreground hover:text-gold">Privacy Policy</Link>
+        <Link to="/terms" className="text-muted-foreground hover:text-gold">Terms of Service</Link>
+        <Link to="/grievance" className="text-muted-foreground hover:text-gold">Grievance Redressal</Link>
+      </nav>
       <p className="text-muted-foreground text-sm">© 2026 ArtSpace. All rights reserved.</p>
     </footer>
+
 
   </div>
   );
