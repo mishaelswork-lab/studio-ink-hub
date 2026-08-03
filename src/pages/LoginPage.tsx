@@ -19,6 +19,7 @@ const LoginPage = () => {
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
+  const [consent, setConsent] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
   const [authMode, setAuthMode] = useState<"email" | "phone">("email");
@@ -45,6 +46,16 @@ const LoginPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSignUp) {
+      if (!consent) {
+        toast.error("Please consent to the processing of your personal data to continue");
+        return;
+      }
+      if (password.length < 8) {
+        toast.error("Password must be at least 8 characters");
+        return;
+      }
+    }
     setLoading(true);
     try {
       if (isSignUp) {
