@@ -144,7 +144,25 @@ const ProfilePage = () => {
 
             <p className="text-muted-foreground text-xs mt-4">Contact support to update name, email, or phone number.</p>
 
+            <div className="mt-8 bg-card rounded-lg border border-border p-4">
+              <p className="text-foreground text-sm font-medium mb-1">Privacy & cookies</p>
+              <p className="text-muted-foreground text-xs mb-3">
+                Current choice: {consent === null ? "not decided" : consent.analytics ? "analytics allowed" : "essential cookies only"}.
+                You can change or withdraw your consent at any time.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" className="border-border" onClick={async () => { await recordConsent(false); setConsent(readConsent()); }}>
+                  Withdraw analytics consent
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => { resetConsent(); setConsent(null); }}>
+                  Review consent choices
+                </Button>
+                <Link to="/privacy"><Button variant="ghost" size="sm">Privacy Policy</Button></Link>
+              </div>
+            </div>
+
             <Button variant="destructive" className="w-full mt-8" onClick={() => { signOut(); navigate("/"); }}>Sign Out</Button>
+
           </TabsContent>
 
           <TabsContent value="favorites">

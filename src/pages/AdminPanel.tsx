@@ -522,8 +522,36 @@ const AdminPanel = () => {
                 </div>
               )}
             </div>
+
+            <h2 className="font-heading text-2xl font-bold text-foreground mt-10 mb-2">Artist & Booking Change Log</h2>
+            <p className="text-muted-foreground text-sm mb-6">Every create, edit and delete on artists and bookings — recorded automatically.</p>
+            <div className="bg-card rounded-lg border border-border overflow-hidden">
+              {changeLog.length === 0 ? (
+                <p className="text-muted-foreground text-sm text-center py-12">No record changes captured yet.</p>
+              ) : (
+                <div className="divide-y divide-border">
+                  {changeLog.map(entry => (
+                    <div key={entry.id} className="p-4 flex items-start gap-3">
+                      <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${entry.operation === "INSERT" ? "bg-emerald-400" : entry.operation === "DELETE" ? "bg-destructive" : "bg-gold"}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-foreground text-sm font-medium">{entry.operation} on {entry.table_name}</p>
+                        <p className="text-muted-foreground text-xs mt-0.5">
+                          record <span className="font-mono">{String(entry.record_id).slice(0, 8)}</span> · by{" "}
+                          <span className="font-mono">{entry.changed_by ? String(entry.changed_by).slice(0, 8) : "system"}</span>
+                        </p>
+                        {Array.isArray(entry.changed_fields) && entry.changed_fields.length > 0 && (
+                          <p className="text-muted-foreground text-xs mt-1">Fields: {entry.changed_fields.join(", ")}</p>
+                        )}
+                      </div>
+                      <span className="text-muted-foreground text-xs whitespace-nowrap">{new Date(entry.created_at).toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
+
 
         {activeTab === "featured" && (
           <div>
