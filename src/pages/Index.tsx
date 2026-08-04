@@ -4,10 +4,10 @@ import { MapPin, Star, Users, Play, Sparkles, Sparkle } from "lucide-react";
 import { studios, artists } from "@/data/mockData";
 import { reels } from "@/data/mockReels";
 import { Button } from "@/components/ui/button";
-import logoAsset from "@/assets/artspace-logo.webp.asset.json";
+import logo from "@/assets/tart-logo.png";
 import { SUPPORT_EMAIL, SUPPORT_DRIVE_URL, mailto } from "@/lib/contact";
 
-const logo = logoAsset.url;
+
 import { Navbar } from "@/components/layout/Navbar";
 import { SEO } from "@/lib/seo";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
@@ -61,14 +61,14 @@ const Hero = () => {
       <img
         src={logo}
         alt="Tart logo"
-        className={`w-28 h-28 md:w-36 md:h-36 mx-auto mb-6 rounded-full object-cover ring-1 ring-gold/40 shadow-[var(--shadow-gold)] ${reduced ? "" : "animate-fade-in"}`}
-        width={144}
+        className={`w-56 md:w-72 h-auto mx-auto mb-6 object-contain ${reduced ? "" : "animate-fade-in"}`}
+        width={288}
         height={144}
       />
       <p className={`text-gold font-body text-sm tracking-[0.3em] uppercase mb-4 ${reduced ? "" : "animate-fade-in"}`}>Premium Art Experiences</p>
       <h1 className={`font-heading text-5xl md:text-7xl lg:text-8xl font-bold mb-4 tracking-wider ${reduced ? "" : "animate-fade-in"}`} style={reduced ? undefined : { animationDelay: "0.1s" }}>
-        <span className="text-foreground">ART</span>
-        <span className="text-gradient-gold">SPACE</span>
+        <span className="text-foreground">T</span>
+        <span className="text-gradient-gold">art</span>
       </h1>
       <p className={`font-heading italic text-gold/90 text-lg md:text-xl mb-3 ${reduced ? "" : "animate-fade-in"}`} style={reduced ? undefined : { animationDelay: "0.15s" }}>
         the last space for your art

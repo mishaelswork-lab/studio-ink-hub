@@ -6,10 +6,9 @@ import { Button } from "@/components/ui/button";
 import { LegalLayout } from "./LegalLayout";
 import { SUPPORT_EMAIL, mailto } from "@/lib/contact";
 
-// Placeholder details — replace with the appointed officer before going live.
 const GRIEVANCE_OFFICER = {
-  name: "[Grievance Officer Name]",
-  designation: "Grievance Officer, Tart",
+  name: "Mishael Jose Anil Kadungamparambil",
+  designation: "Grievance Officer & Nodal Contact, Tart",
   email: SUPPORT_EMAIL,
   address: "Bengaluru, Karnataka, India",
   hours: "Monday to Friday, 10:00 - 18:00 IST",

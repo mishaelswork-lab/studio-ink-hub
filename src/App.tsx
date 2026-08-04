@@ -45,6 +45,7 @@ const queryClient = new QueryClient({
 });
 
 import { QuotesLoader } from "@/components/QuotesLoader";
+import { CookieConsent } from "@/components/CookieConsent";
 const PageFallback = () => <QuotesLoader fullScreen />;
 
 const App = () => (
@@ -82,6 +83,7 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
+          <CookieConsent />
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
