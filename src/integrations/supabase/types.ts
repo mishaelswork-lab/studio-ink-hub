@@ -237,6 +237,75 @@ export type Database = {
           },
         ]
       }
+      change_audit_log: {
+        Row: {
+          changed_by: string | null
+          changed_fields: Json | null
+          created_at: string
+          id: string
+          new_values: Json | null
+          old_values: Json | null
+          operation: string
+          record_id: string
+          table_name: string
+        }
+        Insert: {
+          changed_by?: string | null
+          changed_fields?: Json | null
+          created_at?: string
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          operation: string
+          record_id: string
+          table_name: string
+        }
+        Update: {
+          changed_by?: string | null
+          changed_fields?: Json | null
+          created_at?: string
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          operation?: string
+          record_id?: string
+          table_name?: string
+        }
+        Relationships: []
+      }
+      consent_records: {
+        Row: {
+          anon_id: string | null
+          created_at: string
+          granted: boolean
+          id: string
+          policy_version: string
+          purpose: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          anon_id?: string | null
+          created_at?: string
+          granted: boolean
+          id?: string
+          policy_version?: string
+          purpose: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          anon_id?: string | null
+          created_at?: string
+          granted?: boolean
+          id?: string
+          policy_version?: string
+          purpose?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       consultation_messages: {
         Row: {
           consultation_id: string
