@@ -60,7 +60,7 @@ const Hero = () => {
     <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
       <img
         src={logo}
-        alt="ArtSpace logo"
+        alt="Tart logo"
         className={`w-28 h-28 md:w-36 md:h-36 mx-auto mb-6 rounded-full object-cover ring-1 ring-gold/40 shadow-[var(--shadow-gold)] ${reduced ? "" : "animate-fade-in"}`}
         width={144}
         height={144}
@@ -278,13 +278,13 @@ const Index = () => {
   <div className="min-h-screen bg-background">
 
     <SEO
-      title="ArtSpace — Premium Art & Tattoo Experiences in India"
-      description="Discover India's finest tattoo and body-art artists. Browse portfolios, watch reels, get design ideas and book your next masterpiece on ArtSpace."
+      title="Tart — Premium Art & Tattoo Experiences in India"
+      description="Discover India's finest tattoo and body-art artists. Browse portfolios, watch reels, get design ideas and book your next masterpiece on Tart."
       jsonLd={{
         "@context": "https://schema.org",
         "@type": "WebSite",
-        name: "ArtSpace",
-        url: "https://artspace.lovable.app/",
+        name: "Tart",
+        url: "https://tart.lovable.app/",
       }}
     />
     <Navbar />
@@ -295,7 +295,7 @@ const Index = () => {
     <StudiosSection />
     <footer className="py-10 border-t border-border text-center space-y-2">
       <p className="text-muted-foreground text-sm">
-        Need help? <a href={mailto("ArtSpace support")} className="text-gold hover:underline">{SUPPORT_EMAIL}</a>
+        Need help? <a href={mailto("Tart support")} className="text-gold hover:underline">{SUPPORT_EMAIL}</a>
       </p>
       <p className="text-muted-foreground text-xs">
         Artists: send portfolios &amp; certificates to our{" "}
@@ -306,7 +306,7 @@ const Index = () => {
         <Link to="/terms" className="text-muted-foreground hover:text-gold">Terms of Service</Link>
         <Link to="/grievance" className="text-muted-foreground hover:text-gold">Grievance Redressal</Link>
       </nav>
-      <p className="text-muted-foreground text-sm">© 2026 ArtSpace. All rights reserved.</p>
+      <p className="text-muted-foreground text-sm">© 2026 Tart. All rights reserved.</p>
     </footer>
 
 

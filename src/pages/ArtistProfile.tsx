@@ -101,7 +101,7 @@ const ArtistProfile = () => {
   };
 
   const shareProfile = () => shareLink({
-    title: `${name} on ArtSpace`,
+    title: `${name} on Tart`,
     text: `${specialty} artist at ${studioName}`,
     url: window.location.href,
   });

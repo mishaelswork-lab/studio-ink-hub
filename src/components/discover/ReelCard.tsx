@@ -39,7 +39,7 @@ const ReelCardImpl = ({ reel }: { reel: Reel }) => {
   };
 
   const handleShare = () => shareLink({
-    title: `${reel.artistName} on ArtSpace`,
+    title: `${reel.artistName} on Tart`,
     text: reel.caption,
     url: `${window.location.origin}/artist/${reel.artistId}`,
   });

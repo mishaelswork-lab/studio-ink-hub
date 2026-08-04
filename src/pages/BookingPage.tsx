@@ -174,7 +174,7 @@ const BookingPage = () => {
         key: orderRes.data.key_id,
         amount: orderRes.data.amount,
         currency: orderRes.data.currency,
-        name: "ArtSpace",
+        name: "Tart",
         description: `Cover Charge - ${artistName}${referralDiscount > 0 ? ` (₹${referralDiscount} off)` : ""}`,
         order_id: orderRes.data.order_id,
         handler: async (response: any) => {

@@ -1,4 +1,4 @@
-// Central contact details for ArtSpace support.
+// Central contact details for Tart support.
 export const SUPPORT_EMAIL = "artspacehelp@gmail.com";
 
 export const mailto = (subject: string, body?: string) =>

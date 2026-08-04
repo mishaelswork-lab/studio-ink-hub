@@ -9,7 +9,7 @@ import { SUPPORT_EMAIL, mailto } from "@/lib/contact";
 // Placeholder details — replace with the appointed officer before going live.
 const GRIEVANCE_OFFICER = {
   name: "[Grievance Officer Name]",
-  designation: "Grievance Officer, ArtSpace",
+  designation: "Grievance Officer, Tart",
   email: SUPPORT_EMAIL,
   address: "Bengaluru, Karnataka, India",
   hours: "Monday to Friday, 10:00 - 18:00 IST",
@@ -79,7 +79,7 @@ const GrievancePolicy = () => {
       <Navbar />
       <LegalLayout title="Grievance Redressal Policy" updated="Last updated: 3 August 2026">
         <p>
-          ArtSpace is committed to resolving user complaints fairly and promptly, in line with the
+          Tart is committed to resolving user complaints fairly and promptly, in line with the
           Digital Personal Data Protection Act, 2023 and the Information Technology (Intermediary
           Guidelines) Rules, 2021.
         </p>

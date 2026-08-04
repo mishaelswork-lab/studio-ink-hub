@@ -11,7 +11,7 @@ export interface QueuedMessage {
   createdAt: number;
 }
 
-const KEY = "artspace.offlineQueue.v1";
+const KEY = "tart.offlineQueue.v1";
 const MAX_ATTEMPTS = 8;
 type Listener = (queue: QueuedMessage[]) => void;
 const listeners = new Set<Listener>();

@@ -7,13 +7,13 @@ const TermsOfService = () => (
     <Navbar />
     <LegalLayout title="Terms of Service" updated="Last updated: 3 August 2026">
       <p>
-        By creating an account or using ArtSpace you agree to these Terms. If you do not agree,
+        By creating an account or using Tart you agree to these Terms. If you do not agree,
         please do not use the service.
       </p>
 
-      <h2>1. What ArtSpace is</h2>
+      <h2>1. What Tart is</h2>
       <p>
-        ArtSpace is a discovery and booking platform that connects clients with independent tattoo and
+        Tart is a discovery and booking platform that connects clients with independent tattoo and
         piercing artists and studios. We are not the provider of the tattoo or piercing service itself;
         the artist or studio you book is solely responsible for the work performed, hygiene standards,
         aftercare guidance and applicable licences.
@@ -21,7 +21,7 @@ const TermsOfService = () => (
 
       <h2>2. Eligibility</h2>
       <p>
-        You must be at least 18 years old to book a tattoo or piercing through ArtSpace and must
+        You must be at least 18 years old to book a tattoo or piercing through Tart and must
         provide accurate information about yourself.
       </p>
 
@@ -35,7 +35,7 @@ const TermsOfService = () => (
 
       <h2>4. Content you upload</h2>
       <p>
-        You retain ownership of reference images and designs you upload. You grant ArtSpace a limited
+        You retain ownership of reference images and designs you upload. You grant Tart a limited
         licence to store and display that content for the purpose of delivering the service. You must not
         upload content that is unlawful, obscene, infringing, hateful, or that depicts identifiable people
         without their permission.
@@ -44,7 +44,7 @@ const TermsOfService = () => (
       <h2>5. Artist obligations</h2>
       <p>
         Artists must hold all licences and health/hygiene approvals required in their jurisdiction, keep
-        their availability and pricing accurate, and honour accepted bookings. ArtSpace may suspend
+        their availability and pricing accurate, and honour accepted bookings. Tart may suspend
         accounts that receive repeated substantiated complaints.
       </p>
 
@@ -56,7 +56,7 @@ const TermsOfService = () => (
 
       <h2>7. Limitation of liability</h2>
       <p>
-        To the extent permitted by law, ArtSpace is not liable for indirect or consequential loss, or for
+        To the extent permitted by law, Tart is not liable for indirect or consequential loss, or for
         the outcome, quality or health consequences of any tattoo or piercing performed by an artist
         booked through the platform.
       </p>

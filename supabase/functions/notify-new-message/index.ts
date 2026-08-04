@@ -28,14 +28,14 @@ Deno.serve(async (req) => {
     });
 
     webpush.setVapidDetails(
-      Deno.env.get("VAPID_SUBJECT") || "mailto:hello@artspace.app",
+      Deno.env.get("VAPID_SUBJECT") || "mailto:hello@tart.app",
       Deno.env.get("VAPID_PUBLIC_KEY")!,
       Deno.env.get("VAPID_PRIVATE_KEY")!,
     );
     const { data: subs } = await supabase.from("push_subscriptions").select("*").eq("user_id", recipientId);
     let sent = 0;
     const payload = JSON.stringify({
-      title: "New message on ArtSpace",
+      title: "New message on Tart",
       body: (preview || "You have a new reply").slice(0, 140),
       url: `/chats/${consultationId}`,
       tag: `chat-${consultationId}`,

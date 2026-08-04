@@ -28,7 +28,7 @@ export const Navbar = () => {
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 font-heading text-xl font-bold tracking-wider">
-            <img src={logo} alt="ArtSpace" className="w-8 h-8 rounded-full object-cover ring-1 ring-gold/40" />
+            <img src={logo} alt="Tart" className="w-8 h-8 rounded-full object-cover ring-1 ring-gold/40" />
             <span className="text-foreground">ART</span>
             <span className="text-gradient-gold">SPACE</span>
           </Link>

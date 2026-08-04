@@ -7,8 +7,8 @@ const PrivacyPolicy = () => (
     <Navbar />
     <LegalLayout title="Privacy Policy" updated="Last updated: 3 August 2026">
       <p>
-        This Privacy Policy explains how ArtSpace ("we", "us") collects, uses, stores and
-        shares your personal data. It is maintained by ArtSpace and is written to align with the
+        This Privacy Policy explains how Tart ("we", "us") collects, uses, stores and
+        shares your personal data. It is maintained by Tart and is written to align with the
         Digital Personal Data Protection Act, 2023 (DPDP Act) and the Information Technology Act, 2000
         and rules made thereunder.
       </p>
@@ -73,7 +73,7 @@ const PrivacyPolicy = () => (
 
       <h2>8. Children</h2>
       <p>
-        ArtSpace is not intended for individuals under 18. We do not knowingly process children's data.
+        Tart is not intended for individuals under 18. We do not knowingly process children's data.
       </p>
 
       <h2>9. Contact</h2>

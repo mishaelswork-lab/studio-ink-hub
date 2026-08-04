@@ -1,9 +1,9 @@
-/* ArtSpace service worker — handles web push */
+/* Tart service worker — handles web push */
 self.addEventListener("install", (e) => self.skipWaiting());
 self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
 
 self.addEventListener("push", (event) => {
-  let data = { title: "ArtSpace", body: "You have a new update", url: "/" };
+  let data = { title: "Tart", body: "You have a new update", url: "/" };
   try { if (event.data) data = { ...data, ...event.data.json() }; } catch {}
   event.waitUntil(
     self.registration.showNotification(data.title, {

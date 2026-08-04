@@ -11,15 +11,15 @@
   },
   "mcp": {
     "server": {
-      "name": "artspace-mcp",
+      "name": "tart-mcp",
       "version": "0.2.0",
-      "title": "ArtSpace"
+      "title": "Tart"
     },
     "tools": [
       {
         "name": "list_studios",
         "title": "List studios",
-        "description": "List tattoo studios on ArtSpace (public catalog data).",
+        "description": "List tattoo studios on Tart (public catalog data).",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -42,7 +42,7 @@
       {
         "name": "list_artists",
         "title": "List artists",
-        "description": "List tattoo artists on ArtSpace with optional style filter.",
+        "description": "List tattoo artists on Tart with optional style filter.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -94,7 +94,7 @@
       {
         "name": "list_my_bookings",
         "title": "List my bookings",
-        "description": "List the signed-in user's tattoo/piercing bookings on ArtSpace.",
+        "description": "List the signed-in user's tattoo/piercing bookings on Tart.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,

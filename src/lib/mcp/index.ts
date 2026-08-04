@@ -15,11 +15,11 @@ import listMyFavorites from "./tools/list-my-favorites";
 const projectRef = import.meta.env.VITE_SUPABASE_PROJECT_ID ?? "project-ref-unset";
 
 export default defineMcp({
-  name: "artspace-mcp",
-  title: "ArtSpace",
+  name: "tart-mcp",
+  title: "Tart",
   version: "0.2.0",
   instructions:
-    "ArtSpace tools: browse tattoo studios and artists; for the signed-in user, create/cancel bookings (tattoo or piercing, ₹500 cover charge via Razorpay), read bookings, poll booking status-change notifications, read consultations and send messages in existing threads, and read saved favorites. All per-user tools run as the authenticated user under RLS.",
+    "Tart tools: browse tattoo studios and artists; for the signed-in user, create/cancel bookings (tattoo or piercing, ₹500 cover charge via Razorpay), read bookings, poll booking status-change notifications, read consultations and send messages in existing threads, and read saved favorites. All per-user tools run as the authenticated user under RLS.",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated",

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-const KEY = "artspace.reducedMotion";
+const KEY = "tart.reducedMotion";
 
 export const useReducedMotion = (): [boolean, (v: boolean) => void] => {
   const [reduced, setReduced] = useState<boolean>(() => {

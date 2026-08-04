@@ -46,7 +46,7 @@ const ArtistLogin = () => {
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label className="text-sm text-muted-foreground mb-1.5 block">Email</label>
-            <input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="artist123@artspace.com" className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-gold placeholder:text-muted-foreground" />
+            <input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="artist123@tart.com" className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-gold placeholder:text-muted-foreground" />
           </div>
           <div>
             <label className="text-sm text-muted-foreground mb-1.5 block">Password</label>
@@ -58,7 +58,7 @@ const ArtistLogin = () => {
         </form>
         <div className="mt-4 p-3 rounded-md bg-secondary/50 border border-border">
           <p className="text-muted-foreground text-xs text-center">
-            Test: <span className="text-gold">artist123@artspace.com</span> / <span className="text-gold">artist123</span>
+            Test: <span className="text-gold">artist123@tart.com</span> / <span className="text-gold">artist123</span>
           </p>
         </div>
         <div className="mt-6 pt-6 border-t border-border text-center">

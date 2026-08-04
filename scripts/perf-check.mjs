@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * ArtSpace performance check
+ * Tart performance check
  * - Reports built bundle sizes (run `bun run build` first)
  * - Measures API latency to key Supabase endpoints
  * - Measures cold render time for key public pages via headless fetch
@@ -89,7 +89,7 @@ async function pageRender() {
 }
 
 (async () => {
-  console.log(`${c.b}ArtSpace performance check${c.x}  ${c.d}${new Date().toISOString()}${c.x}`);
+  console.log(`${c.b}Tart performance check${c.x}  ${c.d}${new Date().toISOString()}${c.x}`);
   bundleReport();
   await apiLatency();
   await pageRender();

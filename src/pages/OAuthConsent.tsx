@@ -89,7 +89,7 @@ export default function OAuthConsent() {
       <div className="max-w-md w-full bg-card border border-border rounded-lg p-6 space-y-5">
         <div>
           <h1 className="font-heading text-2xl text-foreground">
-            Connect <span className="text-gradient-gold">{clientName}</span> to ArtSpace
+            Connect <span className="text-gradient-gold">{clientName}</span> to Tart
           </h1>
           <p className="text-sm text-muted-foreground mt-2">
             {clientName} will be able to call this app's enabled tools while you are signed in.
@@ -105,7 +105,7 @@ export default function OAuthConsent() {
         </ul>
 
         <p className="text-xs text-muted-foreground">
-          This does not bypass ArtSpace's permissions or backend policies. You can revoke access anytime.
+          This does not bypass Tart's permissions or backend policies. You can revoke access anytime.
         </p>
 
         <div className="flex gap-3 pt-2">
