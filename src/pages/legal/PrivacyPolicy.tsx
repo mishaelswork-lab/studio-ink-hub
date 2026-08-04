@@ -31,11 +31,22 @@ const PrivacyPolicy = () => (
 
       <h2>3. Consent</h2>
       <p>
-        We collect your explicit consent at sign-up before processing personal data. You may withdraw
-        consent at any time by writing to{" "}
-        <a href={mailto("Withdraw consent")}>{SUPPORT_EMAIL}</a>. Withdrawal does not affect processing
-        carried out before withdrawal, and may mean we can no longer provide parts of the service.
+        We collect your explicit, informed and unambiguous consent at sign-up before processing
+        personal data, and separately for non-essential analytics cookies. You may withdraw either
+        consent at any time from the Privacy section of your profile or by writing to{" "}
+        <a href={mailto("Withdraw consent")}>{SUPPORT_EMAIL}</a>. Withdrawal does not affect
+        processing carried out before withdrawal, and may mean we can no longer provide parts of the
+        service. Every consent decision is logged with its timestamp and policy version so both you
+        and we have a verifiable record.
       </p>
+
+      <h2>3A. Cookies and similar technologies</h2>
+      <ul>
+        <li><strong>Strictly necessary:</strong> session and authentication tokens needed to sign you in and protect against abuse. These are required to operate the service and cannot be switched off.</li>
+        <li><strong>Analytics and performance (optional):</strong> anonymised page-timing and feature-usage events. These are set only after you accept them in the consent banner.</li>
+        <li>We do not use advertising, cross-site tracking or data-broker cookies.</li>
+      </ul>
+
 
       <h2>4. Your rights as a Data Principal</h2>
       <ul>
