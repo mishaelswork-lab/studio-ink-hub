@@ -36,7 +36,7 @@ const REPORT_REASONS = [
   "Other",
 ];
 
-const fileBase = (d: DesignRow) => `artspace-stencil-${d.external_id.replace(/[^a-z0-9]/gi, "-")}`;
+const fileBase = (d: DesignRow) => `tart-stencil-${d.external_id.replace(/[^a-z0-9]/gi, "-")}`;
 
 const loadImage = (src: string) =>
   new Promise<HTMLImageElement>((resolve, reject) => {
@@ -105,7 +105,7 @@ const useDesignActions = (design: DesignRow) => {
       pdf.addImage(dataUrl, "JPEG", (pw - w) / 2, margin, w, h);
       pdf.setFontSize(9);
       pdf.setTextColor(120);
-      pdf.text("ArtSpace — stencil reference", pw / 2, ph - margin / 2, { align: "center" });
+      pdf.text("Tart — stencil reference", pw / 2, ph - margin / 2, { align: "center" });
       pdf.save(`${fileBase(design)}.pdf`);
       toast.success("PDF downloaded", { id: t });
     } catch {
@@ -116,7 +116,7 @@ const useDesignActions = (design: DesignRow) => {
   const printDesign = () => {
     const w = window.open("", "_blank");
     if (!w) { toast.error("Popup blocked — allow popups to print"); return; }
-    w.document.write(`<html><head><title>ArtSpace Stencil</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#fff}img{max-width:100%;max-height:100vh}@media print{@page{margin:12mm}}</style></head><body><img src="${design.image_url}" crossorigin="anonymous" onload="window.print();"/></body></html>`);
+    w.document.write(`<html><head><title>Tart Stencil</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#fff}img{max-width:100%;max-height:100vh}@media print{@page{margin:12mm}}</style></head><body><img src="${design.image_url}" crossorigin="anonymous" onload="window.print();"/></body></html>`);
     w.document.close();
     toast.success("Print sheet opened");
   };
@@ -458,7 +458,7 @@ const DiscoverPage = () => {
     <div className="min-h-screen bg-background">
       <SEO
         title="Discover Tattoo Art & Reels"
-        description="Watch artist reels and browse fresh tattoo design ideas. Save your favourites and share them with your chosen artist on ArtSpace."
+        description="Watch artist reels and browse fresh tattoo design ideas. Save your favourites and share them with your chosen artist on Tart."
       />
       <Navbar />
       <div className="pt-20 pb-24 px-4">

@@ -10,7 +10,7 @@ interface SEOProps {
 }
 
 export const SEO = ({ title, description, image, url, type = "website", jsonLd }: SEOProps) => {
-  const fullTitle = title.length > 55 ? title : `${title} | ArtSpace`;
+  const fullTitle = title.length > 55 ? title : `${title} | Tart`;
   const canonicalUrl = url || (typeof window !== "undefined" ? window.location.href : "");
   return (
     <Helmet>

@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
           user_id: profile.user_id,
           name: profile.display_name,
           last_active: profile.last_active_at,
-          message: `Hey ${profile.display_name || "there"}! Your favourite artists have new availability. Come check out what's new on ArtSpace!`,
+          message: `Hey ${profile.display_name || "there"}! Your favourite artists have new availability. Come check out what's new on Tart!`,
         });
       }
     }

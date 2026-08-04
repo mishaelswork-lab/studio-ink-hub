@@ -237,7 +237,7 @@ const ArtistDashboard = () => {
     <div className="min-h-screen bg-background">
       <aside className="fixed left-0 top-0 bottom-0 w-64 bg-card border-r border-border p-6 hidden md:flex flex-col">
         <div className="mb-8">
-          <h1 className="font-heading text-lg font-bold">Art<span className="text-gradient-gold">Space</span></h1>
+          <h1 className="font-heading text-lg font-bold">T<span className="text-gradient-gold">art</span></h1>
           <p className="text-muted-foreground text-xs mt-1">Artist Dashboard</p>
         </div>
         <div className="flex items-center gap-3 mb-8 p-3 rounded-lg bg-secondary/50">
@@ -259,7 +259,7 @@ const ArtistDashboard = () => {
 
       <div className="md:hidden bg-card border-b border-border p-4">
         <div className="flex items-center justify-between mb-3">
-          <h1 className="font-heading text-lg font-bold">Art<span className="text-gradient-gold">Space</span></h1>
+          <h1 className="font-heading text-lg font-bold">T<span className="text-gradient-gold">art</span></h1>
           <button onClick={handleLogout} className="text-muted-foreground text-sm">Logout</button>
         </div>
         <div className="flex gap-1 overflow-x-auto">

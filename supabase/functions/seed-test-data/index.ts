@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
 
     // Create artist test user
     const { data: artistUser, error: artistErr } = await supabaseAdmin.auth.admin.createUser({
-      email: "artist123@artspace.com",
+      email: "artist123@tart.com",
       password: "artist123",
       email_confirm: true,
       user_metadata: { display_name: "Arjun Mehta" },
@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
 
     // Create admin user
     const { data: adminUser, error: adminErr } = await supabaseAdmin.auth.admin.createUser({
-      email: "admin@artspace.com",
+      email: "admin@tart.com",
       password: "admin123",
       email_confirm: true,
       user_metadata: { display_name: "Admin" },
@@ -93,8 +93,8 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({
       success: true,
-      artist: { email: "artist123@artspace.com", password: "artist123", userId: artistUserId },
-      admin: { email: "admin@artspace.com", password: "admin123", userId: adminUserId },
+      artist: { email: "artist123@tart.com", password: "artist123", userId: artistUserId },
+      admin: { email: "admin@tart.com", password: "admin123", userId: adminUserId },
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (error) {

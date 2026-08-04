@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { readConsent, recordConsent, resetConsent, type ConsentChoice } from "@/lib/consent";
 
 const ProfilePage = () => {
   const { user, signOut } = useAuth();
@@ -17,6 +18,7 @@ const ProfilePage = () => {
   const [profile, setProfile] = useState<any>(null);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [consent, setConsent] = useState<ConsentChoice | null>(() => readConsent());
 
   // Favorites state (merged in)
   const [favorites, setFavorites] = useState<any[]>([]);
@@ -144,7 +146,25 @@ const ProfilePage = () => {
 
             <p className="text-muted-foreground text-xs mt-4">Contact support to update name, email, or phone number.</p>
 
+            <div className="mt-8 bg-card rounded-lg border border-border p-4">
+              <p className="text-foreground text-sm font-medium mb-1">Privacy & cookies</p>
+              <p className="text-muted-foreground text-xs mb-3">
+                Current choice: {consent === null ? "not decided" : consent.analytics ? "analytics allowed" : "essential cookies only"}.
+                You can change or withdraw your consent at any time.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" className="border-border" onClick={async () => { await recordConsent(false); setConsent(readConsent()); }}>
+                  Withdraw analytics consent
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => { resetConsent(); setConsent(null); }}>
+                  Review consent choices
+                </Button>
+                <Link to="/privacy"><Button variant="ghost" size="sm">Privacy Policy</Button></Link>
+              </div>
+            </div>
+
             <Button variant="destructive" className="w-full mt-8" onClick={() => { signOut(); navigate("/"); }}>Sign Out</Button>
+
           </TabsContent>
 
           <TabsContent value="favorites">

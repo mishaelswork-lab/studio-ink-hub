@@ -12,7 +12,7 @@ import { z } from "npm:zod@^4.4.3";
 var list_studios_default = defineTool({
   name: "list_studios",
   title: "List studios",
-  description: "List tattoo studios on ArtSpace (public catalog data).",
+  description: "List tattoo studios on Tart (public catalog data).",
   inputSchema: { limit: z.number().int().min(1).max(100).optional().describe("Max studios to return (default 50).") },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ limit }) => {
@@ -36,7 +36,7 @@ import { z as z2 } from "npm:zod@^4.4.3";
 var list_artists_default = defineTool2({
   name: "list_artists",
   title: "List artists",
-  description: "List tattoo artists on ArtSpace with optional style filter.",
+  description: "List tattoo artists on Tart with optional style filter.",
   inputSchema: {
     style: z2.string().optional().describe("Filter by tattoo style substring (case-insensitive)."),
     limit: z2.number().int().min(1).max(100).optional()
@@ -91,7 +91,7 @@ function userClient(ctx) {
 var list_my_bookings_default = defineTool4({
   name: "list_my_bookings",
   title: "List my bookings",
-  description: "List the signed-in user's tattoo/piercing bookings on ArtSpace.",
+  description: "List the signed-in user's tattoo/piercing bookings on Tart.",
   inputSchema: { limit: z4.number().int().min(1).max(100).optional() },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ limit }, ctx) => {
@@ -364,10 +364,10 @@ var list_my_favorites_default = defineTool11({
 // src/lib/mcp/index.ts
 var projectRef = "ccfbfcbgljivdkqsayes";
 var mcp_default = defineMcp({
-  name: "artspace-mcp",
-  title: "ArtSpace",
+  name: "tart-mcp",
+  title: "Tart",
   version: "0.2.0",
-  instructions: "ArtSpace tools: browse tattoo studios and artists; for the signed-in user, create/cancel bookings (tattoo or piercing, \u20B9500 cover charge via Razorpay), read bookings, poll booking status-change notifications, read consultations and send messages in existing threads, and read saved favorites. All per-user tools run as the authenticated user under RLS.",
+  instructions: "Tart tools: browse tattoo studios and artists; for the signed-in user, create/cancel bookings (tattoo or piercing, \u20B9500 cover charge via Razorpay), read bookings, poll booking status-change notifications, read consultations and send messages in existing threads, and read saved favorites. All per-user tools run as the authenticated user under RLS.",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated"

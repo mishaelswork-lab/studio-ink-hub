@@ -20,8 +20,10 @@ const schedule = () => {
   timer = window.setTimeout(() => { timer = null; flush(); }, 4000);
 };
 
+import { analyticsAllowed } from "@/lib/consent";
+
 export const recordPerf = (row: PerfRow) => {
-  if (!telemetryEnabled) return;
+  if (!telemetryEnabled || !analyticsAllowed()) return;
   buffer.push(row);
   if (buffer.length >= 10) flush();
   else schedule();
@@ -29,7 +31,7 @@ export const recordPerf = (row: PerfRow) => {
 
 let initialized = false;
 export const initPerf = () => {
-  if (!telemetryEnabled || initialized || typeof window === "undefined") return;
+  if (!telemetryEnabled || initialized || typeof window === "undefined" || !analyticsAllowed()) return;
   initialized = true;
 
   // TTFB / nav timing

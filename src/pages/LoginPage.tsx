@@ -142,7 +142,7 @@ const LoginPage = () => {
         <div className="w-full max-w-md bg-card rounded-lg border border-border p-8">
           <div className="text-center mb-8">
             <h1 className="font-heading text-2xl font-bold text-foreground mb-1">
-              <span>Art</span><span className="text-gradient-gold">Space</span>
+              <span>T</span><span className="text-gradient-gold">art</span>
             </h1>
             <p className="text-muted-foreground text-sm">{isSignUp ? "Create your account" : "Sign in to your account"}</p>
           </div>

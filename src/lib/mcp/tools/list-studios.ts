@@ -5,7 +5,7 @@ import { z } from "zod";
 export default defineTool({
   name: "list_studios",
   title: "List studios",
-  description: "List tattoo studios on ArtSpace (public catalog data).",
+  description: "List tattoo studios on Tart (public catalog data).",
   inputSchema: { limit: z.number().int().min(1).max(100).optional().describe("Max studios to return (default 50).") },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ limit }) => {

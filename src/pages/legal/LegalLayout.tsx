@@ -25,7 +25,7 @@ export const LegalLayout = ({ title, updated, children }: LegalLayoutProps) => (
         <Link to="/privacy" className="text-muted-foreground hover:text-gold">Privacy Policy</Link>
         <Link to="/terms" className="text-muted-foreground hover:text-gold">Terms of Service</Link>
         <Link to="/grievance" className="text-muted-foreground hover:text-gold">Grievance Redressal</Link>
-        <Link to="/" className="text-muted-foreground hover:text-gold">Back to ArtSpace</Link>
+        <Link to="/" className="text-muted-foreground hover:text-gold">Back to Tart</Link>
       </nav>
     </article>
   </main>

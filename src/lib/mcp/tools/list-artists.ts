@@ -5,7 +5,7 @@ import { z } from "zod";
 export default defineTool({
   name: "list_artists",
   title: "List artists",
-  description: "List tattoo artists on ArtSpace with optional style filter.",
+  description: "List tattoo artists on Tart with optional style filter.",
   inputSchema: {
     style: z.string().optional().describe("Filter by tattoo style substring (case-insensitive)."),
     limit: z.number().int().min(1).max(100).optional(),

@@ -40,6 +40,7 @@ const AdminPanel = () => {
   const [flaggedReels, setFlaggedReels] = useState<any[]>([]);
   const [designReports, setDesignReports] = useState<any[]>([]);
   const [auditLog, setAuditLog] = useState<any[]>([]);
+  const [changeLog, setChangeLog] = useState<any[]>([]);
   const [featuredRequests, setFeaturedRequests] = useState<any[]>([]);
   const [featuredArtists, setFeaturedArtists] = useState<any[]>([]);
   const [adminNote, setAdminNote] = useState<Record<string, string>>({});
@@ -65,7 +66,7 @@ const AdminPanel = () => {
 
   const fetchData = async () => {
     if (!serverAdmin) return;
-    const [artistsRes, bookingsRes, reelsRes, paymentsRes, flaggedRes, auditRes, fReqRes, fArtRes, reportsRes] = await Promise.all([
+    const [artistsRes, bookingsRes, reelsRes, paymentsRes, flaggedRes, auditRes, fReqRes, fArtRes, reportsRes, changeRes] = await Promise.all([
       supabase.from("artists").select("*").order("created_at", { ascending: false }),
       supabase.from("bookings").select("*").order("created_at", { ascending: false }),
       supabase.from("reels").select("*").order("created_at", { ascending: false }),
@@ -75,6 +76,7 @@ const AdminPanel = () => {
       supabase.from("featured_requests").select("*, artists(name, avatar_url, specialty)").order("created_at", { ascending: false }),
       supabase.from("featured_artists").select("*, artists(name, avatar_url, specialty)").order("priority", { ascending: false }),
       supabase.from("design_reports").select("*, daily_designs(image_url, thumb_url, source_url, description)").order("created_at", { ascending: false }).limit(200),
+      supabase.from("change_audit_log").select("*").order("created_at", { ascending: false }).limit(200),
     ]);
     setDbArtists(artistsRes.data || []);
     setDbBookings(bookingsRes.data || []);
@@ -85,6 +87,7 @@ const AdminPanel = () => {
     setFeaturedRequests(fReqRes.data || []);
     setFeaturedArtists(fArtRes.data || []);
     setDesignReports(reportsRes.data || []);
+    setChangeLog(changeRes.data || []);
   };
 
   useEffect(() => { if (serverAdmin) fetchData(); }, [serverAdmin]);
@@ -207,7 +210,7 @@ const AdminPanel = () => {
     <div className="min-h-screen bg-background">
       <aside className="fixed left-0 top-0 bottom-0 w-64 bg-card border-r border-border p-6 hidden md:flex flex-col">
         <div className="mb-8">
-          <h1 className="font-heading text-lg font-bold">Art<span className="text-gradient-gold">Space</span></h1>
+          <h1 className="font-heading text-lg font-bold">T<span className="text-gradient-gold">art</span></h1>
           <p className="text-gold text-xs mt-1">Admin Panel</p>
         </div>
         <nav className="space-y-1 flex-1">
@@ -228,7 +231,7 @@ const AdminPanel = () => {
 
       <div className="md:hidden bg-card border-b border-border p-4">
         <div className="flex items-center justify-between mb-3">
-          <h1 className="font-heading text-lg font-bold">Art<span className="text-gradient-gold">Space</span> <span className="text-gold text-xs">Admin</span></h1>
+          <h1 className="font-heading text-lg font-bold">T<span className="text-gradient-gold">art</span> <span className="text-gold text-xs">Admin</span></h1>
           <button onClick={handleLogout} className="text-muted-foreground text-sm">Logout</button>
         </div>
         <div className="flex gap-1 overflow-x-auto">
@@ -522,8 +525,36 @@ const AdminPanel = () => {
                 </div>
               )}
             </div>
+
+            <h2 className="font-heading text-2xl font-bold text-foreground mt-10 mb-2">Artist & Booking Change Log</h2>
+            <p className="text-muted-foreground text-sm mb-6">Every create, edit and delete on artists and bookings — recorded automatically.</p>
+            <div className="bg-card rounded-lg border border-border overflow-hidden">
+              {changeLog.length === 0 ? (
+                <p className="text-muted-foreground text-sm text-center py-12">No record changes captured yet.</p>
+              ) : (
+                <div className="divide-y divide-border">
+                  {changeLog.map(entry => (
+                    <div key={entry.id} className="p-4 flex items-start gap-3">
+                      <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${entry.operation === "INSERT" ? "bg-emerald-400" : entry.operation === "DELETE" ? "bg-destructive" : "bg-gold"}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-foreground text-sm font-medium">{entry.operation} on {entry.table_name}</p>
+                        <p className="text-muted-foreground text-xs mt-0.5">
+                          record <span className="font-mono">{String(entry.record_id).slice(0, 8)}</span> · by{" "}
+                          <span className="font-mono">{entry.changed_by ? String(entry.changed_by).slice(0, 8) : "system"}</span>
+                        </p>
+                        {Array.isArray(entry.changed_fields) && entry.changed_fields.length > 0 && (
+                          <p className="text-muted-foreground text-xs mt-1">Fields: {entry.changed_fields.join(", ")}</p>
+                        )}
+                      </div>
+                      <span className="text-muted-foreground text-xs whitespace-nowrap">{new Date(entry.created_at).toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
+
 
         {activeTab === "featured" && (
           <div>

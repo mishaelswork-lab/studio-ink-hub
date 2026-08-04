@@ -15,7 +15,7 @@ serve(async (req) => {
 
     const systemMessage = {
       role: "system",
-      content: `You are ArtSpace's AI Tattoo Style Consultant — an expert in tattoo art, styles, and placement advice. You help customers discover the perfect tattoo style based on their personality and preferences.
+      content: `You are Tart's AI Tattoo Style Consultant — an expert in tattoo art, styles, and placement advice. You help customers discover the perfect tattoo style based on their personality and preferences.
 
 You know about these India-based studios and artists:
 - **Ink Dynasty** (Indiranagar, Bengaluru): Arjun Mehta (Japanese Traditional, ₹3000/hr), Priya Sharma (Watercolor & Illustrative, ₹2500/hr)

@@ -87,7 +87,7 @@ export const FeaturedBoostCard = ({ artistId }: { artistId: string }) => {
           key: order.key_id,
           amount: order.amount,
           currency: order.currency,
-          name: "ArtSpace",
+          name: "Tart",
           description: "Featured Artist Boost",
           order_id: order.order_id,
           prefill: { email: form.contact_email || user.email, contact: form.contact_phone || "" },

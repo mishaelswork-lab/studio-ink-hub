@@ -12,7 +12,7 @@ function userClient(ctx: ToolContext) {
 export default defineTool({
   name: "list_my_bookings",
   title: "List my bookings",
-  description: "List the signed-in user's tattoo/piercing bookings on ArtSpace.",
+  description: "List the signed-in user's tattoo/piercing bookings on Tart.",
   inputSchema: { limit: z.number().int().min(1).max(100).optional() },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ limit }, ctx) => {

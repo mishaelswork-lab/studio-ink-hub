@@ -33,7 +33,7 @@ export const QuotesLoader = ({ intervalMs = 60000, className = "", fullScreen = 
         “{ART_QUOTES[idx].split(" — ")[0]}”
       </p>
       <p className="text-gold/70 text-xs mt-2 tracking-widest uppercase">
-        {ART_QUOTES[idx].includes(" — ") ? ART_QUOTES[idx].split(" — ")[1] : "ArtSpace"}
+        {ART_QUOTES[idx].includes(" — ") ? ART_QUOTES[idx].split(" — ")[1] : "Tart"}
       </p>
     </div>
   );

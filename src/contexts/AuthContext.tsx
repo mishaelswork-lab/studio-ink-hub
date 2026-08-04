@@ -19,8 +19,8 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
-const ROLES_KEY = "artspace.roles";
-const ARTIST_KEY = "artspace.artistProfile";
+const ROLES_KEY = "tart.roles";
+const ARTIST_KEY = "tart.artistProfile";
 
 const cacheGet = <T,>(k: string): T | null => {
   try { const v = sessionStorage.getItem(k); return v ? JSON.parse(v) : null; } catch { return null; }

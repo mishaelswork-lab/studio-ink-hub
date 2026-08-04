@@ -28,7 +28,7 @@ export const MembershipBanner = ({ chatsRemaining, showChatTrigger }: Props) => 
     if (error) {
       toast.error("Failed to activate membership");
     } else {
-      toast.success("🎉 Welcome to ArtSpace Premium!");
+      toast.success("🎉 Welcome to Tart Premium!");
       setOpen(false);
       window.location.reload();
     }
@@ -60,7 +60,7 @@ export const MembershipBanner = ({ chatsRemaining, showChatTrigger }: Props) => 
       <DialogContent className="bg-card border-border">
         <DialogHeader>
           <DialogTitle className="font-heading text-foreground flex items-center gap-2">
-            <Crown className="w-5 h-5 text-gold" /> ArtSpace Premium
+            <Crown className="w-5 h-5 text-gold" /> Tart Premium
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4 mt-2">

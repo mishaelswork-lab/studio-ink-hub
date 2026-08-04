@@ -42,7 +42,10 @@ const schedule = () => {
   }, FLUSH_MS);
 };
 
+import { analyticsAllowed } from "@/lib/consent";
+
 export const logUsage = (category: UsageCategory, event: string, meta?: Record<string, unknown>) => {
+  if (!analyticsAllowed()) return;
   buffer.push({ category, event, meta, at: new Date().toISOString() });
   if (buffer.length >= MAX_BUFFER) void flush();
   else schedule();
