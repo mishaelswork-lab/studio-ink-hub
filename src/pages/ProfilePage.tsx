@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { readConsent, recordConsent, resetConsent, type ConsentChoice } from "@/lib/consent";
 
 const ProfilePage = () => {
   const { user, signOut } = useAuth();
@@ -17,6 +18,7 @@ const ProfilePage = () => {
   const [profile, setProfile] = useState<any>(null);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [consent, setConsent] = useState<ConsentChoice | null>(() => readConsent());
 
   // Favorites state (merged in)
   const [favorites, setFavorites] = useState<any[]>([]);
