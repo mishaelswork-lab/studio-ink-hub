@@ -134,6 +134,33 @@ export type Database = {
         }
         Relationships: []
       }
+      auth_attempts: {
+        Row: {
+          created_at: string
+          id: string
+          identifier: string
+          ip: string | null
+          kind: string
+          success: boolean
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          identifier: string
+          ip?: string | null
+          kind: string
+          success?: boolean
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          identifier?: string
+          ip?: string | null
+          kind?: string
+          success?: boolean
+        }
+        Relationships: []
+      }
       booking_notifications: {
         Row: {
           booking_id: string
