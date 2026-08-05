@@ -5,6 +5,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
+import { guardedSignIn, guardedSendOtp, guardedVerifyOtp } from "@/lib/authGuard";
 
 // Accept only same-origin relative paths as the post-login redirect target.
 const safeNext = (raw: string | null): string | null => {
@@ -70,8 +71,7 @@ const LoginPage = () => {
         toast.success("Account created! You're now signed in.");
         await routeAfterLogin();
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        await guardedSignIn(email, password);
         toast.success("Welcome back!");
         await routeAfterLogin();
       }
@@ -87,8 +87,7 @@ const LoginPage = () => {
     setLoading(true);
     try {
       const fullPhone = phone.startsWith("+") ? phone : `+91${phone}`;
-      const { error } = await supabase.auth.signInWithOtp({ phone: fullPhone });
-      if (error) throw error;
+      await guardedSendOtp(fullPhone);
       setOtpSent(true);
       toast.success("OTP sent to your phone!");
     } catch (error: any) {
@@ -103,8 +102,7 @@ const LoginPage = () => {
     setLoading(true);
     try {
       const fullPhone = phone.startsWith("+") ? phone : `+91${phone}`;
-      const { error } = await supabase.auth.verifyOtp({ phone: fullPhone, token: otp, type: "sms" });
-      if (error) throw error;
+      await guardedVerifyOtp(fullPhone, otp);
       toast.success("Phone verified! Welcome!");
       await routeAfterLogin();
     } catch (error: any) {
