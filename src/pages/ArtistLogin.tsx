@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { guardedSignIn } from "@/lib/authGuard";
 
 const ArtistLogin = () => {
   const [email, setEmail] = useState("");
@@ -15,10 +16,9 @@ const ArtistLogin = () => {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+      const user = await guardedSignIn(email, password);
 
-      const rolePromise = supabase.from("user_roles").select("role").eq("user_id", data.user.id).eq("role", "artist").maybeSingle();
+      const rolePromise = supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "artist").maybeSingle();
       toast.success("Welcome back, artist!");
       navigate("/artist-dashboard");
       const { data: role } = await rolePromise;
