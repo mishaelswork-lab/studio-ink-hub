@@ -114,3 +114,38 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Animated "T" mark — shimmering gold/silver logo colours */
+@keyframes t-shimmer {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+@keyframes t-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-6px) rotate(-1.5deg); }
+}
+.tart-t {
+  display: inline-block;
+  background: linear-gradient(
+    100deg,
+    hsl(38 60% 72%) 0%,
+    hsl(0 0% 88%) 18%,
+    hsl(38 55% 58%) 36%,
+    hsl(0 0% 96%) 52%,
+    hsl(38 50% 45%) 70%,
+    hsl(38 60% 72%) 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 18px hsl(38 45% 60% / 0.35));
+  animation: t-shimmer 4.5s linear infinite, t-float 6s ease-in-out infinite;
+}
+.tart-t-static {
+  display: inline-block;
+  background: linear-gradient(135deg, hsl(38 60% 72%), hsl(0 0% 90%), hsl(38 50% 45%));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
