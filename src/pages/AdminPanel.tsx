@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 const AddArtistDialog = lazy(() => import("@/components/admin/AddArtistDialog"));
 const PerfMetricsPanel = lazy(() => import("@/components/admin/PerfMetricsPanel"));
 const UsageHotspotsPanel = lazy(() => import("@/components/admin/UsageHotspotsPanel"));
+const PlatformSettingsPanel = lazy(() => import("@/components/admin/PlatformSettingsPanel"));
 
 const adminTabs = [
   { id: "overview", label: "Overview", icon: BarChart3 },
@@ -658,20 +659,9 @@ const AdminPanel = () => {
         {activeTab === "settings" && (
           <div>
             <h2 className="font-heading text-2xl font-bold text-foreground mb-6">Settings</h2>
-            <div className="bg-card rounded-lg border border-border p-6 max-w-lg">
-              <h3 className="text-foreground font-medium mb-4">Platform Settings</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm text-muted-foreground mb-1.5 block">Cover Charge (₹)</label>
-                  <input type="number" defaultValue={500} className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-gold" />
-                </div>
-                <div>
-                  <label className="text-sm text-muted-foreground mb-1.5 block">Platform Commission (%)</label>
-                  <input type="number" defaultValue={15} className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-gold" />
-                </div>
-                <Button variant="gold" onClick={() => toast.success("Settings saved!")}>Save Changes</Button>
-              </div>
-            </div>
+            <Suspense fallback={<p className="text-muted-foreground text-sm">Loading settings...</p>}>
+              <PlatformSettingsPanel />
+            </Suspense>
           </div>
         )}
       </main>

@@ -12,10 +12,13 @@ import { Navbar } from "@/components/layout/Navbar";
 import { SEO } from "@/lib/seo";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 
 
 const Hero = () => {
   const [reduced, setReduced] = useReducedMotion();
+  const { settings } = usePlatformSettings();
+  const tagline = settings.content.tagline || "Where tattoo becomes art";
   return (
   <section className="relative min-h-[92vh] flex items-center justify-center overflow-hidden">
     {/* Refined deep gradient backdrop */}
@@ -67,11 +70,11 @@ const Hero = () => {
       />
       <p className={`text-gold font-body text-sm tracking-[0.3em] uppercase mb-4 ${reduced ? "" : "animate-fade-in"}`}>Premium Art Experiences</p>
       <h1 className={`font-heading text-5xl md:text-7xl lg:text-8xl font-bold mb-4 tracking-wider ${reduced ? "" : "animate-fade-in"}`} style={reduced ? undefined : { animationDelay: "0.1s" }}>
-        <span className="text-foreground">T</span>
+        <span className={reduced ? "tart-t-static" : "tart-t"}>T</span>
         <span className="text-gradient-gold">art</span>
       </h1>
       <p className={`font-heading italic text-gold/90 text-lg md:text-xl mb-3 ${reduced ? "" : "animate-fade-in"}`} style={reduced ? undefined : { animationDelay: "0.15s" }}>
-        the last space for your art
+        {tagline}
       </p>
       <p className={`text-muted-foreground text-base md:text-lg max-w-2xl mx-auto mb-10 ${reduced ? "" : "animate-fade-in"}`} style={reduced ? undefined : { animationDelay: "0.2s" }}>
         Discover India's finest artists. Book your next masterpiece with confidence.
