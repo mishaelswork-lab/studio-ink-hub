@@ -1,54 +1,60 @@
-# Shipping Tart to Google Play, the App Store, and as an APK
+# Store Compliance Fixes (App Store + Play Store)
 
-Tart is currently a web app. To get a real APK and store-ready iOS/Android builds, we wrap the existing app in Capacitor (a native shell around the same React code) and then close the store-compliance gaps.
+Close the in-app gaps that most commonly cause rejection, before any native packaging work. All of this is web-app work that also carries into the Capacitor build later.
 
-## Phase 1 — Native shell (gets you the APK)
+## 1. In-app account deletion (mandatory, both stores)
 
-1. Add Capacitor (`@capacitor/core`, `@capacitor/cli`, `@capacitor/android`, `@capacitor/ios`) and a `capacitor.config.ts` with:
-   - appId `app.lovable.14974305742c46c1884aecc456ee5259` (or a custom `com.tart.app` if you prefer — must be final before first store upload)
-   - appName `Tart`
-   - a dev-only `server.url` pointing at the preview for hot reload, removed for release builds
-2. Add app icons and splash screens generated from the Tart medallion logo (all Android densities + iOS sizes).
-3. Add native status bar / safe-area handling so the dark gold theme extends correctly on notched phones.
-4. Document the local build steps: export to GitHub, `npm i`, `npx cap add android`, `npm run build`, `npx cap sync`, then `npx cap run android` or build a signed APK/AAB in Android Studio.
+Currently there is no way to delete an account from inside the app — this is an automatic rejection on iOS (5.1.1(v)) and a Play Data Safety violation.
 
-Note: Lovable cannot compile the APK itself — Android Studio (free, Windows/Mac/Linux) produces the APK; Xcode on a Mac is mandatory for iOS.
+- New "Delete my account" section in Profile → Privacy: explains what is removed, requires typing DELETE to confirm.
+- New `delete-account` edge function (service-role): removes profile, favorites, consent records, push subscriptions, consultations/messages, design views/reports, then deletes the auth user.
+- Bookings and payments are anonymised rather than hard-deleted (customer_id nulled, name replaced with "Deleted user") because tax/dispute records must be retained — the retention reason is already stated in the Privacy Policy.
+- Artists with active bookings get a clear "settle or cancel upcoming bookings first" message.
 
-## Phase 2 — Store account requirements (you, not code)
+## 2. UGC safety: report + block (Apple 1.2)
 
-| Item | Google Play | Apple |
-|---|---|---|
-| Developer account | $25 one-time | $99/year |
-| Identity/DUNS | Individual/org verification | Org needs D-U-N-S |
-| Upload format | AAB (APK only for sideloading) | IPA via Xcode/Transporter |
-| Extra for new personal Play accounts | 12 testers × 14 days closed test before production | none |
-| India-specific | Payments profile + PAN/GST for paid features | same |
+Reporting exists only for discovery designs. Apple requires the full set anywhere users see user-generated content or message each other.
 
-## Phase 3 — Compliance gaps to fix in the app
+- Extend reporting to reels, artist profiles, and individual chat messages by generalising `design_reports` into a `content_reports` table (`content_type`, `content_id`).
+- New `user_blocks` table: block an artist or customer. Blocked users' reels/profiles are hidden and messaging between them is refused (RLS + client filter).
+- Report and Block actions in the reel overflow menu, artist profile menu, and chat message long-press.
+- Admin moderation queue extended to handle every report type with a stated 24-hour response commitment, surfaced in Terms.
+- Terms of Service gains an explicit "zero tolerance for objectionable content" clause — Apple looks for this exact wording.
 
-These are the common rejection reasons for an app like Tart:
+## 3. Sign in with Apple (iOS requirement)
 
-1. **Account deletion in-app** (mandatory both stores) — a "Delete my account" flow in Profile that removes the auth user and personal data via an edge function.
-2. **User-generated content rules (Apple 1.2)** — reels, chats and designs need: report content, block user, and a stated 24-hour moderation SLA. Reporting exists for designs; needs extending to reels, artists and chat messages, plus a block list.
-3. **Payments** — Razorpay is fine for booking a real-world tattoo service (physical service, allowed). But the ₹199/3-month membership and the artist "featured boost" are digital goods; Apple will demand In-App Purchase (30%/15% cut) unless we reposition them. Decision needed — see question below.
-4. **Privacy** — Play Data Safety form and Apple Privacy Nutrition Labels must match what we actually collect (auth, photos uploaded for AI match, location radius, chats, analytics). Privacy policy URL already exists and can be reused.
-5. **Permissions** — camera/photo library usage descriptions in `Info.plist` and Android manifest, with plain-language reasons; request location only at point of use.
-6. **AI content disclosure** — label AI-generated stencils clearly and add a content-safety note (both stores review generative features).
-7. **Age rating** — tattoo content typically 12+/17+ depending on imagery; questionnaire answers must be honest or the app gets pulled.
-8. **Sign in with Apple** — required on iOS because Google sign-in is offered.
-9. **No dead ends** — no broken links, no "coming soon" screens, no visible admin/test surfaces; demo credentials must be supplied to Apple reviewers in App Review notes.
+Google sign-in is offered, so Apple requires Sign in with Apple alongside it on iOS. Add the Apple provider to the login, artist login, and signup screens using the managed Cloud auth path.
 
-## Phase 4 — Submission
+## 4. Payments — avoid the IAP rejection
 
-Store listing assets (icon 512, feature graphic 1024×500, 4–8 screenshots per device class, short/long description), release signing key (keep the keystore safe — losing it means losing the app), internal testing track, then production rollout. Expect 1–3 days Apple review, hours-to-days for Play.
+Booking fees and cover charges via Razorpay are fine (real-world service, allowed by both stores). The risk is the ₹199/3-month membership and the artist featured boost — Apple treats these as digital goods and will demand In-App Purchase.
 
-## Technical notes
+Recommended approach for v1: detect the native iOS build and hide the membership purchase and boost checkout there (content stays viewable, purchase happens on the web). This ships without a 30% cut and without IAP plumbing. Play Store has no equivalent restriction, so Android keeps Razorpay.
 
-- Capacitor keeps a single React codebase; no rewrite.
-- Push notifications currently use web push — that will need `@capacitor/push-notifications` + FCM/APNs for native builds.
-- Razorpay has a Capacitor-compatible checkout; the current web checkout works inside the native webview but should be tested.
-- Deep links (`/booking/:id` from notifications) need `assetlinks.json` / Apple App Site Association for universal links.
+## 5. Permissions and privacy disclosures
 
-## Suggested first step
+- Add plain-language purpose strings for camera and photo library (used for AI tattoo match and portfolio uploads) plus location (studio radius search), and request each only at the point of use.
+- Produce a data-map document listing exactly what is collected and why, matching Play Data Safety and Apple Privacy Nutrition Label answers to the Privacy Policy already published.
 
-Phase 1 only: add Capacitor, icons, splash, safe-area handling, and a build README so you can produce a working APK today. Then tackle compliance in a second pass.
+## 6. AI content disclosure
+
+Label generated stencils clearly as AI-generated in the results UI and add a short AI-use section to the Privacy Policy and Terms (what is sent to the model, that uploads are not used for training).
+
+## 7. Age gate
+
+Tattoo/piercing is 18+. Add a one-time date-of-birth / 18+ confirmation at signup stored on the profile, and answer both store age questionnaires consistently (17+ / Mature).
+
+## 8. Remove review-blocking dead ends
+
+- Ensure `/staging-check` and any test-only routes are excluded from production builds.
+- Verify no broken links, no placeholder screens, and that the admin surface stays invisible to reviewers who log in with the demo customer account.
+
+## Technical summary
+
+New backend: `content_reports` and `user_blocks` tables (RLS + grants), `delete-account` edge function.
+Changed: Profile privacy section, reel/profile/chat action menus, AdminPanel moderation queue, login screens (Apple), signup (age gate), membership + boost gating by platform, Terms and Privacy copy.
+No changes to booking, discovery or chat core logic.
+
+## Suggested order
+
+1 (deletion) and 2 (report/block) first — those are the hard blockers. Then 3, 7, 4, then copy/disclosure items 5 and 6.
