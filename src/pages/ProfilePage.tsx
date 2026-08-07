@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { readConsent, recordConsent, resetConsent, type ConsentChoice } from "@/lib/consent";
+import DeleteAccountCard from "@/components/account/DeleteAccountCard";
 
 const ProfilePage = () => {
   const { user, signOut } = useAuth();
@@ -162,6 +163,8 @@ const ProfilePage = () => {
                 <Link to="/privacy"><Button variant="ghost" size="sm">Privacy Policy</Button></Link>
               </div>
             </div>
+
+            <DeleteAccountCard />
 
             <Button variant="destructive" className="w-full mt-8" onClick={() => { signOut(); navigate("/"); }}>Sign Out</Button>
 

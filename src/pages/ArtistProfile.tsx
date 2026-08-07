@@ -1,12 +1,14 @@
 import { QuotesLoader } from "@/components/QuotesLoader";
 import { useParams, Link } from "react-router-dom";
-import { Star, MapPin, Clock, ArrowLeft, Heart, MessageSquare, Share2, Award } from "lucide-react";
+import { Star, MapPin, Clock, ArrowLeft, Heart, MessageSquare, Share2, Award, Flag, Ban } from "lucide-react";
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/layout/Navbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useFavorite } from "@/hooks/useFavorite";
+import { useBlock } from "@/hooks/useBlock";
+import { ReportDialog } from "@/components/safety/ReportDialog";
 import { artists as mockArtists } from "@/data/mockData";
 const CinematicGallery = lazy(() =>
   import("@/components/CinematicGallery").then(m => ({ default: m.CinematicGallery }))
@@ -23,6 +25,8 @@ const ArtistProfile = () => {
   const [certs, setCerts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { isFavorite, toggle: toggleFav, loading: favLoading } = useFavorite("artist", id);
+  const [reportOpen, setReportOpen] = useState(false);
+  const { isBlocked, toggle: toggleBlock, loading: blockLoading } = useBlock(dbArtist?.user_id);
 
   const mockArtist = mockArtists.find(a => a.id === id);
 
@@ -136,11 +140,22 @@ const ArtistProfile = () => {
                     <Heart className={`w-6 h-6 ${isFavorite ? "fill-red-500 text-red-500" : "text-muted-foreground"}`} />
                   </button>
                 )}
-                <button onClick={shareProfile} className="p-2 rounded-full hover:bg-card transition-colors">
+                <button onClick={shareProfile} className="p-2 rounded-full hover:bg-card transition-colors" aria-label="Share profile">
                   <Share2 className="w-5 h-5 text-muted-foreground" />
                 </button>
+                {user && (
+                  <button onClick={() => setReportOpen(true)} className="p-2 rounded-full hover:bg-card transition-colors" aria-label="Report this artist">
+                    <Flag className="w-5 h-5 text-muted-foreground" />
+                  </button>
+                )}
+                {user && dbArtist?.user_id && dbArtist.user_id !== user.id && (
+                  <button onClick={toggleBlock} disabled={blockLoading} className="p-2 rounded-full hover:bg-card transition-colors" aria-label={isBlocked ? "Unblock this artist" : "Block this artist"} title={isBlocked ? "Unblock" : "Block"}>
+                    <Ban className={`w-5 h-5 ${isBlocked ? "text-destructive" : "text-muted-foreground"}`} />
+                  </button>
+                )}
               </div>
             </div>
+            <ReportDialog open={reportOpen} onOpenChange={setReportOpen} contentType="artist" contentId={artistId} label="artist" />
             <p className="text-gold font-medium mb-2">{specialty}</p>
             <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-4">
               <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{studioName}</span>
