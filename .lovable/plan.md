@@ -1,51 +1,54 @@
-# Plan: Booking MCP tools, status notifications, Pinterest-only Discovery
+# Shipping Tart to Google Play, the App Store, and as an APK
 
-## 1. MCP: create_booking & cancel_booking tools
+Tart is currently a web app. To get a real APK and store-ready iOS/Android builds, we wrap the existing app in Capacitor (a native shell around the same React code) and then close the store-compliance gaps.
 
-New files under `src/lib/mcp/tools/`:
+## Phase 1 — Native shell (gets you the APK)
 
-- **`create-booking.ts`** — inputs: `artist_id` (uuid), `service_type` ("tattoo"|"piercing"), `date`, `time`, `style`, `placement`, `size?`, `description?`, `customer_name`, `customer_phone?`. Handler uses the caller's user-scoped Supabase client (RLS enforces `auth.uid() = customer_id`) to insert into `bookings`. Prepends `[Piercing]` to `style` for piercing (matches existing BookingPage convention). Returns the new `booking_id` plus a `payment_intent` object obtained by invoking the existing `create-razorpay-order` edge function server-side (amount = ₹500 cover charge) — the response contains `order_id`, `amount`, `currency`, `key_id` for the agent to hand back to the user, plus a checkout URL hint (`/booking?resume=<id>`). If Razorpay isn't configured, still return the booking with `payment_intent: null` and a note.
+1. Add Capacitor (`@capacitor/core`, `@capacitor/cli`, `@capacitor/android`, `@capacitor/ios`) and a `capacitor.config.ts` with:
+   - appId `app.lovable.14974305742c46c1884aecc456ee5259` (or a custom `com.tart.app` if you prefer — must be final before first store upload)
+   - appName `Tart`
+   - a dev-only `server.url` pointing at the preview for hot reload, removed for release builds
+2. Add app icons and splash screens generated from the Tart medallion logo (all Android densities + iOS sizes).
+3. Add native status bar / safe-area handling so the dark gold theme extends correctly on notched phones.
+4. Document the local build steps: export to GitHub, `npm i`, `npx cap add android`, `npm run build`, `npx cap sync`, then `npx cap run android` or build a signed APK/AAB in Android Studio.
 
-- **`cancel-booking.ts`** — input: `booking_id` (uuid), optional `reason`. Handler updates `bookings.status = 'cancelled'` via the user-scoped client. RLS today lets only artists/admins UPDATE; add a policy allowing customers to update **their own** booking's `status` to `cancelled` (migration below). Returns updated row.
+Note: Lovable cannot compile the APK itself — Android Studio (free, Windows/Mac/Linux) produces the APK; Xcode on a Mac is mandatory for iOS.
 
-Register both in `src/lib/mcp/index.ts` `tools: [...]`.
+## Phase 2 — Store account requirements (you, not code)
 
-## 2. Booking status change notifications over MCP
+| Item | Google Play | Apple |
+|---|---|---|
+| Developer account | $25 one-time | $99/year |
+| Identity/DUNS | Individual/org verification | Org needs D-U-N-S |
+| Upload format | AAB (APK only for sideloading) | IPA via Xcode/Transporter |
+| Extra for new personal Play accounts | 12 testers × 14 days closed test before production | none |
+| India-specific | Payments profile + PAN/GST for paid features | same |
 
-MCP has no server-push channel today, so "proactive" means: (a) a queryable notifications feed the agent polls, plus (b) real push/email already firing so the user is not solely reliant on the agent.
+## Phase 3 — Compliance gaps to fix in the app
 
-**DB migration** — new table `public.booking_notifications`:
-- `id uuid pk`, `user_id uuid` (recipient — customer or artist), `booking_id uuid fk bookings`, `event text` (`accepted|rejected|updated|cancelled`), `message text`, `read_at timestamptz`, `created_at timestamptz default now()`.
-- Follow the required 4-step order: CREATE TABLE → GRANT (`authenticated`: SELECT/UPDATE; `service_role`: ALL) → ENABLE RLS → policies (`user_id = auth.uid()` for select/update).
-- Trigger `bookings_status_notify` on `AFTER UPDATE` of `bookings` when `OLD.status IS DISTINCT FROM NEW.status`: insert one row for `customer_id` (event derived from new status) and one for the artist's owner user (looked up via `artists.user_id` if present, otherwise skipped).
-- Enable Realtime on the table so the existing `notify-new-message` push path can be mirrored later if wanted (out of scope for this plan unless you want push too).
+These are the common rejection reasons for an app like Tart:
 
-**New MCP tool** `list_my_booking_notifications.ts` — inputs: `unread_only?: boolean`, `limit?: 1..100`. Reads via user-scoped client.
+1. **Account deletion in-app** (mandatory both stores) — a "Delete my account" flow in Profile that removes the auth user and personal data via an edge function.
+2. **User-generated content rules (Apple 1.2)** — reels, chats and designs need: report content, block user, and a stated 24-hour moderation SLA. Reporting exists for designs; needs extending to reels, artists and chat messages, plus a block list.
+3. **Payments** — Razorpay is fine for booking a real-world tattoo service (physical service, allowed). But the ₹199/3-month membership and the artist "featured boost" are digital goods; Apple will demand In-App Purchase (30%/15% cut) unless we reposition them. Decision needed — see question below.
+4. **Privacy** — Play Data Safety form and Apple Privacy Nutrition Labels must match what we actually collect (auth, photos uploaded for AI match, location radius, chats, analytics). Privacy policy URL already exists and can be reused.
+5. **Permissions** — camera/photo library usage descriptions in `Info.plist` and Android manifest, with plain-language reasons; request location only at point of use.
+6. **AI content disclosure** — label AI-generated stencils clearly and add a content-safety note (both stores review generative features).
+7. **Age rating** — tattoo content typically 12+/17+ depending on imagery; questionnaire answers must be honest or the app gets pulled.
+8. **Sign in with Apple** — required on iOS because Google sign-in is offered.
+9. **No dead ends** — no broken links, no "coming soon" screens, no visible admin/test surfaces; demo credentials must be supplied to Apple reviewers in App Review notes.
 
-**New MCP tool** `mark_booking_notification_read.ts` — input: `id: uuid`. Sets `read_at = now()`.
+## Phase 4 — Submission
 
-Both registered in `src/lib/mcp/index.ts`. This gives agents a first-class feed to check on each turn ("any new updates on your bookings?") without needing server push.
-
-## 3. Pinterest board as the sole Discovery source
-
-Pinterest does not expose private-board content without OAuth, but every **public** board has an RSS feed:
-`https://www.pinterest.com/<username>/<board-slug>.rss` — returns the latest ~25 pins with image URLs, titles, and pin links. No API key.
-
-Plan:
-- Ask you for your Pinterest **username** and **board slug** (or the full public board URL) and confirm the board is set to Public. If you want a private board or the full board (>25 pins), we'd need Pinterest OAuth via their API v5 — a bigger, separate setup; call that out as a fallback.
-- Store the board URL in a small `app_settings` row (or as an edge-function secret `PINTEREST_BOARD_URL`) so it can be swapped without a redeploy.
-- Rewrite `supabase/functions/refresh-designs/index.ts` to fetch the RSS, parse `<item>` entries (regex or a tiny XML parser — Deno-friendly), extract the `<enclosure>` / `<media:content>` image URL, upgrade the thumbnail to the `/originals/` size, and upsert into `daily_designs` with `external_id = pinterest:<pin_id>`. Drop the Unsplash query + human/art keyword filters entirely.
-- Keep the existing `daily_designs` schema, download/print buttons, and RLS untouched — only the ingestion source changes.
-- Frontend `DiscoverPage.tsx`: remove the `isTattooOrSketch` heuristic since every pin on your curated board is already on-brand; keep the masonry, favorite, download, print, and "send to artist" actions.
-- Optionally add a cron trigger (existing `pg_cron` pattern) to re-pull the RSS daily.
+Store listing assets (icon 512, feature graphic 1024×500, 4–8 screenshots per device class, short/long description), release signing key (keep the keystore safe — losing it means losing the app), internal testing track, then production rollout. Expect 1–3 days Apple review, hours-to-days for Play.
 
 ## Technical notes
 
-- MCP tools must be import-safe — no env reads at module top level; read `SUPABASE_URL` / `SUPABASE_PUBLISHABLE_KEY` inside handlers, matching existing tools.
-- `create_booking` calls the Razorpay order function server-side via `fetch(SUPABASE_URL + "/functions/v1/create-razorpay-order", { headers: { Authorization: Bearer <user token> }})` so the agent never handles secrets.
-- After edits: run `app_mcp_server--extract_mcp_manifest` to refresh `.lovable/mcp/manifest.json`, then deploy the `mcp` edge function and the updated `refresh-designs` function.
-- Migration will add the customer-cancel UPDATE policy scoped to `status = 'cancelled'` only, using a `USING (customer_id = auth.uid())` + `WITH CHECK (customer_id = auth.uid() AND status = 'cancelled')` pattern so customers can't flip status arbitrarily.
+- Capacitor keeps a single React codebase; no rewrite.
+- Push notifications currently use web push — that will need `@capacitor/push-notifications` + FCM/APNs for native builds.
+- Razorpay has a Capacitor-compatible checkout; the current web checkout works inside the native webview but should be tested.
+- Deep links (`/booking/:id` from notifications) need `assetlinks.json` / Apple App Site Association for universal links.
 
-## Open question before I build
+## Suggested first step
 
-Please share your Pinterest board (public URL, e.g. `https://www.pinterest.com/yourname/tattoo-stencils/`) and confirm it's set to Public. If you'd prefer a private board, say so and I'll switch to the OAuth (Pinterest API v5) path instead — that requires you to register a Pinterest developer app and paste a client ID/secret.
+Phase 1 only: add Capacitor, icons, splash, safe-area handling, and a build README so you can produce a working APK today. Then tackle compliance in a second pass.
