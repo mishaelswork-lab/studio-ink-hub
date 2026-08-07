@@ -140,11 +140,22 @@ const ArtistProfile = () => {
                     <Heart className={`w-6 h-6 ${isFavorite ? "fill-red-500 text-red-500" : "text-muted-foreground"}`} />
                   </button>
                 )}
-                <button onClick={shareProfile} className="p-2 rounded-full hover:bg-card transition-colors">
+                <button onClick={shareProfile} className="p-2 rounded-full hover:bg-card transition-colors" aria-label="Share profile">
                   <Share2 className="w-5 h-5 text-muted-foreground" />
                 </button>
+                {user && (
+                  <button onClick={() => setReportOpen(true)} className="p-2 rounded-full hover:bg-card transition-colors" aria-label="Report this artist">
+                    <Flag className="w-5 h-5 text-muted-foreground" />
+                  </button>
+                )}
+                {user && dbArtist?.user_id && dbArtist.user_id !== user.id && (
+                  <button onClick={toggleBlock} disabled={blockLoading} className="p-2 rounded-full hover:bg-card transition-colors" aria-label={isBlocked ? "Unblock this artist" : "Block this artist"} title={isBlocked ? "Unblock" : "Block"}>
+                    <Ban className={`w-5 h-5 ${isBlocked ? "text-destructive" : "text-muted-foreground"}`} />
+                  </button>
+                )}
               </div>
             </div>
+            <ReportDialog open={reportOpen} onOpenChange={setReportOpen} contentType="artist" contentId={artistId} label="artist" />
             <p className="text-gold font-medium mb-2">{specialty}</p>
             <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-4">
               <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{studioName}</span>
