@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect, memo } from "react";
 import { Link } from "react-router-dom";
-import { Heart, Eye, Play, Volume2, VolumeX, Bookmark, Share2 } from "lucide-react";
+import { Heart, Eye, Play, Volume2, VolumeX, Bookmark, Share2, Flag } from "lucide-react";
 import { Reel } from "@/data/mockReels";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFavorite } from "@/hooks/useFavorite";
 import { shareLink } from "@/lib/share";
+import { ReportDialog } from "@/components/safety/ReportDialog";
 
 const ReelCardImpl = ({ reel }: { reel: Reel }) => {
   const { user } = useAuth();
@@ -13,6 +14,7 @@ const ReelCardImpl = ({ reel }: { reel: Reel }) => {
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(true);
   const [liked, setLiked] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const { isFavorite: saved, toggle: toggleSave } = useFavorite("reel", reel.id);
 
   useEffect(() => {

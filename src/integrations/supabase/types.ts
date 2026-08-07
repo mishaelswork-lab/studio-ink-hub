@@ -404,6 +404,51 @@ export type Database = {
         }
         Relationships: []
       }
+      content_reports: {
+        Row: {
+          admin_notes: string | null
+          content_id: string
+          content_type: string
+          created_at: string
+          details: string | null
+          id: string
+          reason: string
+          reporter_id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          content_id: string
+          content_type: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          reason: string
+          reporter_id: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          content_id?: string
+          content_type?: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          reason?: string
+          reporter_id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       daily_designs: {
         Row: {
           description: string | null
@@ -989,6 +1034,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_blocks: {
+        Row: {
+          blocked_id: string
+          blocker_id: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          blocked_id: string
+          blocker_id: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          blocked_id?: string
+          blocker_id?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
@@ -1019,6 +1085,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_blocked_pair: { Args: { _a: string; _b: string }; Returns: boolean }
       shares_consultation: {
         Args: { _a: string; _b: string }
         Returns: boolean
