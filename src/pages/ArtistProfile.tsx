@@ -1,12 +1,14 @@
 import { QuotesLoader } from "@/components/QuotesLoader";
 import { useParams, Link } from "react-router-dom";
-import { Star, MapPin, Clock, ArrowLeft, Heart, MessageSquare, Share2, Award } from "lucide-react";
+import { Star, MapPin, Clock, ArrowLeft, Heart, MessageSquare, Share2, Award, Flag, Ban } from "lucide-react";
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/layout/Navbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useFavorite } from "@/hooks/useFavorite";
+import { useBlock } from "@/hooks/useBlock";
+import { ReportDialog } from "@/components/safety/ReportDialog";
 import { artists as mockArtists } from "@/data/mockData";
 const CinematicGallery = lazy(() =>
   import("@/components/CinematicGallery").then(m => ({ default: m.CinematicGallery }))

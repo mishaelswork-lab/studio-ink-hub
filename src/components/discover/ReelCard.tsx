@@ -72,10 +72,15 @@ const ReelCardImpl = ({ reel }: { reel: Reel }) => {
           <Share2 className="w-6 h-6 text-white" />
           <span className="text-white text-xs">Share</span>
         </button>
-        <button onClick={() => setMuted(!muted)}>
+        <button onClick={() => setReportOpen(true)} className="flex flex-col items-center gap-1" aria-label="Report this reel">
+          <Flag className="w-6 h-6 text-white" />
+          <span className="text-white text-xs">Report</span>
+        </button>
+        <button onClick={() => setMuted(!muted)} aria-label={muted ? "Unmute" : "Mute"}>
           {muted ? <VolumeX className="w-6 h-6 text-white" /> : <Volume2 className="w-6 h-6 text-white" />}
         </button>
       </div>
+      <ReportDialog open={reportOpen} onOpenChange={setReportOpen} contentType="reel" contentId={reel.id} label="reel" />
       <div className="absolute inset-x-0 bottom-0 p-4">
         <Link to={`/artist/${reel.artistId}`} className="flex items-center gap-2.5 mb-2.5">
           <img src={reel.artistAvatar} alt={reel.artistName} className="w-9 h-9 rounded-full object-cover border-2 border-gold/50" />
