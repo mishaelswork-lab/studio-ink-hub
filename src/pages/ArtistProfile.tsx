@@ -25,6 +25,8 @@ const ArtistProfile = () => {
   const [certs, setCerts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { isFavorite, toggle: toggleFav, loading: favLoading } = useFavorite("artist", id);
+  const [reportOpen, setReportOpen] = useState(false);
+  const { isBlocked, toggle: toggleBlock, loading: blockLoading } = useBlock(dbArtist?.user_id);
 
   const mockArtist = mockArtists.find(a => a.id === id);
 
