@@ -208,6 +208,27 @@ const AdminPanel = () => {
     fetchData();
   };
 
+  const handleContentReport = async (r: any, action: "remove" | "dismiss") => {
+    if (!isAdmin) { toast.error("Admin access required"); return; }
+    if (action === "remove") {
+      if (r.content_type === "reel") {
+        await supabase.from("reels").update({ moderation_status: "rejected" }).eq("id", r.content_id);
+      }
+      await writeAudit("content_report_actioned", r.content_type, r.content_id, adminNote[r.id] || undefined);
+      toast.success("Content actioned");
+    } else {
+      await writeAudit("content_report_dismissed", r.content_type, r.content_id, adminNote[r.id] || undefined);
+      toast.success("Report dismissed");
+    }
+    await supabase.from("content_reports").update({
+      status: action === "remove" ? "resolved" : "dismissed",
+      admin_notes: adminNote[r.id] || null,
+      reviewed_by: user!.id,
+      reviewed_at: new Date().toISOString(),
+    }).eq("id", r.id);
+    fetchData();
+  };
+
   const handleLogout = async () => { await signOut(); };
 
 
