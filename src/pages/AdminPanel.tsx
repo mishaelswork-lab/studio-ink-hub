@@ -19,6 +19,7 @@ const adminTabs = [
   { id: "reels", label: "Reels", icon: Film },
   { id: "moderation", label: "Moderation", icon: Shield },
   { id: "reports", label: "Design Reports", icon: Flag },
+  { id: "ugc", label: "Content Reports", icon: Shield },
   { id: "featured", label: "Featured", icon: Sparkles },
   { id: "audit", label: "Audit Log", icon: ScrollText },
   { id: "metrics", label: "Metrics", icon: Activity },
@@ -40,6 +41,7 @@ const AdminPanel = () => {
   const [dbPayments, setDbPayments] = useState<any[]>([]);
   const [flaggedReels, setFlaggedReels] = useState<any[]>([]);
   const [designReports, setDesignReports] = useState<any[]>([]);
+  const [contentReports, setContentReports] = useState<any[]>([]);
   const [auditLog, setAuditLog] = useState<any[]>([]);
   const [changeLog, setChangeLog] = useState<any[]>([]);
   const [featuredRequests, setFeaturedRequests] = useState<any[]>([]);
@@ -67,7 +69,7 @@ const AdminPanel = () => {
 
   const fetchData = async () => {
     if (!serverAdmin) return;
-    const [artistsRes, bookingsRes, reelsRes, paymentsRes, flaggedRes, auditRes, fReqRes, fArtRes, reportsRes, changeRes] = await Promise.all([
+    const [artistsRes, bookingsRes, reelsRes, paymentsRes, flaggedRes, auditRes, fReqRes, fArtRes, reportsRes, changeRes, ugcRes] = await Promise.all([
       supabase.from("artists").select("*").order("created_at", { ascending: false }),
       supabase.from("bookings").select("*").order("created_at", { ascending: false }),
       supabase.from("reels").select("*").order("created_at", { ascending: false }),
@@ -78,6 +80,7 @@ const AdminPanel = () => {
       supabase.from("featured_artists").select("*, artists(name, avatar_url, specialty)").order("priority", { ascending: false }),
       supabase.from("design_reports").select("*, daily_designs(image_url, thumb_url, source_url, description)").order("created_at", { ascending: false }).limit(200),
       supabase.from("change_audit_log").select("*").order("created_at", { ascending: false }).limit(200),
+      supabase.from("content_reports").select("*").order("created_at", { ascending: false }).limit(200),
     ]);
     setDbArtists(artistsRes.data || []);
     setDbBookings(bookingsRes.data || []);
@@ -89,6 +92,7 @@ const AdminPanel = () => {
     setFeaturedArtists(fArtRes.data || []);
     setDesignReports(reportsRes.data || []);
     setChangeLog(changeRes.data || []);
+    setContentReports(ugcRes.data || []);
   };
 
   useEffect(() => { if (serverAdmin) fetchData(); }, [serverAdmin]);
