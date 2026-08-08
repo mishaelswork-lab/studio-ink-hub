@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { canSellDigitalGoods } from "@/lib/platform";
 
 interface Props {
   chatsRemaining?: number;
@@ -15,6 +16,10 @@ export const MembershipBanner = ({ chatsRemaining, showChatTrigger }: Props) => 
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Apple treats memberships as digital goods requiring IAP — hide inside the iOS shell.
+  if (!canSellDigitalGoods()) return null;
+
 
   const handleSubscribe = async () => {
     if (!user) { toast.error("Please sign in first"); return; }
