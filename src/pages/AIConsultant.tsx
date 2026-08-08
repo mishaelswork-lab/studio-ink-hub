@@ -164,7 +164,12 @@ const AIConsultant = () => {
 
         {!loading && designs.length > 0 && (
           <div className="mt-10">
-            <h2 className="font-heading text-2xl font-bold mb-5">Your Stencils</h2>
+            <h2 className="font-heading text-2xl font-bold mb-2">Your Stencils</h2>
+            <p className="text-muted-foreground text-xs mb-5 flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-gold" />
+              AI-generated images — created by an AI model from your input, not photographs of real tattoos.
+              Always confirm feasibility with your artist.
+            </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {designs.map((d, i) => (
                 <div key={i} className="bg-card border border-border rounded-xl overflow-hidden hover:border-gold/30 transition-colors">
@@ -177,7 +182,7 @@ const AIConsultant = () => {
                         <h3 className="font-heading font-semibold text-foreground leading-tight">{d.title}</h3>
                         <p className="text-gold text-xs mt-0.5 capitalize">{d.style}</p>
                       </div>
-                      <span className="text-[10px] uppercase tracking-wider text-gold whitespace-nowrap">#{i + 1}</span>
+                      <span className="text-[10px] uppercase tracking-wider text-gold whitespace-nowrap">AI · #{i + 1}</span>
                     </div>
                     <div className="flex gap-2">
                       <Button size="sm" variant="gold-outline" className="flex-1 gap-1.5" onClick={() => downloadDesign(d, i)}>
