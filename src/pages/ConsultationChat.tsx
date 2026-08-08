@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Send, ImagePlus, Check, CheckCheck, AlertCircle, Loader2, WifiOff } from "lucide-react";
+import { ArrowLeft, Send, ImagePlus, Check, CheckCheck, AlertCircle, Loader2, WifiOff, Flag, Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/layout/Navbar";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -8,6 +8,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { enqueueMessage, subscribeQueue, flushQueue, removeFromQueue, type QueuedMessage } from "@/lib/offlineQueue";
+import ReportDialog from "@/components/safety/ReportDialog";
+import { useBlock } from "@/hooks/useBlock";
+
 
 type DeliveryStatus = "queued" | "sending" | "sent" | "read" | "failed";
 
@@ -34,6 +37,12 @@ const ConsultationChat = () => {
   const [online, setOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
   const [queueCount, setQueueCount] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const otherUserId = consultation
+    ? (consultation.customer_id === user?.id ? consultation.artist_id : consultation.customer_id)
+    : null;
+  const { isBlocked, toggle: toggleBlock, loading: blockLoading } = useBlock(otherUserId);
+
 
   useEffect(() => {
     const on = () => setOnline(true);
@@ -251,6 +260,21 @@ const ConsultationChat = () => {
             <p className="text-foreground text-sm font-medium">{otherName}</p>
             <p className="text-muted-foreground text-xs">Design Consultation</p>
           </div>
+          <button
+            onClick={() => setReportOpen(true)}
+            title="Report this conversation"
+            className="text-muted-foreground hover:text-destructive p-1.5"
+          >
+            <Flag className="w-4 h-4" />
+          </button>
+          <button
+            onClick={toggleBlock}
+            disabled={blockLoading}
+            title={isBlocked ? "Unblock user" : "Block user"}
+            className={`p-1.5 ${isBlocked ? "text-destructive" : "text-muted-foreground hover:text-destructive"}`}
+          >
+            <Ban className="w-4 h-4" />
+          </button>
           {!online && (
             <div className="flex items-center gap-1.5 text-xs text-amber-400 bg-amber-400/10 border border-amber-400/30 px-2 py-1 rounded-md">
               <WifiOff className="w-3 h-3" /> Offline
@@ -262,6 +286,21 @@ const ConsultationChat = () => {
             </div>
           )}
         </div>
+
+        <ReportDialog
+          open={reportOpen}
+          onOpenChange={setReportOpen}
+          contentType="message"
+          contentId={consultationId!}
+          label="conversation"
+        />
+
+        {isBlocked && (
+          <div className="mb-4 text-xs text-destructive bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-2">
+            You have blocked this user. Unblock to send messages again.
+          </div>
+        )}
+
 
         {consultation?.design_description && (
           <div className="bg-gold/5 border border-gold/20 rounded-lg p-3 mb-4">
