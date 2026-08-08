@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { canSellDigitalGoods } from "@/lib/platform";
+import { SUPPORT_EMAIL, mailto } from "@/lib/contact";
 
 const BOOST_PRICE = 999; // ₹999 / 30-day featured slot (starter)
 
@@ -126,6 +128,21 @@ export const FeaturedBoostCard = ({ artistId }: { artistId: string }) => {
 
   if (loading) return <div className="py-6 flex justify-center"><Loader2 className="w-4 h-4 animate-spin text-gold" /></div>;
 
+  if (!canSellDigitalGoods()) {
+    return (
+      <div className="bg-card border border-border rounded-xl p-5">
+        <div className="flex items-center gap-2 mb-2">
+          <Sparkles className="w-4 h-4 text-gold" />
+          <h3 className="font-heading text-foreground font-semibold">Get Featured</h3>
+        </div>
+        <p className="text-muted-foreground text-sm">
+          Featured placement isn't purchasable in this app. Contact our team at{" "}
+          <a href={mailto("Featured placement enquiry")} className="text-gold hover:underline">{SUPPORT_EMAIL}</a> for options.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-gradient-to-br from-gold/10 via-gold/5 to-transparent border border-gold/30 rounded-xl p-5">
       <div className="flex items-center gap-2 mb-2">
@@ -135,6 +152,7 @@ export const FeaturedBoostCard = ({ artistId }: { artistId: string }) => {
       <p className="text-muted-foreground text-sm mb-4">
         Appear above regular search results in your area for 30 days. Pay now to instantly submit, or request a custom deal.
       </p>
+
 
       {existing && existing.status !== "rejected" ? (
         <div className="bg-card/50 border border-border rounded-lg p-4 flex items-start gap-3">

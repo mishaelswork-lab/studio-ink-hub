@@ -61,13 +61,18 @@ const Hero = () => {
     </button>
 
     <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
-      <img
-        src={logo}
-        alt="Tart logo"
-        className={`w-56 md:w-72 h-auto mx-auto mb-6 object-contain ${reduced ? "" : "animate-fade-in"}`}
-        width={288}
-        height={144}
-      />
+      <div className={`relative mx-auto mb-4 w-36 md:w-44 ${reduced ? "" : "animate-fade-in"}`}>
+        <div className="absolute inset-0 rounded-full bg-gold/15 blur-3xl scale-125 pointer-events-none" />
+        <img
+          src={logo}
+          alt="Tart logo"
+          className="relative w-full h-auto object-contain rounded-full mix-blend-screen opacity-90 [mask-image:radial-gradient(circle_at_center,black_52%,transparent_70%)]"
+          width={288}
+          height={288}
+        />
+      </div>
+
+
       <p className={`text-gold font-body text-sm tracking-[0.3em] uppercase mb-4 ${reduced ? "" : "animate-fade-in"}`}>Premium Art Experiences</p>
       <h1 className={`font-heading text-5xl md:text-7xl lg:text-8xl font-bold mb-4 tracking-wider ${reduced ? "" : "animate-fade-in"}`} style={reduced ? undefined : { animationDelay: "0.1s" }}>
         <span className={reduced ? "tart-t-static" : "tart-t"}>T</span>

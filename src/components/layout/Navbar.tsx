@@ -27,7 +27,7 @@ export const Navbar = () => {
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 font-heading text-xl font-bold tracking-wider">
-            <img src={logo} alt="Tart" className="h-7 w-auto object-contain" width={112} height={56} />
+            <img src={logo} alt="Tart" className="h-8 w-8 rounded-full object-cover mix-blend-screen [mask-image:radial-gradient(circle_at_center,black_60%,transparent_74%)]" width={64} height={64} />
           </Link>
 
           {/* Desktop nav links */}

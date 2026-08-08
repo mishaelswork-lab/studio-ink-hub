@@ -19,6 +19,7 @@ const adminTabs = [
   { id: "reels", label: "Reels", icon: Film },
   { id: "moderation", label: "Moderation", icon: Shield },
   { id: "reports", label: "Design Reports", icon: Flag },
+  { id: "ugc", label: "Content Reports", icon: Shield },
   { id: "featured", label: "Featured", icon: Sparkles },
   { id: "audit", label: "Audit Log", icon: ScrollText },
   { id: "metrics", label: "Metrics", icon: Activity },
@@ -40,6 +41,7 @@ const AdminPanel = () => {
   const [dbPayments, setDbPayments] = useState<any[]>([]);
   const [flaggedReels, setFlaggedReels] = useState<any[]>([]);
   const [designReports, setDesignReports] = useState<any[]>([]);
+  const [contentReports, setContentReports] = useState<any[]>([]);
   const [auditLog, setAuditLog] = useState<any[]>([]);
   const [changeLog, setChangeLog] = useState<any[]>([]);
   const [featuredRequests, setFeaturedRequests] = useState<any[]>([]);
@@ -67,7 +69,7 @@ const AdminPanel = () => {
 
   const fetchData = async () => {
     if (!serverAdmin) return;
-    const [artistsRes, bookingsRes, reelsRes, paymentsRes, flaggedRes, auditRes, fReqRes, fArtRes, reportsRes, changeRes] = await Promise.all([
+    const [artistsRes, bookingsRes, reelsRes, paymentsRes, flaggedRes, auditRes, fReqRes, fArtRes, reportsRes, changeRes, ugcRes] = await Promise.all([
       supabase.from("artists").select("*").order("created_at", { ascending: false }),
       supabase.from("bookings").select("*").order("created_at", { ascending: false }),
       supabase.from("reels").select("*").order("created_at", { ascending: false }),
@@ -78,6 +80,7 @@ const AdminPanel = () => {
       supabase.from("featured_artists").select("*, artists(name, avatar_url, specialty)").order("priority", { ascending: false }),
       supabase.from("design_reports").select("*, daily_designs(image_url, thumb_url, source_url, description)").order("created_at", { ascending: false }).limit(200),
       supabase.from("change_audit_log").select("*").order("created_at", { ascending: false }).limit(200),
+      supabase.from("content_reports").select("*").order("created_at", { ascending: false }).limit(200),
     ]);
     setDbArtists(artistsRes.data || []);
     setDbBookings(bookingsRes.data || []);
@@ -89,6 +92,7 @@ const AdminPanel = () => {
     setFeaturedArtists(fArtRes.data || []);
     setDesignReports(reportsRes.data || []);
     setChangeLog(changeRes.data || []);
+    setContentReports(ugcRes.data || []);
   };
 
   useEffect(() => { if (serverAdmin) fetchData(); }, [serverAdmin]);
@@ -204,6 +208,27 @@ const AdminPanel = () => {
     fetchData();
   };
 
+  const handleContentReport = async (r: any, action: "remove" | "dismiss") => {
+    if (!isAdmin) { toast.error("Admin access required"); return; }
+    if (action === "remove") {
+      if (r.content_type === "reel") {
+        await supabase.from("reels").update({ moderation_status: "rejected" }).eq("id", r.content_id);
+      }
+      await writeAudit("content_report_actioned", r.content_type, r.content_id, adminNote[r.id] || undefined);
+      toast.success("Content actioned");
+    } else {
+      await writeAudit("content_report_dismissed", r.content_type, r.content_id, adminNote[r.id] || undefined);
+      toast.success("Report dismissed");
+    }
+    await supabase.from("content_reports").update({
+      status: action === "remove" ? "resolved" : "dismissed",
+      admin_notes: adminNote[r.id] || null,
+      reviewed_by: user!.id,
+      reviewed_at: new Date().toISOString(),
+    }).eq("id", r.id);
+    fetchData();
+  };
+
   const handleLogout = async () => { await signOut(); };
 
 
@@ -223,6 +248,9 @@ const AdminPanel = () => {
               )}
               {tab.id === "reports" && designReports.filter((r: any) => r.status === "pending").length > 0 && (
                 <span className="ml-auto bg-destructive text-destructive-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">{designReports.filter((r: any) => r.status === "pending").length}</span>
+              )}
+              {tab.id === "ugc" && contentReports.filter((r: any) => r.status === "pending").length > 0 && (
+                <span className="ml-auto bg-destructive text-destructive-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">{contentReports.filter((r: any) => r.status === "pending").length}</span>
               )}
             </button>
           ))}
@@ -500,6 +528,52 @@ const AdminPanel = () => {
           </div>
         )}
 
+        {activeTab === "ugc" && (
+          <div>
+            <h2 className="font-heading text-2xl font-bold text-foreground mb-2">Content Reports</h2>
+            <p className="text-muted-foreground text-sm mb-6">Reports on reels, artist profiles and conversations — 24-hour review SLA</p>
+            {contentReports.length === 0 ? (
+              <div className="bg-card rounded-lg border border-border p-12 text-center">
+                <Shield className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                <p className="text-muted-foreground text-sm">No content reports yet.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {contentReports.map((r: any) => (
+                  <div key={r.id} className="bg-card rounded-lg border border-border p-4">
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                      <div>
+                        <p className="text-foreground font-medium text-sm">
+                          <span className="uppercase text-[10px] tracking-wider text-gold mr-2">{r.content_type}</span>
+                          {r.reason}
+                        </p>
+                        <p className="text-muted-foreground text-xs mt-0.5">
+                          {new Date(r.created_at).toLocaleString()} · reporter <span className="font-mono">{String(r.reporter_id).slice(0, 8)}</span> · target <span className="font-mono">{String(r.content_id).slice(0, 8)}</span>
+                        </p>
+                        {r.details && <p className="text-muted-foreground text-xs mt-2">{r.details}</p>}
+                      </div>
+                      <span className={`text-xs px-2 py-1 rounded-full capitalize ${r.status === "resolved" ? "bg-emerald-500/10 text-emerald-400" : r.status === "dismissed" ? "bg-muted text-muted-foreground" : "bg-gold/10 text-gold"}`}>{r.status}</span>
+                    </div>
+                    {r.status === "pending" && (
+                      <div className="mt-3 space-y-2">
+                        <Textarea value={adminNote[r.id] || ""} onChange={(e) => setAdminNote(p => ({ ...p, [r.id]: e.target.value }))} placeholder="Internal note (optional)" className="bg-secondary border-border min-h-[50px] text-sm" />
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" className="gap-1 border-destructive/50 text-destructive hover:bg-destructive/10" onClick={() => handleContentReport(r, "remove")}>
+                            <Trash2 className="w-3.5 h-3.5" /> Take down
+                          </Button>
+                          <Button size="sm" variant="outline" className="gap-1" onClick={() => handleContentReport(r, "dismiss")}>
+                            <X className="w-3.5 h-3.5" /> Dismiss
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    {r.admin_notes && <p className="text-muted-foreground text-xs mt-2 italic">Note: {r.admin_notes}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {activeTab === "audit" && (
           <div>

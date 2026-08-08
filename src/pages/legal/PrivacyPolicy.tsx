@@ -87,6 +87,24 @@ const PrivacyPolicy = () => (
         Tart is not intended for individuals under 18. We do not knowingly process children's data.
       </p>
 
+      <h2>9. Deleting your account</h2>
+      <p>
+        You can delete your account and personal data at any time from Profile &rarr; Delete account,
+        inside the app. Deletion removes your profile, chats, saved ideas and consent records. Booking
+        and payment records are de-identified and retained only where tax or dispute law requires it.
+        Deletion is blocked only while you have an open booking; cancel or complete it first.
+      </p>
+
+      <h2>10. AI features and camera/photo access</h2>
+      <p>
+        Photos you upload to AI Tattoo Match are sent to our AI provider solely to generate stencil
+        suggestions for you. They are not used to train models, are not shown to other users, and are
+        deleted from processing storage after generation. Camera and photo-library access is requested
+        only at the moment you choose to upload, and location (if granted) is used only to sort studios
+        by distance. You can decline any of these and continue using the app.
+      </p>
+
+
       <h2>9. Contact</h2>
       <p>
         Questions about this policy: <a href={mailto("Privacy policy query")}>{SUPPORT_EMAIL}</a>.

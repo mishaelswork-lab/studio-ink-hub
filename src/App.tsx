@@ -78,7 +78,7 @@ const App = () => (
               <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route path="/terms" element={<TermsOfService />} />
               <Route path="/grievance" element={<GrievancePolicy />} />
-              <Route path="/staging-check" element={<StagingCheck />} />
+              {import.meta.env.DEV && <Route path="/staging-check" element={<StagingCheck />} />}
               <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
