@@ -528,6 +528,52 @@ const AdminPanel = () => {
           </div>
         )}
 
+        {activeTab === "ugc" && (
+          <div>
+            <h2 className="font-heading text-2xl font-bold text-foreground mb-2">Content Reports</h2>
+            <p className="text-muted-foreground text-sm mb-6">Reports on reels, artist profiles and conversations — 24-hour review SLA</p>
+            {contentReports.length === 0 ? (
+              <div className="bg-card rounded-lg border border-border p-12 text-center">
+                <Shield className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                <p className="text-muted-foreground text-sm">No content reports yet.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {contentReports.map((r: any) => (
+                  <div key={r.id} className="bg-card rounded-lg border border-border p-4">
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                      <div>
+                        <p className="text-foreground font-medium text-sm">
+                          <span className="uppercase text-[10px] tracking-wider text-gold mr-2">{r.content_type}</span>
+                          {r.reason}
+                        </p>
+                        <p className="text-muted-foreground text-xs mt-0.5">
+                          {new Date(r.created_at).toLocaleString()} · reporter <span className="font-mono">{String(r.reporter_id).slice(0, 8)}</span> · target <span className="font-mono">{String(r.content_id).slice(0, 8)}</span>
+                        </p>
+                        {r.details && <p className="text-muted-foreground text-xs mt-2">{r.details}</p>}
+                      </div>
+                      <span className={`text-xs px-2 py-1 rounded-full capitalize ${r.status === "resolved" ? "bg-emerald-500/10 text-emerald-400" : r.status === "dismissed" ? "bg-muted text-muted-foreground" : "bg-gold/10 text-gold"}`}>{r.status}</span>
+                    </div>
+                    {r.status === "pending" && (
+                      <div className="mt-3 space-y-2">
+                        <Textarea value={adminNote[r.id] || ""} onChange={(e) => setAdminNote(p => ({ ...p, [r.id]: e.target.value }))} placeholder="Internal note (optional)" className="bg-secondary border-border min-h-[50px] text-sm" />
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" className="gap-1 border-destructive/50 text-destructive hover:bg-destructive/10" onClick={() => handleContentReport(r, "remove")}>
+                            <Trash2 className="w-3.5 h-3.5" /> Take down
+                          </Button>
+                          <Button size="sm" variant="outline" className="gap-1" onClick={() => handleContentReport(r, "dismiss")}>
+                            <X className="w-3.5 h-3.5" /> Dismiss
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    {r.admin_notes && <p className="text-muted-foreground text-xs mt-2 italic">Note: {r.admin_notes}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {activeTab === "audit" && (
           <div>
