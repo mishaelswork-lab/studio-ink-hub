@@ -357,11 +357,12 @@ const ConsultationChat = () => {
             type="text"
             value={input}
             onChange={e => setInput(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && handleSend()}
-            placeholder={online ? "Type your message..." : "Offline — messages will queue"}
-            className="flex-1 h-12 px-4 rounded-lg bg-card border border-border text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-gold placeholder:text-muted-foreground"
+            onKeyDown={e => e.key === "Enter" && !isBlocked && handleSend()}
+            disabled={isBlocked}
+            placeholder={isBlocked ? "Unblock this user to send messages" : online ? "Type your message..." : "Offline — messages will queue"}
+            className="flex-1 h-12 px-4 rounded-lg bg-card border border-border text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-gold placeholder:text-muted-foreground disabled:opacity-60"
           />
-          <Button variant="gold" size="icon" className="h-12 w-12" onClick={handleSend}>
+          <Button variant="gold" size="icon" className="h-12 w-12" onClick={handleSend} disabled={isBlocked}>
             <Send className="w-5 h-5" />
           </Button>
         </div>
