@@ -249,6 +249,9 @@ const AdminPanel = () => {
               {tab.id === "reports" && designReports.filter((r: any) => r.status === "pending").length > 0 && (
                 <span className="ml-auto bg-destructive text-destructive-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">{designReports.filter((r: any) => r.status === "pending").length}</span>
               )}
+              {tab.id === "ugc" && contentReports.filter((r: any) => r.status === "pending").length > 0 && (
+                <span className="ml-auto bg-destructive text-destructive-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">{contentReports.filter((r: any) => r.status === "pending").length}</span>
+              )}
             </button>
           ))}
         </nav>
