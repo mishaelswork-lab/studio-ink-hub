@@ -1,3 +1,4 @@
+import { requireInternal } from "../_shared/guard.ts";
 // Refreshes daily designs from a curated Pinterest board via its public RSS feed.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -33,6 +34,8 @@ function parseItems(xml: string) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const _g = await requireInternal(req);
+  if (_g.response) return _g.response;
   try {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,

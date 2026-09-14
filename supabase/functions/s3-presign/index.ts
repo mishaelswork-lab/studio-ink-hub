@@ -1,3 +1,4 @@
+import { requireUser } from "../_shared/guard.ts";
 // Generates a short-lived S3 PUT URL for direct-to-S3 uploads.
 // Returns the CloudFront URL so downstream storage & display go through the CDN.
 // Requires secrets: AWS_S3_BUCKET, AWS_S3_REGION, AWS_ACCESS_KEY_ID,
@@ -12,6 +13,8 @@ const cors = {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
+  const _g = await requireUser(req);
+  if (_g.response) return _g.response;
 
   const bucket = Deno.env.get("AWS_S3_BUCKET");
   const region = Deno.env.get("AWS_S3_REGION");

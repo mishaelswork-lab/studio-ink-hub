@@ -1,3 +1,4 @@
+import { requireInternal } from "../_shared/guard.ts";
 // Sends booking reminder push notifications at T-1h, T-30m, T-15m.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendPushToUser } from "./_push.ts";
@@ -9,6 +10,8 @@ const corsHeaders = {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const _g = await requireInternal(req);
+  if (_g.response) return _g.response;
   try {
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const now = new Date();

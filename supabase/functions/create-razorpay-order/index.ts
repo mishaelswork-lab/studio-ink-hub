@@ -1,7 +1,10 @@
+import { requireUser } from "../_shared/guard.ts";
 import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.0/cors";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const _g = await requireUser(req);
+  if (_g.response) return _g.response;
 
   try {
     const { amount, currency = "INR", booking_id, payment_type = "cover_charge" } = await req.json();

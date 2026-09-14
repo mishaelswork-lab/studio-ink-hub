@@ -1,3 +1,4 @@
+import { requireUser } from "../_shared/guard.ts";
 // Notify the other party of a new consultation message via web push
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import webpush from "https://esm.sh/web-push@3.6.7";
@@ -9,6 +10,8 @@ const corsHeaders = {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const _g = await requireUser(req);
+  if (_g.response) return _g.response;
   try {
     const { consultationId, senderId, preview } = await req.json();
     if (!consultationId || !senderId) {

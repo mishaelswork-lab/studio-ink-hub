@@ -1,3 +1,4 @@
+import { requireUser } from "../_shared/guard.ts";
 // Suggests 10 tattoo designs that suit a body area photo (or text description).
 // Uses Lovable AI Gateway (multimodal) for design ideas, Unsplash for sample imagery.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -19,6 +20,8 @@ interface Suggestion {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const _g = await requireUser(req);
+  if (_g.response) return _g.response;
 
   try {
     const body = await req.json().catch(() => ({}));
