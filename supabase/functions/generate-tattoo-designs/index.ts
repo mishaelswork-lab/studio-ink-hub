@@ -1,3 +1,4 @@
+import { requireUser } from "../_shared/guard.ts";
 // Generates black-and-white tattoo stencil designs based on user-uploaded art.
 // Uses Lovable AI Gateway Gemini image model.
 const corsHeaders = {
@@ -41,6 +42,8 @@ async function generateOne(apiKey: string, imageBase64: string, variation: strin
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const _g = await requireUser(req);
+  if (_g.response) return _g.response;
   try {
     const { imageBase64, notes, count } = await req.json();
     if (!imageBase64) throw new Error("imageBase64 required");

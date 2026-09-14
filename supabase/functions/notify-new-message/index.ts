@@ -1,3 +1,4 @@
+import { requireUser } from "../_shared/guard.ts";
 // Notify the other party of a new consultation message via web push
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import webpush from "https://esm.sh/web-push@3.6.7";
@@ -9,9 +10,12 @@ const corsHeaders = {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const _g = await requireUser(req);
+  if (_g.response) return _g.response;
   try {
-    const { consultationId, senderId, preview } = await req.json();
-    if (!consultationId || !senderId) {
+    const { consultationId, preview } = await req.json();
+    const senderId = _g.user.id;
+    if (!consultationId) {
       return new Response(JSON.stringify({ error: "missing params" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -19,6 +23,13 @@ Deno.serve(async (req) => {
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const { data: c } = await supabase.from("consultations")
       .select("customer_id, artist_id").eq("id", consultationId).maybeSingle();
+    // Only a participant may trigger a notification for this thread.
+    if (c && c.customer_id !== senderId && c.artist_id !== senderId) {
+      return new Response(JSON.stringify({ error: "forbidden" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (!c) return new Response(JSON.stringify({ ok: true, skipped: "no-consultation" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

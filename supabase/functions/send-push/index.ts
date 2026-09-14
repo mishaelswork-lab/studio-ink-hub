@@ -1,3 +1,4 @@
+import { requireInternal } from "../_shared/guard.ts";
 // Sends a web push notification using VAPID. Used internally by other functions.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import webpush from "https://esm.sh/web-push@3.6.7";
@@ -35,6 +36,8 @@ export async function sendPushToUser(userId: string, payload: { title: string; b
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const _g = await requireInternal(req);
+  if (_g.response) return _g.response;
   try {
     const body = await req.json();
     const sent = await sendPushToUser(body.userId, body.payload);

@@ -1,3 +1,4 @@
+import { requireUser } from "../_shared/guard.ts";
 // Classifies an image URL as tattoo/art using Lovable AI Gemini vision.
 // Returns { allowed: boolean, reason: string }.
 const corsHeaders = {
@@ -7,6 +8,8 @@ const corsHeaders = {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const _g = await requireUser(req);
+  if (_g.response) return _g.response;
   try {
     const { imageUrl } = await req.json();
     if (!imageUrl) throw new Error("imageUrl required");
