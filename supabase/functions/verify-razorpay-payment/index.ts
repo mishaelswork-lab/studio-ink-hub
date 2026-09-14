@@ -40,10 +40,10 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Record payment
+    // Record payment — always attributed to the signed-in caller, never the client-supplied id
     await supabaseAdmin.from("payments").insert({
       booking_id,
-      customer_id,
+      customer_id: _g.user.id,
       artist_id,
       amount,
       payment_type,
@@ -52,6 +52,7 @@ Deno.serve(async (req) => {
       razorpay_signature,
       status: "completed",
     });
+
 
     // Update booking if cover charge
     if (booking_id && payment_type === "cover_charge") {
