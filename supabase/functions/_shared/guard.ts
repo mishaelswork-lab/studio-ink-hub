@@ -25,11 +25,13 @@ export function deny(status: number, error: string) {
   });
 }
 
-/** True when the caller presented the service-role key (cron / internal calls). */
+/** True when the caller presented the service-role key or the cron secret (internal calls). */
 export function isServiceRole(req: Request) {
   const t = tokenOf(req);
-  return !!t && !!SERVICE_KEY && t === SERVICE_KEY;
+  const cron = Deno.env.get("CRON_SECRET") ?? "";
+  return !!t && ((!!SERVICE_KEY && t === SERVICE_KEY) || (!!cron && t === cron));
 }
+
 
 export async function getUser(req: Request) {
   const t = tokenOf(req);
