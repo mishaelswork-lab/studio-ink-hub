@@ -1078,6 +1078,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_write_media: { Args: { _name: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
