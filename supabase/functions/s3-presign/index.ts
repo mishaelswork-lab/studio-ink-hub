@@ -1,4 +1,4 @@
-import { requireUser } from "../_shared/guard.ts";
+import { requireUser, ownsArtist } from "../_shared/guard.ts";
 // Generates a short-lived S3 PUT URL for direct-to-S3 uploads.
 // Returns the CloudFront URL so downstream storage & display go through the CDN.
 // Requires secrets: AWS_S3_BUCKET, AWS_S3_REGION, AWS_ACCESS_KEY_ID,
@@ -35,9 +35,21 @@ serve(async (req) => {
         status: 400, headers: { ...cors, "Content-Type": "application/json" },
       });
     }
+    if (!["portfolio", "reels", "avatars"].includes(String(folder))) {
+      return new Response(JSON.stringify({ error: "invalid folder" }), {
+        status: 400, headers: { ...cors, "Content-Type": "application/json" },
+      });
+    }
+    // The caller may only write into their own folder (or their own artist folder).
+    if (!(await ownsArtist(_g.user.id, String(ownerId)))) {
+      return new Response(JSON.stringify({ error: "forbidden" }), {
+        status: 403, headers: { ...cors, "Content-Type": "application/json" },
+      });
+    }
     const safeOwner = String(ownerId).replace(/[^a-zA-Z0-9_-]/g, "");
     const safeName = String(filename).replace(/[^a-zA-Z0-9._-]/g, "");
     const key = `${folder}/${safeOwner}/${safeName}`;
+
 
     const client = new AwsClient({ accessKeyId, secretAccessKey, region, service: "s3" });
     const host = `${bucket}.s3.${region}.amazonaws.com`;
