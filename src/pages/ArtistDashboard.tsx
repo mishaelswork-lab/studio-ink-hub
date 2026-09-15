@@ -165,7 +165,7 @@ const ArtistDashboard = () => {
       moderation_status: ok ? "approved" : "flagged",
     });
     if (error) { toast.error("Failed to import"); return; }
-    toast.success(ok ? "Instagram reel imported!" : "Imported but flagged for admin review");
+    toast.success("Imported — pending admin review before it goes live");
     const { data } = await supabase.from("reels").select("*").eq("artist_id", artistProfile.id).order("created_at", { ascending: false });
     setReels(data || []);
   };
