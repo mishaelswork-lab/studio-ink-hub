@@ -32,11 +32,11 @@ const StartConsultation = () => {
     const newUrls: string[] = [];
     for (const file of Array.from(files).slice(0, 3)) {
       if (file.size > 5 * 1024 * 1024) continue;
-      const path = `consultations/ref-${user.id}-${Date.now()}-${file.name}`;
-      const { error } = await supabase.storage.from("reels-videos").upload(path, file);
+      const path = `ref-${user.id}-${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "")}`;
+      const { error } = await supabase.storage.from("consultation-media").upload(path, file);
       if (!error) {
-        const { data } = supabase.storage.from("reels-videos").getPublicUrl(path);
-        newUrls.push(data.publicUrl);
+        const { data } = await supabase.storage.from("consultation-media").createSignedUrl(path, 60 * 60 * 24 * 365);
+        if (data?.signedUrl) newUrls.push(data.signedUrl);
       }
     }
     setImages(prev => [...prev, ...newUrls]);
