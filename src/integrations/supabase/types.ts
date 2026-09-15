@@ -1086,6 +1086,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      in_consultation_path: { Args: { _name: string }; Returns: boolean }
       is_blocked_pair: { Args: { _a: string; _b: string }; Returns: boolean }
       shares_consultation: {
         Args: { _a: string; _b: string }
