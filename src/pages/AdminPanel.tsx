@@ -74,7 +74,7 @@ const AdminPanel = () => {
       supabase.from("bookings").select("*").order("created_at", { ascending: false }),
       supabase.from("reels").select("*").order("created_at", { ascending: false }),
       supabase.from("payments").select("*").eq("status", "completed"),
-      supabase.from("reels").select("*, artists(name)").eq("moderation_status", "flagged").order("created_at", { ascending: false }),
+      supabase.from("reels").select("*, artists(name)").in("moderation_status", ["flagged", "pending"]).order("created_at", { ascending: false }),
       supabase.from("admin_audit_log").select("*").order("created_at", { ascending: false }).limit(200),
       supabase.from("featured_requests").select("*, artists(name, avatar_url, specialty)").order("created_at", { ascending: false }),
       supabase.from("featured_artists").select("*, artists(name, avatar_url, specialty)").order("priority", { ascending: false }),

@@ -200,14 +200,17 @@ const ConsultationChat = () => {
     if (!file || !user) return;
     if (file.size > 5 * 1024 * 1024) { toast.error("Max 5MB"); return; }
     const ext = file.name.split(".").pop();
-    const path = `consultations/${consultationId}/${Date.now()}.${ext}`;
-    const { error: upErr } = await supabase.storage.from("reels-videos").upload(path, file);
+    const path = `${consultationId}/${Date.now()}.${ext}`;
+    const { error: upErr } = await supabase.storage.from("consultation-media").upload(path, file);
     if (upErr) { toast.error("Upload failed"); return; }
-    const { data: urlData } = supabase.storage.from("reels-videos").getPublicUrl(path);
+    const { data: urlData } = await supabase.storage
+      .from("consultation-media")
+      .createSignedUrl(path, 60 * 60 * 24 * 365);
+    if (!urlData?.signedUrl) { toast.error("Upload failed"); return; }
     await supabase.from("consultation_messages").insert({
       consultation_id: consultationId!,
       sender_id: user.id,
-      image_url: urlData.publicUrl,
+      image_url: urlData.signedUrl,
     });
     supabase.functions.invoke("notify-new-message", {
       body: { consultationId, senderId: user.id, preview: "📷 Shared an image" },
