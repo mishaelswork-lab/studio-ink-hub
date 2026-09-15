@@ -6,6 +6,8 @@ import { Sparkles, Upload, Loader2, X, RotateCw, AlertCircle, Download, Printer 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { SEO } from "@/lib/seo";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 interface Design {
   title: string;
@@ -14,6 +16,8 @@ interface Design {
 }
 
 const AIConsultant = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [preview, setPreview] = useState<string | null>(null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
@@ -37,6 +41,7 @@ const AIConsultant = () => {
 
   const handleSubmit = async () => {
     if (!imageBase64) { toast.error("Upload a reference artwork first"); return; }
+    if (!user) { toast.error("Sign in to generate designs"); navigate("/login"); return; }
     setLoading(true);
     setDesigns([]);
     setError(null);
