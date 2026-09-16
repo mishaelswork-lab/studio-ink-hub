@@ -17,6 +17,7 @@ const DiscoverPage = lazy(() => import("./pages/DiscoverPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const ArtistLogin = lazy(() => import("./pages/ArtistLogin"));
 const ArtistDashboard = lazy(() => import("./pages/ArtistDashboard"));
+const ArtistProfileEditor = lazy(() => import("./pages/ArtistProfileEditor"));
 const AdminLogin = lazy(() => import("./pages/AdminLogin"));
 const AdminPanel = lazy(() => import("./pages/AdminPanel"));
 const CustomerDashboard = lazy(() => import("./pages/CustomerDashboard"));
@@ -73,6 +74,7 @@ const App = () => (
               <Route path="/artist-chats" element={<ProtectedRoute requiredRole="artist" redirectTo="/artist-login"><ArtistChatsPage /></ProtectedRoute>} />
               <Route path="/artist-login" element={<ArtistLogin />} />
               <Route path="/artist-dashboard" element={<ProtectedRoute requiredRole="artist" redirectTo="/artist-login"><ArtistDashboard /></ProtectedRoute>} />
+              <Route path="/artist-profile" element={<ProtectedRoute requiredRole="artist" redirectTo="/artist-login"><ArtistProfileEditor /></ProtectedRoute>} />
               <Route path="/admin" element={<AdminLogin />} />
               <Route path="/admin/dashboard" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin"><AdminPanel /></ProtectedRoute>} />
               <Route path="/privacy" element={<PrivacyPolicy />} />
