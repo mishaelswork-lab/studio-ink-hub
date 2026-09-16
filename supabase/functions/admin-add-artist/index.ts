@@ -33,20 +33,42 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { email, password, name, studio_name, specialty, bio, hourly_rate, experience_years } = await req.json();
+    const { email, password, name, studio_name, specialty, bio, hourly_rate, experience_years, portfolio_images } =
+      await req.json();
 
-    if (!email || !password || !name) {
-      return new Response(JSON.stringify({ error: "Email, password, and name are required" }), {
+    const bad = (msg: string) =>
+      new Response(JSON.stringify({ error: msg }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+
+    if (typeof email !== "string" || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim()) || email.length > 255) {
+      return bad("Enter a valid email address");
     }
+    if (typeof password !== "string" || password.length < 8 || password.length > 72) {
+      return bad("Password must be at least 8 characters");
+    }
+    if (typeof name !== "string" || name.trim().length < 2 || name.length > 80) {
+      return bad("Name must be between 2 and 80 characters");
+    }
+    if (bio && (typeof bio !== "string" || bio.length > 1500)) return bad("Bio must be 1500 characters or fewer");
+
+    const rate = Number(hourly_rate ?? 1500);
+    if (!Number.isInteger(rate) || rate < 100 || rate > 50000) return bad("Hourly rate must be between 100 and 50000");
+    const years = Number(experience_years ?? 0);
+    if (!Number.isInteger(years) || years < 0 || years > 70) return bad("Experience years must be between 0 and 70");
+
+    // Spam protection: an artist profile cannot be created without work samples.
+    const images = Array.isArray(portfolio_images) ? portfolio_images.filter((u: unknown) => typeof u === "string") : [];
+    const validImages = [...new Set(images as string[])].filter((u) => /^https:\/\/[^\s]+$/i.test(u) && u.length <= 1000);
+    if (validImages.length < 2) return bad("At least 2 portfolio photos are required");
+    if (validImages.length > 12) return bad("At most 12 portfolio photos");
 
     // Create auth user
     const { data: newUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
-      email,
+      email: email.trim().toLowerCase(),
       password,
       email_confirm: true,
-      user_metadata: { display_name: name },
+      user_metadata: { display_name: name.trim() },
     });
 
     if (createErr) throw createErr;
@@ -59,12 +81,14 @@ Deno.serve(async (req) => {
     // Create artist profile
     const { data: artist, error: artistErr } = await supabaseAdmin.from("artists").insert({
       user_id: userId,
-      name,
-      studio_name: studio_name || null,
-      specialty: specialty || null,
-      bio: bio || null,
-      hourly_rate: hourly_rate || 1500,
-      experience_years: experience_years || 0,
+      name: name.trim(),
+      studio_name: studio_name?.trim() || null,
+      specialty: specialty?.trim() || null,
+      bio: bio?.trim() || null,
+      hourly_rate: rate,
+      experience_years: years,
+      portfolio_images: validImages,
+      available: true,
     }).select().single();
 
     if (artistErr) throw artistErr;

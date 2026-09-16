@@ -247,6 +247,9 @@ const ArtistDashboard = () => {
             <p className="text-gold text-xs">{artistProfile.specialty}</p>
           </div>
         </div>
+        <Link to="/artist-profile" className="mb-4 flex items-center gap-2 px-3 py-2.5 rounded-md text-sm bg-gold/10 text-gold hover:bg-gold/20 transition-colors">
+          <ImagePlus className="w-4 h-4" /> Edit my profile
+        </Link>
         <nav className="space-y-1 flex-1">
           {tabs.map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors ${activeTab === tab.id ? "bg-gold/10 text-gold" : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"}`}>
@@ -260,7 +263,10 @@ const ArtistDashboard = () => {
       <div className="md:hidden bg-card border-b border-border p-4">
         <div className="flex items-center justify-between mb-3">
           <h1 className="font-heading text-lg font-bold">T<span className="text-gradient-gold">art</span></h1>
-          <button onClick={handleLogout} className="text-muted-foreground text-sm">Logout</button>
+          <div className="flex items-center gap-3">
+            <Link to="/artist-profile" className="text-gold text-sm">Edit profile</Link>
+            <button onClick={handleLogout} className="text-muted-foreground text-sm">Logout</button>
+          </div>
         </div>
         <div className="flex gap-1 overflow-x-auto">
           {tabs.map(tab => (
