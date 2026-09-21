@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, ImagePlus, Trash2, Loader2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -7,11 +7,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
-
-const MIN_PHOTOS = 2;
-const MAX_PHOTOS = 12;
-const MAX_FILE_BYTES = 5 * 1024 * 1024;
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic"];
 
 const artistSchema = z.object({
   email: z.string().trim().email("Enter a valid email").max(255),
@@ -29,32 +24,7 @@ const emptyForm = { email: "", password: "", name: "", studio_name: "", specialt
 const AddArtistDialog = ({ onAdded }: { onAdded: () => void }) => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [photos, setPhotos] = useState<string[]>([]);
   const [form, setForm] = useState(emptyForm);
-
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    e.target.value = "";
-    if (!files.length) return;
-    if (photos.length + files.length > MAX_PHOTOS) { toast.error(`Up to ${MAX_PHOTOS} photos`); return; }
-
-    setUploading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    const added: string[] = [];
-    for (const file of files) {
-      if (!ALLOWED_TYPES.includes(file.type)) { toast.error("Only JPG, PNG, WEBP or HEIC images"); continue; }
-      if (file.size > MAX_FILE_BYTES) { toast.error("Each photo must be under 5MB"); continue; }
-      const ext = (file.name.split(".").pop() || "jpg").replace(/[^a-z0-9]/gi, "").toLowerCase();
-      const path = `portfolio/${user?.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-      const { error } = await supabase.storage.from("reels-videos").upload(path, file);
-      if (error) { toast.error("Upload failed"); continue; }
-      const { data } = supabase.storage.from("reels-videos").getPublicUrl(path);
-      added.push(data.publicUrl);
-    }
-    if (added.length) setPhotos(prev => [...prev, ...added]);
-    setUploading(false);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,20 +34,17 @@ const AddArtistDialog = ({ onAdded }: { onAdded: () => void }) => {
       experience_years: Number(form.experience_years),
     });
     if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
-    if (photos.length < MIN_PHOTOS) { toast.error(`Upload at least ${MIN_PHOTOS} portfolio photos`); return; }
-
     setLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const res = await supabase.functions.invoke("admin-add-artist", {
-        body: { ...parsed.data, portfolio_images: photos },
+        body: parsed.data,
         headers: { Authorization: `Bearer ${session?.access_token}` },
       });
       if (res.error) throw new Error(res.error.message);
       if (res.data?.error) throw new Error(res.data.error);
-      toast.success(`${parsed.data.name} added and live`);
+      toast.success(`${parsed.data.name} can now sign in and complete their application`);
       setForm(emptyForm);
-      setPhotos([]);
       setOpen(false);
       onAdded();
     } catch (error: any) {
@@ -134,35 +101,12 @@ const AddArtistDialog = ({ onAdded }: { onAdded: () => void }) => {
             <Textarea id="aa-bio" maxLength={1500} value={form.bio} onChange={e => setForm(p => ({ ...p, bio: e.target.value }))} placeholder="Short bio..." className="bg-secondary border-border resize-none" rows={2} />
           </div>
 
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-sm text-muted-foreground">Portfolio photos * (min {MIN_PHOTOS})</label>
-              <span className="text-xs text-muted-foreground">{photos.length}/{MAX_PHOTOS}</span>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              {photos.map((url, i) => (
-                <div key={url} className="relative aspect-square rounded-lg overflow-hidden border border-border">
-                  <img src={url} alt={`Portfolio ${i + 1}`} loading="lazy" decoding="async" width={300} height={300} className="w-full h-full object-cover" />
-                  <button type="button" aria-label={`Remove photo ${i + 1}`} onClick={() => setPhotos(p => p.filter(u => u !== url))} className="absolute top-1 right-1 w-7 h-7 rounded-full bg-background/80 flex items-center justify-center text-destructive">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
-              {photos.length < MAX_PHOTOS && (
-                <label className="aspect-square rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center gap-1 cursor-pointer text-muted-foreground hover:border-gold/40">
-                  {uploading ? <Loader2 className="w-6 h-6 animate-spin" /> : <ImagePlus className="w-6 h-6" />}
-                  <span className="text-[11px]">{uploading ? "Uploading…" : "Add"}</span>
-                  <input type="file" accept="image/*" multiple className="hidden" onChange={handleUpload} aria-label="Upload portfolio photos" />
-                </label>
-              )}
-            </div>
-            {photos.length < MIN_PHOTOS && (
-              <p className="text-xs text-gold mt-2">Add {MIN_PHOTOS - photos.length} more photo{MIN_PHOTOS - photos.length > 1 ? "s" : ""} — profiles without work samples cannot be published.</p>
-            )}
-          </div>
+          <p className="text-xs text-muted-foreground border border-border rounded-md p-3">
+            The artist will sign in, upload at least two photos of their own work, and submit the profile for your approval. Nothing is published before approval.
+          </p>
 
-          <Button type="submit" variant="gold" className="w-full" disabled={loading || uploading || photos.length < MIN_PHOTOS}>
-            {loading ? "Adding..." : "Add Artist"}
+          <Button type="submit" variant="gold" className="w-full" disabled={loading}>
+            {loading ? "Creating account..." : "Create artist account"}
           </Button>
         </form>
       </DialogContent>

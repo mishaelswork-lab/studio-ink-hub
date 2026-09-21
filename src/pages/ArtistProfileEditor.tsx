@@ -60,6 +60,8 @@ const ArtistProfileEditor = () => {
   }, [artistProfile]);
 
   const canPublish = images.length >= MIN_PHOTOS;
+  const applicationStatus = artistProfile?.application_status || "pending";
+  const isApproved = applicationStatus === "approved";
   const remaining = useMemo(() => Math.max(0, MIN_PHOTOS - images.length), [images.length]);
 
   const throttleOk = () => {
@@ -173,6 +175,10 @@ const ArtistProfileEditor = () => {
       toast.error(`Upload at least ${MIN_PHOTOS} portfolio photos before going live`);
       return;
     }
+    if (publish && !isApproved) {
+      toast.error("Your profile must be approved before it can go live");
+      return;
+    }
 
     setSaving(true);
     const { error } = await supabase.from("artists").update({
@@ -190,6 +196,30 @@ const ArtistProfileEditor = () => {
     setAvailable(publish);
     await refreshProfile();
     toast.success(publish ? "Profile is live" : "Profile saved (hidden from customers)");
+  };
+
+  const handleSubmitForReview = async () => {
+    if (!artistProfile || !canPublish) return;
+    const parsed = profileSchema.safeParse({
+      ...form,
+      hourly_rate: Number(form.hourly_rate),
+      experience_years: Number(form.experience_years),
+    });
+    if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
+    setSaving(true);
+    const update: Record<string, unknown> = {
+      ...parsed.data,
+      studio_name: parsed.data.studio_name || null,
+      specialty: parsed.data.specialty || null,
+      bio: parsed.data.bio || null,
+      available: false,
+    };
+    if (applicationStatus === "rejected") update.application_status = "pending";
+    const { error } = await supabase.from("artists").update(update).eq("id", artistProfile.id);
+    setSaving(false);
+    if (error) { toast.error(error.message || "Could not submit application"); return; }
+    await refreshProfile();
+    toast.success(applicationStatus === "rejected" ? "Application resubmitted" : "Profile saved for admin review");
   };
 
   if (!user || !artistProfile || !ready) {
@@ -213,13 +243,20 @@ const ArtistProfileEditor = () => {
         <h1 className="font-heading text-2xl md:text-3xl font-bold text-foreground mb-1">My Profile</h1>
         <p className="text-muted-foreground text-sm mb-6">This is what customers see when they find you.</p>
 
-        <div className={`rounded-lg border p-4 mb-6 flex items-start gap-3 ${canPublish ? "border-emerald-500/30 bg-emerald-500/5" : "border-gold/30 bg-gold/5"}`}>
-          {canPublish ? <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" /> : <AlertTriangle className="w-5 h-5 text-gold shrink-0 mt-0.5" />}
+        <div className={`rounded-lg border p-4 mb-6 flex items-start gap-3 ${isApproved ? "border-emerald-500/30 bg-emerald-500/5" : applicationStatus === "rejected" ? "border-destructive/30 bg-destructive/5" : "border-gold/30 bg-gold/5"}`}>
+          {isApproved ? <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" /> : <AlertTriangle className={`w-5 h-5 shrink-0 mt-0.5 ${applicationStatus === "rejected" ? "text-destructive" : "text-gold"}`} />}
           <div className="text-sm">
-            {canPublish ? (
+            {isApproved ? (
               <p className="text-foreground">
-                You have {images.length} portfolio photos. {available ? "Your profile is live." : "Publish it to appear in search."}
+                Approved. You have {images.length} portfolio photos. {available ? "Your profile is live." : "You can now publish it."}
               </p>
+            ) : applicationStatus === "rejected" ? (
+              <div>
+                <p className="text-foreground font-medium">Changes requested by the review team</p>
+                <p className="text-muted-foreground mt-1">{artistProfile.rejection_reason || "Please update your profile and resubmit it."}</p>
+              </div>
+            ) : canPublish ? (
+              <p className="text-foreground">Your application has the required photos and is awaiting admin approval. It remains hidden from customers.</p>
             ) : (
               <p className="text-foreground">
                 Add {remaining} more photo{remaining > 1 ? "s" : ""} of your own work. Every artist needs at least {MIN_PHOTOS} photos before their profile can go live — this keeps fake listings out.
@@ -314,9 +351,15 @@ const ArtistProfileEditor = () => {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 sticky bottom-4">
-          <Button variant="gold" className="flex-1" disabled={saving || uploading || !canPublish} onClick={() => handleSave(true)}>
-            {saving ? "Saving…" : canPublish ? "Save & go live" : `Add ${remaining} more photo${remaining > 1 ? "s" : ""} to go live`}
-          </Button>
+          {isApproved ? (
+            <Button variant="gold" className="flex-1" disabled={saving || uploading || !canPublish} onClick={() => handleSave(true)}>
+              {saving ? "Saving…" : canPublish ? "Save & go live" : `Add ${remaining} more photo${remaining > 1 ? "s" : ""} to go live`}
+            </Button>
+          ) : (
+            <Button variant="gold" className="flex-1" disabled={saving || uploading || !canPublish} onClick={handleSubmitForReview}>
+              {saving ? "Saving…" : applicationStatus === "rejected" ? "Save & resubmit" : canPublish ? "Save for review" : `Add ${remaining} more photo${remaining > 1 ? "s" : ""}`}
+            </Button>
+          )}
           <Button variant="outline" className="flex-1" disabled={saving || uploading} onClick={() => handleSave(false)}>
             Save as hidden
           </Button>

@@ -4,7 +4,7 @@ import { MapPin, Star, Users, Play, Sparkles, Sparkle } from "lucide-react";
 import { studios, artists } from "@/data/mockData";
 import { reels } from "@/data/mockReels";
 import { Button } from "@/components/ui/button";
-import logo from "@/assets/tart-logo.png";
+import logo from "@/assets/tart-logo-clean.png";
 import { SUPPORT_EMAIL, SUPPORT_DRIVE_URL, mailto } from "@/lib/contact";
 
 
@@ -62,11 +62,10 @@ const Hero = () => {
 
     <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
       <div className={`relative mx-auto mb-4 w-36 md:w-44 ${reduced ? "" : "animate-fade-in"}`}>
-        <div className="absolute inset-0 rounded-full bg-gold/15 blur-3xl scale-125 pointer-events-none" />
         <img
           src={logo}
           alt="Tart logo"
-          className="relative w-full h-auto object-contain rounded-full mix-blend-screen opacity-90 [mask-image:radial-gradient(circle_at_center,black_52%,transparent_70%)]"
+          className="relative w-full h-auto object-contain"
           width={288}
           height={288}
         />

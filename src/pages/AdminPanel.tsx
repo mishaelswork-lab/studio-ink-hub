@@ -15,6 +15,7 @@ const PlatformSettingsPanel = lazy(() => import("@/components/admin/PlatformSett
 const adminTabs = [
   { id: "overview", label: "Overview", icon: BarChart3 },
   { id: "artists", label: "Artists", icon: Users },
+  { id: "applications", label: "Applications", icon: ShieldCheck },
   { id: "bookings", label: "Bookings", icon: CalendarDays },
   { id: "reels", label: "Reels", icon: Film },
   { id: "moderation", label: "Moderation", icon: Shield },
@@ -49,6 +50,8 @@ const AdminPanel = () => {
   const [adminNote, setAdminNote] = useState<Record<string, string>>({});
   const [rejectDialog, setRejectDialog] = useState<{ id: string; caption: string } | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [artistRejectDialog, setArtistRejectDialog] = useState<{ id: string; name: string } | null>(null);
+  const [artistRejectReason, setArtistRejectReason] = useState("");
 
   const { session } = useAuth();
   const isAdmin = roles.includes("admin");
@@ -111,6 +114,7 @@ const AdminPanel = () => {
 
   const totalRevenue = dbPayments.reduce((sum, p) => sum + p.amount, 0);
   const pendingCount = dbBookings.filter(b => b.status === "pending").length;
+  const artistApplications = dbArtists.filter(a => a.application_status !== "approved");
 
   const writeAudit = async (action: string, target_type: string, target_id: string, reason?: string, metadata?: any) => {
     if (!user) return;
@@ -126,6 +130,27 @@ const AdminPanel = () => {
     await writeAudit("reel_deleted", "reel", id);
     toast.success("Reel removed");
     setDbReels(prev => prev.filter(r => r.id !== id));
+    fetchData();
+  };
+
+  const handleApproveArtist = async (artist: any) => {
+    if (!isAdmin) return;
+    if ((artist.portfolio_images || []).length < 2) { toast.error("Two portfolio photos are required before approval"); return; }
+    const { error } = await supabase.from("artists").update({ application_status: "approved", rejection_reason: null }).eq("id", artist.id);
+    if (error) { toast.error(error.message || "Could not approve artist"); return; }
+    await writeAudit("artist_application_approved", "artist", artist.id, undefined, { photo_count: artist.portfolio_images.length });
+    toast.success(`${artist.name} approved`);
+    fetchData();
+  };
+
+  const handleRejectArtist = async () => {
+    if (!isAdmin || !artistRejectDialog || artistRejectReason.trim().length < 3) return;
+    const { error } = await supabase.from("artists").update({ application_status: "rejected", rejection_reason: artistRejectReason.trim(), available: false }).eq("id", artistRejectDialog.id);
+    if (error) { toast.error(error.message || "Could not reject application"); return; }
+    await writeAudit("artist_application_rejected", "artist", artistRejectDialog.id, artistRejectReason.trim());
+    toast.success("Application returned to the artist");
+    setArtistRejectDialog(null);
+    setArtistRejectReason("");
     fetchData();
   };
 
@@ -245,6 +270,9 @@ const AdminPanel = () => {
               <tab.icon className="w-4 h-4" /> {tab.label}
               {tab.id === "moderation" && flaggedReels.length > 0 && (
                 <span className="ml-auto bg-destructive text-destructive-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">{flaggedReels.length}</span>
+              )}
+              {tab.id === "applications" && artistApplications.length > 0 && (
+                <span className="ml-auto bg-gold text-primary-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">{artistApplications.length}</span>
               )}
               {tab.id === "reports" && designReports.filter((r: any) => r.status === "pending").length > 0 && (
                 <span className="ml-auto bg-destructive text-destructive-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">{designReports.filter((r: any) => r.status === "pending").length}</span>
@@ -413,6 +441,46 @@ const AdminPanel = () => {
                 </table>
               </div>
             </div>
+          </div>
+        )}
+
+        {activeTab === "applications" && (
+          <div>
+            <h2 className="font-heading text-2xl font-bold text-foreground mb-2">Artist Applications</h2>
+            <p className="text-muted-foreground text-sm mb-6">Review identity details, rates, and at least two examples of the artist’s own work.</p>
+            {artistApplications.length === 0 ? (
+              <div className="bg-card rounded-lg border border-border p-12 text-center">
+                <ShieldCheck className="w-10 h-10 text-emerald-400 mx-auto mb-3" />
+                <p className="text-foreground font-medium">All applications reviewed</p>
+              </div>
+            ) : (
+              <div className="space-y-5">
+                {artistApplications.map((artist: any) => (
+                  <div key={artist.id} className="bg-card rounded-lg border border-border p-5">
+                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-4">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-heading text-lg font-semibold text-foreground">{artist.name}</h3>
+                          <span className={`text-xs px-2 py-1 rounded-full capitalize ${artist.application_status === "rejected" ? "bg-destructive/10 text-destructive" : "bg-gold/10 text-gold"}`}>{artist.application_status}</span>
+                        </div>
+                        <p className="text-gold text-sm">{artist.specialty || "Specialty not set"} · ₹{artist.hourly_rate}/hr</p>
+                        <p className="text-muted-foreground text-xs mt-1">{artist.studio_name || "Independent artist"} · Submitted {new Date(artist.submitted_at).toLocaleString()}</p>
+                        {artist.bio && <p className="text-muted-foreground text-sm mt-3 max-w-2xl">{artist.bio}</p>}
+                        {artist.rejection_reason && <p className="text-destructive text-sm mt-2">Previous feedback: {artist.rejection_reason}</p>}
+                      </div>
+                      <div className="flex gap-2 shrink-0">
+                        <Button size="sm" variant="gold" className="gap-1" disabled={(artist.portfolio_images || []).length < 2} onClick={() => handleApproveArtist(artist)}><Check className="w-3.5 h-3.5" /> Approve</Button>
+                        <Button size="sm" variant="outline" className="gap-1 border-destructive/50 text-destructive" onClick={() => { setArtistRejectDialog({ id: artist.id, name: artist.name }); setArtistRejectReason(""); }}><X className="w-3.5 h-3.5" /> Reject</Button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {(artist.portfolio_images || []).map((url: string, index: number) => <img key={url} src={url} alt={`${artist.name} work ${index + 1}`} width={400} height={400} loading="lazy" decoding="async" className="w-full aspect-square object-cover rounded-md border border-border" />)}
+                    </div>
+                    {(artist.portfolio_images || []).length < 2 && <p className="text-gold text-xs mt-3">Waiting for the artist to upload two portfolio photos. Approval is locked.</p>}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

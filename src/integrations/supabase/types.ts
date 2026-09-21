@@ -79,6 +79,7 @@ export type Database = {
       }
       artists: {
         Row: {
+          application_status: string
           availability_hours: Json | null
           available: boolean | null
           avatar_url: string | null
@@ -91,12 +92,17 @@ export type Database = {
           name: string
           portfolio_images: string[] | null
           rating: number | null
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
           specialty: string | null
           studio_name: string | null
+          submitted_at: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          application_status?: string
           availability_hours?: Json | null
           available?: boolean | null
           avatar_url?: string | null
@@ -109,12 +115,17 @@ export type Database = {
           name: string
           portfolio_images?: string[] | null
           rating?: number | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           specialty?: string | null
           studio_name?: string | null
+          submitted_at?: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          application_status?: string
           availability_hours?: Json | null
           available?: boolean | null
           avatar_url?: string | null
@@ -127,8 +138,12 @@ export type Database = {
           name?: string
           portfolio_images?: string[] | null
           rating?: number | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           specialty?: string | null
           studio_name?: string | null
+          submitted_at?: string
           updated_at?: string
           user_id?: string
         }
