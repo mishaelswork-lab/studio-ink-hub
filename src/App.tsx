@@ -47,6 +47,7 @@ const queryClient = new QueryClient({
 
 import { QuotesLoader } from "@/components/QuotesLoader";
 import { CookieConsent } from "@/components/CookieConsent";
+import { StartupSplash } from "@/components/StartupSplash";
 const PageFallback = () => <QuotesLoader fullScreen />;
 
 const App = () => (
@@ -54,6 +55,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <StartupSplash />
       <BrowserRouter>
         <AuthProvider>
           <Suspense fallback={<PageFallback />}>
