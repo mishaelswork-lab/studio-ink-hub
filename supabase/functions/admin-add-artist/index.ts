@@ -1,14 +1,15 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.0/cors";
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "POST") return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   try {
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    const url = Deno.env.get("SUPABASE_URL");
+    const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!url || !key) throw new Error("Account service unavailable");
+    const supabaseAdmin = createClient(url, key);
 
     // Verify caller is admin
     const authHeader = req.headers.get("Authorization");
@@ -51,6 +52,8 @@ Deno.serve(async (req) => {
       return bad("Name must be between 2 and 80 characters");
     }
     if (bio && (typeof bio !== "string" || bio.length > 1500)) return bad("Bio must be 1500 characters or fewer");
+    if (studio_name != null && (typeof studio_name !== "string" || studio_name.length > 80)) return bad("Studio name must be 80 characters or fewer");
+    if (specialty != null && (typeof specialty !== "string" || specialty.length > 60)) return bad("Specialty must be 60 characters or fewer");
 
     const rate = Number(hourly_rate ?? 1500);
     if (!Number.isInteger(rate) || rate < 100 || rate > 50000) return bad("Hourly rate must be between 100 and 50000");
@@ -67,10 +70,15 @@ Deno.serve(async (req) => {
 
     if (createErr) throw createErr;
 
+    if (!newUser.user) throw new Error("Account creation failed");
     const userId = newUser.user.id;
 
     // Add artist role
-    await supabaseAdmin.from("user_roles").insert({ user_id: userId, role: "artist" });
+    const { error: roleError } = await supabaseAdmin.from("user_roles").insert({ user_id: userId, role: "artist" });
+    if (roleError) {
+      await supabaseAdmin.auth.admin.deleteUser(userId);
+      throw new Error("Could not create artist access");
+    }
 
     // Create artist profile
     const { data: artist, error: artistErr } = await supabaseAdmin.from("artists").insert({
@@ -86,14 +94,17 @@ Deno.serve(async (req) => {
       available: false,
     }).select().single();
 
-    if (artistErr) throw artistErr;
+    if (artistErr) {
+      await supabaseAdmin.auth.admin.deleteUser(userId);
+      throw new Error("Could not create artist profile");
+    }
 
     return new Response(JSON.stringify({ success: true, artist }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: "Could not create the artist account. Please try again or contact support." }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

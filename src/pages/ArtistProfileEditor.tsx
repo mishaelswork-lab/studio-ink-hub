@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { SEO } from "@/lib/seo";
 
 const MIN_PHOTOS = 2;
@@ -207,7 +208,7 @@ const ArtistProfileEditor = () => {
     });
     if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
     setSaving(true);
-    const update: Record<string, unknown> = {
+    const update: Database["public"]["Tables"]["artists"]["Update"] = {
       ...parsed.data,
       studio_name: parsed.data.studio_name || null,
       specialty: parsed.data.specialty || null,
