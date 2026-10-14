@@ -1,6 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
-import { Users, CalendarDays, BarChart3, Settings, LogOut, Star, TrendingUp, IndianRupee, Film, Trash2, Shield, Check, X, ScrollText, Sparkles, Activity, Zap, Flag } from "lucide-react";
+import { Users, CalendarDays, BarChart3, Settings, LogOut, Star, TrendingUp, IndianRupee, Film, Trash2, Shield, ShieldCheck, Check, X, ScrollText, Sparkles, Activity, Zap, Flag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -808,6 +808,17 @@ const AdminPanel = () => {
         )}
       </main>
 
+      <Dialog open={!!artistRejectDialog} onOpenChange={(open) => { if (!open) { setArtistRejectDialog(null); setArtistRejectReason(""); } }}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader><DialogTitle>Return artist application</DialogTitle></DialogHeader>
+          <p className="text-muted-foreground text-sm">Tell {artistRejectDialog?.name} what needs to change before approval.</p>
+          <Textarea aria-label="Artist rejection reason" value={artistRejectReason} maxLength={1500} onChange={event => setArtistRejectReason(event.target.value)} placeholder="Reason for rejection" />
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => setArtistRejectDialog(null)}>Cancel</Button>
+            <Button variant="gold" disabled={artistRejectReason.trim().length < 3} onClick={handleRejectArtist}>Return application</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <Dialog open={!!rejectDialog} onOpenChange={(o) => { if (!o) { setRejectDialog(null); setRejectReason(""); } }}>
         <DialogContent className="bg-card border-border">
           <DialogHeader>
