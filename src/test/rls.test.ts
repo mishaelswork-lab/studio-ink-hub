@@ -48,6 +48,11 @@ const PUBLIC_TABLES = ["artists", "reels", "daily_designs", "featured_artists"] 
 const FAKE_ID = "00000000-0000-0000-0000-000000000001";
 
 describe("RLS: anonymous reads", () => {
+  it("does not expose pending or rejected artist applications", async () => {
+    const { data, error } = await anon.from("artists").select("id, application_status").neq("application_status", "approved");
+    expect(error).toBeNull();
+    expect(data ?? []).toHaveLength(0);
+  });
   it.each(PRIVATE_TABLES)("blocks anonymous SELECT on %s", async (table) => {
     const { data, error } = await anon.from(table as never).select("*").limit(5);
     if (error) {

@@ -18,15 +18,15 @@ const ArtistLogin = () => {
     try {
       const user = await guardedSignIn(email, password);
 
-      const rolePromise = supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "artist").maybeSingle();
-      toast.success("Welcome back, artist!");
-      navigate("/artist-dashboard");
-      const { data: role } = await rolePromise;
+      const { data: role } = await supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "artist").maybeSingle();
       if (!role) {
         await supabase.auth.signOut();
         toast.error("This account is not registered as an artist.");
         navigate("/artist-login");
+        return;
       }
+      toast.success("Welcome back, artist!");
+      navigate("/artist-dashboard");
     } catch (error: any) {
       toast.error(error.message || "Login failed");
     } finally {
@@ -56,11 +56,6 @@ const ArtistLogin = () => {
             {loading ? "Signing in..." : "Sign In"}
           </Button>
         </form>
-        <div className="mt-4 p-3 rounded-md bg-secondary/50 border border-border">
-          <p className="text-muted-foreground text-xs text-center">
-            Test: <span className="text-gold">artist123@tart.com</span> / <span className="text-gold">artist123</span>
-          </p>
-        </div>
         <div className="mt-6 pt-6 border-t border-border text-center">
           <Link to="/login" className="text-sm text-muted-foreground hover:text-gold transition-colors">← Customer Login</Link>
         </div>

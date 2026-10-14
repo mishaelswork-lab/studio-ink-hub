@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import logo from "@/assets/tart-logo-clean.png";
+import logo from "@/assets/tart-logo-opening.png";
 import star from "@/assets/tart-star.png";
 
 const OPENING_KEY = "tart.opening.seen";
@@ -21,7 +21,9 @@ const preloadHome = async () => {
 };
 
 export const StartupSplash = () => {
-  const [visible, setVisible] = useState(() => sessionStorage.getItem(OPENING_KEY) !== "1");
+  const [visible, setVisible] = useState(() => {
+    try { return sessionStorage.getItem(OPENING_KEY) !== "1"; } catch { return true; }
+  });
   const [closing, setClosing] = useState(false);
 
   useEffect(() => {
@@ -33,7 +35,7 @@ export const StartupSplash = () => {
       window.setTimeout(() => {
         if (!active) return;
         setClosing(true);
-        sessionStorage.setItem(OPENING_KEY, "1");
+        try { sessionStorage.setItem(OPENING_KEY, "1"); } catch { /* Storage may be disabled. */ }
         window.setTimeout(() => active && setVisible(false), 420);
       }, Math.max(0, 950 - elapsed));
     });
