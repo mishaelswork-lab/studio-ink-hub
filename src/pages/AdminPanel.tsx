@@ -138,7 +138,6 @@ const AdminPanel = () => {
     if ((artist.portfolio_images || []).length < 2) { toast.error("Two portfolio photos are required before approval"); return; }
     const { error } = await supabase.from("artists").update({ application_status: "approved", rejection_reason: null }).eq("id", artist.id);
     if (error) { toast.error(error.message || "Could not approve artist"); return; }
-    await writeAudit("artist_application_approved", "artist", artist.id, undefined, { photo_count: artist.portfolio_images.length });
     toast.success(`${artist.name} approved`);
     fetchData();
   };
@@ -147,7 +146,6 @@ const AdminPanel = () => {
     if (!isAdmin || !artistRejectDialog || artistRejectReason.trim().length < 3) return;
     const { error } = await supabase.from("artists").update({ application_status: "rejected", rejection_reason: artistRejectReason.trim(), available: false }).eq("id", artistRejectDialog.id);
     if (error) { toast.error(error.message || "Could not reject application"); return; }
-    await writeAudit("artist_application_rejected", "artist", artistRejectDialog.id, artistRejectReason.trim());
     toast.success("Application returned to the artist");
     setArtistRejectDialog(null);
     setArtistRejectReason("");
