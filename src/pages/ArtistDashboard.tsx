@@ -154,6 +154,7 @@ const ArtistDashboard = () => {
   const handleInstagramImport = async (url: string, caption: string) => {
     if (!artistProfile) return;
     const ok = await moderate(url);
+    if (!ok) return;
     const { logUsage } = await import("@/lib/usage");
     logUsage("media", "reel-insert", { source: "instagram" });
     const { error } = await supabase.from("reels").insert({
@@ -162,7 +163,7 @@ const ArtistDashboard = () => {
       instagram_url: url,
       caption,
       source: "instagram",
-      moderation_status: ok ? "approved" : "flagged",
+      moderation_status: "pending",
     });
     if (error) { toast.error("Failed to import"); return; }
     toast.success("Imported — pending admin review before it goes live");

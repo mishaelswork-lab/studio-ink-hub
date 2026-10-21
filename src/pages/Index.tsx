@@ -1,7 +1,7 @@
 import { memo, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { MapPin, Star, Users, Play, Sparkles, Sparkle } from "lucide-react";
-import { studios, artists } from "@/data/mockData";
+import { usePublicArtists, artistStudios } from "@/hooks/usePublicArtists";
 import { reels } from "@/data/mockReels";
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/tart-logo-clean.png";
@@ -97,6 +97,7 @@ const Hero = () => {
 };
 
 const FeaturedStrip = memo(() => {
+  const { data: artists = [] } = usePublicArtists();
   const items = artists.slice(0, 6);
   return (
     <div className="mb-10">
@@ -123,7 +124,10 @@ const FeaturedStrip = memo(() => {
 });
 FeaturedStrip.displayName = "FeaturedStrip";
 
-const StudiosSection = () => (
+const StudiosSection = () => {
+  const { data: artists = [] } = usePublicArtists();
+  const studios = artistStudios(artists);
+  return (
   <section id="studios" className="py-20 px-4 scroll-mt-20">
     <div className="max-w-7xl mx-auto">
       <div className="text-center mb-12">
@@ -176,8 +180,11 @@ const StudiosSection = () => (
     </div>
   </section>
 );
+};
 
-const FeaturedArtists = () => (
+const FeaturedArtists = () => {
+  const { data: artists = [] } = usePublicArtists();
+  return (
   <section className="py-20 px-4">
     <div className="max-w-7xl mx-auto">
       <div className="text-center mb-12">
@@ -222,6 +229,7 @@ const FeaturedArtists = () => (
     </div>
   </section>
 );
+};
 
 const Stats = () => (
   <section className="py-16 border-y border-border">
