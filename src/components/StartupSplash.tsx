@@ -1,15 +1,16 @@
 import { useEffect, useState } from "react";
 import logo from "@/assets/tart-logo-opening.png";
 import star from "@/assets/tart-star.png";
+import homeLogo from "@/assets/tart-logo-clean.png";
 
 const OPENING_KEY = "tart.opening.seen";
 const PRELOAD_LIMIT_MS = 1800;
 
 const preloadHome = async () => {
-  const imageUrls = Array.from(document.querySelectorAll<HTMLImageElement>("img"))
+  const imageUrls = [homeLogo, logo, star, ...Array.from(document.querySelectorAll<HTMLImageElement>("img"))
     .slice(0, 8)
     .map((image) => image.currentSrc || image.src)
-    .filter(Boolean);
+    .filter(Boolean)];
   await Promise.race([
     Promise.allSettled(imageUrls.map((url) => new Promise<void>((resolve) => {
       const image = new Image();

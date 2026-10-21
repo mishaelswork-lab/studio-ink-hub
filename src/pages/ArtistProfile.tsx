@@ -9,7 +9,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useFavorite } from "@/hooks/useFavorite";
 import { useBlock } from "@/hooks/useBlock";
 import { ReportDialog } from "@/components/safety/ReportDialog";
-import { artists as mockArtists } from "@/data/mockData";
 const CinematicGallery = lazy(() =>
   import("@/components/CinematicGallery").then(m => ({ default: m.CinematicGallery }))
 );
@@ -28,14 +27,13 @@ const ArtistProfile = () => {
   const [reportOpen, setReportOpen] = useState(false);
   const { isBlocked, toggle: toggleBlock, loading: blockLoading } = useBlock(dbArtist?.user_id);
 
-  const mockArtist = mockArtists.find(a => a.id === id);
-
   useEffect(() => {
+    if (!id) { setLoading(false); return; }
     const fetchAll = async () => {
       const [{ data: art }, { data: revs }, { data: certData }] = await Promise.all([
-        supabase.from("artists").select("*").eq("id", id!).maybeSingle(),
-        supabase.from("reviews").select("rating, comment, created_at").eq("artist_id", id!).order("created_at", { ascending: false }).limit(10),
-        supabase.from("artist_certifications").select("*").eq("artist_id", id!).order("created_at", { ascending: false }),
+        supabase.from("artists").select("*").eq("id", id).eq("application_status", "approved").eq("available", true).maybeSingle(),
+        supabase.from("reviews").select("rating, comment, created_at").eq("artist_id", id).order("created_at", { ascending: false }).limit(10),
+        supabase.from("artist_certifications").select("*").eq("artist_id", id).order("created_at", { ascending: false }),
       ]);
       setDbArtist(art);
       setReviews(revs || []);
@@ -47,7 +45,8 @@ const ArtistProfile = () => {
     const channel = supabase
       .channel(`artist-${id}`)
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "artists", filter: `id=eq.${id}` }, (payload) => {
-        setDbArtist((prev: any) => ({ ...prev, ...(payload.new as object) }));
+        if ((payload.new as any).application_status !== "approved" || !(payload.new as any).available) setDbArtist(null);
+        else setDbArtist((prev: any) => ({ ...prev, ...(payload.new as object) }));
         const wasAvail = (payload.old as any)?.available;
         const isAvail = (payload.new as any)?.available;
         if (wasAvail !== isAvail) toast.info(isAvail ? "Artist is now available" : "Artist marked unavailable");
@@ -59,7 +58,7 @@ const ArtistProfile = () => {
   const browseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     browseTimerRef.current = setTimeout(() => {
-      const artistName = dbArtist?.name || mockArtist?.name || "this artist";
+      const artistName = dbArtist?.name || "this artist";
       toast.info(`Still browsing ${artistName}?`, {
         description: "Ready to book? Start a consultation or book a session now!",
         duration: 15000,
@@ -69,25 +68,25 @@ const ArtistProfile = () => {
       }
     }, 5 * 60 * 1000);
     return () => { if (browseTimerRef.current) clearTimeout(browseTimerRef.current); };
-  }, [dbArtist, mockArtist]);
+  }, [dbArtist]);
 
   if (loading) {
     return <QuotesLoader fullScreen />;
   }
-  const artist = dbArtist || mockArtist;
+  const artist = dbArtist;
   if (!artist) return <div className="min-h-screen bg-background flex items-center justify-center"><p className="text-muted-foreground">Artist not found.</p></div>;
 
-  const name = dbArtist ? dbArtist.name : mockArtist!.name;
-  const specialty = dbArtist ? dbArtist.specialty : mockArtist!.specialty;
-  const studioName = dbArtist ? dbArtist.studio_name : mockArtist!.studioName;
-  const experience = dbArtist ? `${dbArtist.experience_years} years` : mockArtist!.experience;
-  const rating = dbArtist ? dbArtist.rating : mockArtist!.rating;
-  const bio = dbArtist ? dbArtist.bio : mockArtist!.bio;
-  const hourlyRate = dbArtist ? dbArtist.hourly_rate : mockArtist!.hourlyRate;
-  const avatarUrl = dbArtist ? dbArtist.avatar_url : mockArtist!.avatar;
-  const portfolio: string[] = dbArtist ? (dbArtist.portfolio_images || []) : mockArtist!.portfolio;
-  const available = dbArtist ? dbArtist.available : mockArtist!.available;
-  const artistId = dbArtist ? dbArtist.id : mockArtist!.id;
+  const name = artist.name;
+  const specialty = artist.specialty;
+  const studioName = artist.studio_name;
+  const experience = `${artist.experience_years || 0} years`;
+  const rating = artist.rating;
+  const bio = artist.bio;
+  const hourlyRate = artist.hourly_rate;
+  const avatarUrl = artist.avatar_url || "/placeholder.svg";
+  const portfolio: string[] = artist.portfolio_images || [];
+  const available = artist.available;
+  const artistId = artist.id;
   const hasCerts = certs.length > 0;
   const hasVerifiedCert = certs.some(c => c.verified);
 

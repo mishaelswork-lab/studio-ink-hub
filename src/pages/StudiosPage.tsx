@@ -1,13 +1,15 @@
 import { Link } from "react-router-dom";
 import { MapPin, Star, Users, Sparkles } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { studios, artists } from "@/data/mockData";
+import { usePublicArtists, artistStudios } from "@/hooks/usePublicArtists";
 import { Navbar } from "@/components/layout/Navbar";
 import { supabase } from "@/integrations/supabase/client";
 
 const StudiosPage = () => {
+  const { data: artists = [] } = usePublicArtists();
+  const studios = artistStudios(artists);
   const { data: featured = [] } = useQuery({
-    queryKey: ["featured_artists_studios"],
+    queryKey: ["featured_artists_studios", artists.map(a => a.id)],
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     queryFn: async () => {
@@ -17,7 +19,7 @@ const StudiosPage = () => {
         .eq("active", true)
         .order("priority", { ascending: false })
         .limit(6);
-      return (data || []).filter((f: any) => f.artists);
+      return (data || []).filter((f: any) => f.artists && artists.some(a => a.id === f.artists.id));
     },
   });
 

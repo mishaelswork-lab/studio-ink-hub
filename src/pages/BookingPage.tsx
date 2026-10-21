@@ -2,7 +2,6 @@ import { QuotesLoader } from "@/components/QuotesLoader";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useState, useEffect } from "react";
-import { artists as mockArtists } from "@/data/mockData";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/layout/Navbar";
 import { toast } from "sonner";
@@ -33,18 +32,17 @@ const BookingPage = () => {
     serviceType: "Tattoo", date: "", time: "", style: "", placement: "", size: "Medium", description: "",
   });
 
-  const mockArtist = mockArtists.find(a => a.id === artistId);
-
   useEffect(() => {
+    if (!artistId) { setLoading(false); return; }
     const fetchArtist = async () => {
-      const { data } = await supabase.from("artists").select("*").eq("id", artistId!).maybeSingle();
+      const { data } = await supabase.from("artists").select("*").eq("id", artistId).eq("application_status", "approved").eq("available", true).maybeSingle();
       setDbArtist(data);
       setLoading(false);
     };
     fetchArtist();
   }, [artistId]);
 
-  const artist = dbArtist || mockArtist;
+  const artist = dbArtist;
 
   if (loading) {
     return <QuotesLoader fullScreen />;
@@ -54,9 +52,9 @@ const BookingPage = () => {
     return <div className="min-h-screen bg-background flex items-center justify-center"><p className="text-muted-foreground">Artist not found.</p></div>;
   }
 
-  const artistName = dbArtist ? dbArtist.name : mockArtist!.name;
-  const artistRate = dbArtist ? dbArtist.hourly_rate : mockArtist!.hourlyRate;
-  const artistStudio = dbArtist ? dbArtist.studio_name : mockArtist!.studioName;
+  const artistName = artist.name;
+  const artistRate = artist.hourly_rate;
+  const artistStudio = artist.studio_name;
   const artistDbId = dbArtist?.id;
 
   const applyReferral = async () => {
@@ -212,7 +210,7 @@ const BookingPage = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
       <div className="pt-20 pb-24 px-4 max-w-2xl mx-auto">
-        <Link to={dbArtist ? "/" : `/artist/${mockArtist!.id}`} className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground text-sm mb-8 transition-colors">
+        <Link to={`/artist/${artist.id}`} className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground text-sm mb-8 transition-colors">
           <ArrowLeft className="w-4 h-4" /> Back to {artistName}
         </Link>
 
