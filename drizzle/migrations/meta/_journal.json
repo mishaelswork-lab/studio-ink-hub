@@ -8,6 +8,13 @@
       "when": 1791959931238,
       "tag": "0000_artist_review_integrity",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792558251625,
+      "tag": "0001_artist_publication_recheck",
+      "breakpoints": true
     }
   ]
 }
