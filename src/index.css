@@ -158,7 +158,7 @@
 .startup-splash {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: 110;
   display: flex;
   flex-direction: column;
   align-items: center;
