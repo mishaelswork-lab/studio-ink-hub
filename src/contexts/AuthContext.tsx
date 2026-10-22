@@ -81,8 +81,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
       if (!bootstrapped) return; // initial getSession will hydrate first
+      // Focus and token refresh must not replace unsaved artist form edits.
+      if (s?.user.id === activeUserId.current && (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")) {
+        setSession(s);
+        return;
+      }
       hydrate(s);
     });
 

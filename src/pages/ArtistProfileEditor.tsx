@@ -182,7 +182,7 @@ const ArtistProfileEditor = () => {
     }
 
     setSaving(true);
-    const { error } = await supabase.from("artists").update({
+    const { data: saved, error } = await supabase.from("artists").update({
       name: parsed.data.name,
       studio_name: parsed.data.studio_name || null,
       specialty: parsed.data.specialty || null,
@@ -190,13 +190,13 @@ const ArtistProfileEditor = () => {
       hourly_rate: parsed.data.hourly_rate,
       experience_years: parsed.data.experience_years,
       available: publish ? true : false,
-    }).eq("id", artistProfile.id);
+    }).eq("id", artistProfile.id).select("available,application_status").single();
     setSaving(false);
 
     if (error) { toast.error(error.message || "Could not save"); return; }
-    setAvailable(publish);
+    setAvailable(saved?.available === true);
     await refreshProfile();
-    toast.success(publish ? "Profile is live" : "Profile saved (hidden from customers)");
+    toast.success(saved?.available ? "Profile is live" : saved?.application_status === "pending" ? "Profile saved for admin review" : "Profile saved (hidden from customers)");
   };
 
   const handleSubmitForReview = async () => {
