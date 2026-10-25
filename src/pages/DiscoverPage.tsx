@@ -438,7 +438,7 @@ const ReelsFeed = () => {
   return (
     <div
       ref={scrollRef}
-      className="snap-y snap-mandatory overflow-y-auto space-y-4 scrollbar-hide"
+      className="snap-y snap-mandatory overflow-y-auto space-y-4 scrollbar-hide max-w-lg mx-auto"
       style={{ maxHeight: "calc(100vh - 14rem)" }}
     >
       {reels.map(reel => <ReelCard key={reel.id} reel={reel} />)}
@@ -455,7 +455,7 @@ const DiscoverPage = () => {
       />
       <Navbar />
       <div className="pt-20 pb-24 px-4">
-        <div className="max-w-lg mx-auto">
+        <div className="max-w-lg md:max-w-6xl mx-auto">
           <div className="text-center mb-5">
             <p className="text-gold text-sm tracking-[0.2em] uppercase mb-1">Discover</p>
             <h1 className="font-heading text-2xl md:text-3xl font-bold text-foreground">Reels & Designs</h1>
