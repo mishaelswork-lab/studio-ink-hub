@@ -384,7 +384,11 @@ const DesignsFeed = () => {
         {feed.map(({ key, design }) => <DesignCard key={key} design={design} onReport={setReportDialog} />)}
       </div>
 
-      {isGuest ? (
+      {!isGuest && feed.length >= designs.length ? (
+        <div className="mt-8 text-center border-t border-border pt-6">
+          <p className="text-muted-foreground text-sm">You're all caught up — new designs arrive as fresh pins are curated.</p>
+        </div>
+      ) : isGuest ? (
         <div className="mt-8 text-center space-y-3 border-t border-border pt-6">
           <p className="text-muted-foreground text-sm">
             You're viewing 30 free designs. Sign in to browse the full board.
