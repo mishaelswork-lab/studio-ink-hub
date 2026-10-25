@@ -1,7 +1,7 @@
 import { QuotesLoader } from "@/components/QuotesLoader";
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Camera, ArrowLeft, Mail, Phone, User as UserIcon, Heart, Star, Trash2 } from "lucide-react";
+import { Camera, ArrowLeft, Mail, Phone, User as UserIcon, Heart, Star, Trash2, Gauge } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Navbar } from "@/components/layout/Navbar";
@@ -11,11 +11,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { readConsent, recordConsent, resetConsent, type ConsentChoice } from "@/lib/consent";
+import { useDataSaver } from "@/hooks/useDataSaver";
 import DeleteAccountCard from "@/components/account/DeleteAccountCard";
 
 const ProfilePage = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [dataSaver, setDataSaver] = useDataSaver();
   const [profile, setProfile] = useState<any>(null);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -148,6 +150,24 @@ const ProfilePage = () => {
             <p className="text-muted-foreground text-xs mt-4">Contact support to update name, email, or phone number.</p>
 
             <div className="mt-8 bg-card rounded-lg border border-border p-4">
+              <p className="text-foreground text-sm font-medium mb-1 flex items-center gap-1.5"><Gauge className="w-4 h-4 text-gold" /> Data saver</p>
+              <p className="text-muted-foreground text-xs mb-3">
+                Reduce the amount of data used: reels don't autoplay and only load when you tap play, and designs load in lightweight sizes.
+              </p>
+              <label className="flex items-center justify-between cursor-pointer select-none">
+                <span className="text-sm text-foreground">{dataSaver ? "Data saver on" : "Data saver off"}</span>
+                <button
+                  role="switch"
+                  aria-checked={dataSaver}
+                  onClick={() => setDataSaver(!dataSaver)}
+                  className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border border-border transition-colors ${dataSaver ? "bg-gold" : "bg-secondary"}`}
+                >
+                  <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-background shadow ring-0 transition-transform ${dataSaver ? "translate-x-5" : "translate-x-0"}`} />
+                </button>
+              </label>
+            </div>
+
+            <div className="mt-4 bg-card rounded-lg border border-border p-4">
               <p className="text-foreground text-sm font-medium mb-1">Privacy & cookies</p>
               <p className="text-muted-foreground text-xs mb-3">
                 Current choice: {consent === null ? "not decided" : consent.analytics ? "analytics allowed" : "essential cookies only"}.
