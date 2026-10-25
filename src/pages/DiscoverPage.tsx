@@ -327,13 +327,14 @@ const DesignsFeed = () => {
   useEffect(() => {
     if (isGuest) return;
     const el = sentinel.current;
-    if (!el || !designs.length) return;
+    // All cached designs are on screen — nothing more to load, stop watching.
+    if (!el || !designs.length || feed.length >= designs.length) return;
     const io = new IntersectionObserver((entries) => {
       if (entries[0].isIntersecting) setCount(c => c + PAGE);
     }, { rootMargin: "600px" });
     io.observe(el);
     return () => io.disconnect();
-  }, [designs.length, isGuest]);
+  }, [designs.length, isGuest, feed.length]);
 
 
 
@@ -379,7 +380,7 @@ const DesignsFeed = () => {
     <>
       <p className="text-muted-foreground text-[11px] text-center mb-3">Tap to enlarge · Press and hold for quick options</p>
 
-      <div className="columns-2 md:columns-3 gap-3">
+      <div className="columns-2 md:columns-7 gap-3">
         {feed.map(({ key, design }) => <DesignCard key={key} design={design} onReport={setReportDialog} />)}
       </div>
 
