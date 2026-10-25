@@ -1,6 +1,6 @@
 import { memo, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { MapPin, Star, Users, Play, Sparkles, Sparkle } from "lucide-react";
+import { MapPin, Star, Users, Play, Sparkles } from "lucide-react";
 import { usePublicArtists, artistStudios } from "@/hooks/usePublicArtists";
 import { reels } from "@/data/mockReels";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 
 
 const Hero = () => {
-  const [reduced, setReduced] = useReducedMotion();
+  const [reduced] = useReducedMotion();
   const { settings } = usePlatformSettings();
   const tagline = settings.content.tagline || "Where tattoo becomes art";
   return (
@@ -48,17 +48,6 @@ const Hero = () => {
       }}
     />
     <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
-
-    {/* Reduced-motion toggle */}
-    <button
-      onClick={() => setReduced(!reduced)}
-      aria-pressed={reduced}
-      title={reduced ? "Enable animations" : "Reduce motion"}
-      className="absolute top-24 right-4 z-20 flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-gold/80 hover:text-gold border border-gold/30 hover:border-gold/60 bg-background/40 backdrop-blur-md rounded-full px-3 py-1.5 transition-colors"
-    >
-      <Sparkle className={`w-3 h-3 ${reduced ? "" : "animate-pulse"}`} />
-      {reduced ? "Calm mode" : "Reduce motion"}
-    </button>
 
     <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
       <div className={`relative mx-auto mb-4 w-36 md:w-44 ${reduced ? "" : "animate-fade-in"}`}>

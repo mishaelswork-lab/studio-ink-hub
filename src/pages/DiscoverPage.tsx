@@ -319,33 +319,22 @@ const DesignsFeed = () => {
 
   const feed = useMemo(() => {
     if (!designs.length) return [] as { key: string; design: DesignRow }[];
-    const out: { key: string; design: DesignRow }[] = [];
-    let cycle = 0;
-    while (out.length < effectiveCount) {
-      const round = designs.map((d, i) => ({ d, i }));
-      if (cycle > 0) {
-        // deterministic reshuffle per cycle so repeats don't feel identical
-        round.sort((a, b) => ((a.i * 9301 + cycle * 49297) % 233280) - ((b.i * 9301 + cycle * 49297) % 233280));
-      }
-      for (const { d } of round) {
-        out.push({ key: `${d.id}-${cycle}`, design: d });
-        if (out.length >= effectiveCount) break;
-      }
-      cycle++;
-    }
-    return out;
+    // Each design appears exactly once — no cycles or reshuffles, so users
+    // never see repeats that would cause feed fatigue.
+    return designs.slice(0, effectiveCount).map((d) => ({ key: d.id, design: d }));
   }, [designs, effectiveCount]);
 
   useEffect(() => {
     if (isGuest) return;
     const el = sentinel.current;
-    if (!el || !designs.length) return;
+    // All cached designs are on screen — nothing more to load, stop watching.
+    if (!el || !designs.length || feed.length >= designs.length) return;
     const io = new IntersectionObserver((entries) => {
       if (entries[0].isIntersecting) setCount(c => c + PAGE);
     }, { rootMargin: "600px" });
     io.observe(el);
     return () => io.disconnect();
-  }, [designs.length, isGuest]);
+  }, [designs.length, isGuest, feed.length]);
 
 
 
@@ -391,11 +380,15 @@ const DesignsFeed = () => {
     <>
       <p className="text-muted-foreground text-[11px] text-center mb-3">Tap to enlarge · Press and hold for quick options</p>
 
-      <div className="columns-2 md:columns-3 gap-3">
+      <div className="columns-2 md:columns-7 gap-3">
         {feed.map(({ key, design }) => <DesignCard key={key} design={design} onReport={setReportDialog} />)}
       </div>
 
-      {isGuest ? (
+      {!isGuest && feed.length >= designs.length ? (
+        <div className="mt-8 text-center border-t border-border pt-6">
+          <p className="text-muted-foreground text-sm">You're all caught up — new designs arrive as fresh pins are curated.</p>
+        </div>
+      ) : isGuest ? (
         <div className="mt-8 text-center space-y-3 border-t border-border pt-6">
           <p className="text-muted-foreground text-sm">
             You're viewing 30 free designs. Sign in to browse the full board.
@@ -445,7 +438,7 @@ const ReelsFeed = () => {
   return (
     <div
       ref={scrollRef}
-      className="snap-y snap-mandatory overflow-y-auto space-y-4 scrollbar-hide"
+      className="snap-y snap-mandatory overflow-y-auto space-y-4 scrollbar-hide max-w-lg mx-auto"
       style={{ maxHeight: "calc(100vh - 14rem)" }}
     >
       {reels.map(reel => <ReelCard key={reel.id} reel={reel} />)}
@@ -462,7 +455,7 @@ const DiscoverPage = () => {
       />
       <Navbar />
       <div className="pt-20 pb-24 px-4">
-        <div className="max-w-lg mx-auto">
+        <div className="max-w-lg md:max-w-6xl mx-auto">
           <div className="text-center mb-5">
             <p className="text-gold text-sm tracking-[0.2em] uppercase mb-1">Discover</p>
             <h1 className="font-heading text-2xl md:text-3xl font-bold text-foreground">Reels & Designs</h1>

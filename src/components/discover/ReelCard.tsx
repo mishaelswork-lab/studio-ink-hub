@@ -4,11 +4,13 @@ import { Heart, Eye, Play, Volume2, VolumeX, Bookmark, Share2, Flag } from "luci
 import { Reel } from "@/data/mockReels";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFavorite } from "@/hooks/useFavorite";
+import { useDataSaver } from "@/hooks/useDataSaver";
 import { shareLink } from "@/lib/share";
 import { ReportDialog } from "@/components/safety/ReportDialog";
 
 const ReelCardImpl = ({ reel }: { reel: Reel }) => {
   const { user } = useAuth();
+  const [dataSaver] = useDataSaver();
   const videoRef = useRef<HTMLVideoElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const [playing, setPlaying] = useState(false);
@@ -21,8 +23,11 @@ const ReelCardImpl = ({ reel }: { reel: Reel }) => {
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          videoRef.current?.play().catch(() => {});
-          setPlaying(true);
+          // Data saver: no autoplay — the poster shows and the user taps play.
+          if (!dataSaver) {
+            videoRef.current?.play().catch(() => {});
+            setPlaying(true);
+          }
         } else {
           videoRef.current?.pause();
           setPlaying(false);
@@ -32,7 +37,7 @@ const ReelCardImpl = ({ reel }: { reel: Reel }) => {
     );
     if (cardRef.current) observer.observe(cardRef.current);
     return () => observer.disconnect();
-  }, []);
+  }, [dataSaver]);
 
   const togglePlay = () => {
     if (!videoRef.current) return;
@@ -48,7 +53,7 @@ const ReelCardImpl = ({ reel }: { reel: Reel }) => {
 
   return (
     <div ref={cardRef} className="relative w-full snap-start snap-always flex-shrink-0 rounded-xl overflow-hidden bg-card border border-border" style={{ height: "calc(100vh - 12rem)", maxHeight: "700px", minHeight: "500px" }}>
-      <video ref={videoRef} src={reel.videoUrl} poster={reel.thumbnail} loop muted={muted} playsInline className="absolute inset-0 w-full h-full object-cover" onClick={togglePlay} />
+      <video ref={videoRef} src={reel.videoUrl} poster={reel.thumbnail} loop muted={muted} playsInline preload={dataSaver ? "none" : "auto"} className="absolute inset-0 w-full h-full object-cover" onClick={togglePlay} />
       {!playing && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/20" onClick={togglePlay}>
           <Play className="w-16 h-16 text-white/80 fill-white/80" />
