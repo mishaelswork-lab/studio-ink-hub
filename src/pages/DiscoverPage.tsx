@@ -319,21 +319,9 @@ const DesignsFeed = () => {
 
   const feed = useMemo(() => {
     if (!designs.length) return [] as { key: string; design: DesignRow }[];
-    const out: { key: string; design: DesignRow }[] = [];
-    let cycle = 0;
-    while (out.length < effectiveCount) {
-      const round = designs.map((d, i) => ({ d, i }));
-      if (cycle > 0) {
-        // deterministic reshuffle per cycle so repeats don't feel identical
-        round.sort((a, b) => ((a.i * 9301 + cycle * 49297) % 233280) - ((b.i * 9301 + cycle * 49297) % 233280));
-      }
-      for (const { d } of round) {
-        out.push({ key: `${d.id}-${cycle}`, design: d });
-        if (out.length >= effectiveCount) break;
-      }
-      cycle++;
-    }
-    return out;
+    // Each design appears exactly once — no cycles or reshuffles, so users
+    // never see repeats that would cause feed fatigue.
+    return designs.slice(0, effectiveCount).map((d) => ({ key: d.id, design: d }));
   }, [designs, effectiveCount]);
 
   useEffect(() => {
