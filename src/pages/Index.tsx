@@ -1,6 +1,6 @@
 import { memo, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { MapPin, Star, Users, Play, Sparkles, Sparkle } from "lucide-react";
+import { MapPin, Star, Users, Play, Sparkles } from "lucide-react";
 import { usePublicArtists, artistStudios } from "@/hooks/usePublicArtists";
 import { reels } from "@/data/mockReels";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 
 
 const Hero = () => {
-  const [reduced, setReduced] = useReducedMotion();
+  const [reduced] = useReducedMotion();
   const { settings } = usePlatformSettings();
   const tagline = settings.content.tagline || "Where tattoo becomes art";
   return (
