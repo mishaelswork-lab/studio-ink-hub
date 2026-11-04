@@ -133,26 +133,24 @@ const BookingPage = () => {
 
       if (bookingErr) throw bookingErr;
 
-      // Mark referral as used if applied
-      if (referralDiscount > 0 && referralCode) {
-        await supabase.from("referrals")
-          .update({ used: true, referred_id: user.id })
-          .eq("referral_code", referralCode.trim().toUpperCase())
-          .eq("used", false);
-      }
+      // Referral discounts are validated and consumed server-side when the
+      // payment is settled — the browser only supplies the code the user typed.
 
-      if (coverCharge === 0) {
-        // Fully discounted — skip payment
-        await supabase.from("bookings").update({ cover_charge_paid: true, status: "confirmed" }).eq("id", booking.id);
+      const orderRes = await supabase.functions.invoke("create-razorpay-order", {
+        body: {
+          payment_type: "cover_charge",
+          booking_id: booking.id,
+          referral_code: referralCode || undefined,
+        },
+      });
+
+      if (orderRes.data?.free) {
+        // Server validated the referral and settled the charge itself.
         toast.success("Booking confirmed! Referral discount covered the charge.", { description: `Your session with ${artistName} is set.` });
         sendPushNotification("🎨 Booking Confirmed!", `Great choice! Your session with ${artistName} is booked. You saved ₹${referralDiscount}!`);
         navigate("/dashboard");
         return;
       }
-
-      const orderRes = await supabase.functions.invoke("create-razorpay-order", {
-        body: { amount: coverCharge, booking_id: booking.id, payment_type: "cover_charge" },
-      });
 
       if (orderRes.error || orderRes.data?.error) {
         toast.success("Booking created! Payment will be configured soon.", { description: "The artist will confirm your appointment." });
@@ -181,11 +179,6 @@ const BookingPage = () => {
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
-              booking_id: booking.id,
-              artist_id: artistDbId,
-              customer_id: user.id,
-              amount: coverCharge,
-              payment_type: "cover_charge",
             },
           });
           toast.success("Payment successful! Booking confirmed.", { description: "The artist will review your appointment." });
