@@ -80,7 +80,7 @@ export const FeaturedBoostCard = ({ artistId }: { artistId: string }) => {
       if (!ok) throw new Error("Could not load checkout");
 
       const { data: order, error } = await supabase.functions.invoke("create-razorpay-order", {
-        body: { amount: BOOST_PRICE, payment_type: "featured_boost" },
+        body: { payment_type: "featured_boost", artist_id: artistId },
       });
       if (error || !order?.order_id) throw new Error("Order failed");
 
@@ -101,9 +101,6 @@ export const FeaturedBoostCard = ({ artistId }: { artistId: string }) => {
                   razorpay_order_id: resp.razorpay_order_id,
                   razorpay_payment_id: resp.razorpay_payment_id,
                   razorpay_signature: resp.razorpay_signature,
-                  customer_id: user.id,
-                  amount: BOOST_PRICE,
-                  payment_type: "featured_boost",
                 },
               });
               const row = await submitRequestRow(true, resp.razorpay_payment_id);
