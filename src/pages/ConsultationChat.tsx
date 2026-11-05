@@ -205,7 +205,7 @@ const ConsultationChat = () => {
     if (upErr) { toast.error("Upload failed"); return; }
     const { data: urlData } = await supabase.storage
       .from("consultation-media")
-      .createSignedUrl(path, 60 * 60 * 24 * 365);
+      .createSignedUrl(path, 60 * 60 * 24 * 7);
     if (!urlData?.signedUrl) { toast.error("Upload failed"); return; }
     await supabase.from("consultation_messages").insert({
       consultation_id: consultationId!,

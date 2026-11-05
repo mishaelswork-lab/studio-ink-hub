@@ -35,7 +35,7 @@ const StartConsultation = () => {
       const path = `ref-${user.id}-${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "")}`;
       const { error } = await supabase.storage.from("consultation-media").upload(path, file);
       if (!error) {
-        const { data } = await supabase.storage.from("consultation-media").createSignedUrl(path, 60 * 60 * 24 * 365);
+        const { data } = await supabase.storage.from("consultation-media").createSignedUrl(path, 60 * 60 * 24 * 7);
         if (data?.signedUrl) newUrls.push(data.signedUrl);
       }
     }
