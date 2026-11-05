@@ -65,6 +65,19 @@ Deno.serve(async (req) => {
       await admin.from("consultations").delete().in("id", consultIds);
     }
 
+    // Remove the user's private consultation media so signed image links die
+    // with the account instead of living on for a year.
+    try {
+      for (const prefix of [`ref-${userId}-`, ...consultIds.map(id => `${id}/`)]) {
+        const { data: objs } = await admin.storage.from("consultation-media").list("", { search: prefix });
+        if (objs?.length) {
+          await admin.storage.from("consultation-media").remove(objs.map(o => o.name));
+        }
+      }
+    } catch (e) {
+      console.error("consultation media cleanup failed:", e);
+    }
+
     // Personal data — hard delete.
     await Promise.all([
       admin.from("favorites").delete().eq("user_id", userId),
