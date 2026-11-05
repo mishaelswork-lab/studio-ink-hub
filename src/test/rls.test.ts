@@ -135,3 +135,71 @@ describe("RLS: cross-user access with a fabricated owner id", () => {
     if (!error) expect(data ?? []).toHaveLength(0);
   });
 });
+
+/**
+ * Signed-in rule checks.
+ *
+ * These cover rules enforced server-side after the payment hardening:
+ * amounts and entitlements are computed by the backend, never the browser.
+ * They sign in with credentials supplied through env vars
+ * (TEST_USER_EMAIL / TEST_USER_PASSWORD) and are skipped when absent.
+ */
+const testEmail = process.env.TEST_USER_EMAIL as string | undefined;
+const testPassword = process.env.TEST_USER_PASSWORD as string | undefined;
+
+describe.skipIf(!testEmail || !testPassword)("RLS: signed-in user tampering", () => {
+  let authed: ReturnType<typeof createClient>;
+  let userId: string;
+
+  beforeAll(async () => {
+    const a = createClient(url, key, { auth: { persistSession: false } });
+    const { data, error } = await a.auth.signInWithPassword({
+      email: testEmail!,
+      password: testPassword!,
+    });
+    expect(error).toBeNull();
+    expect(data.session).toBeTruthy();
+    userId = data.user!.id;
+    authed = createClient(url, key, {
+      auth: { persistSession: false },
+      global: { headers: { Authorization: `Bearer ${data.session!.access_token}` } },
+    });
+  });
+
+  it("cannot activate Premium membership directly (₹199 without paying)", async () => {
+    const { error } = await authed
+      .from("memberships")
+      .insert({ user_id: userId, plan: "premium", amount: 199, status: "active" } as never);
+    expect(error).not.toBeNull();
+  });
+
+  it("cannot forge or reset the free-chat counter", async () => {
+    const { error } = await authed
+      .from("profiles")
+      .update({ chat_count: 7 } as never)
+      .eq("user_id", userId);
+    expect(error?.message ?? "").toContain("chat_count is managed by the system");
+  });
+
+  it("cannot record an arbitrary completed payment", async () => {
+    const { error } = await authed
+      .from("payments")
+      .insert({
+        customer_id: userId,
+        amount: 999999,
+        payment_type: "membership",
+        status: "completed",
+      } as never);
+    expect(error).not.toBeNull();
+  });
+
+  it("cannot mark their own referral code as used", async () => {
+    const { data, error } = await authed
+      .from("referrals")
+      .update({ used: true } as never)
+      .eq("referrer_id", userId)
+      .select();
+    expect(error).toBeNull();
+    expect(data ?? []).toHaveLength(0);
+  });
+});
