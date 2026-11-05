@@ -1,4 +1,3 @@
-import { requireInternal } from "../_shared/guard.ts";
 // Sends a web push notification using VAPID. Used internally by other functions.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import webpush from "https://esm.sh/web-push@3.6.7";

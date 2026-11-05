@@ -44,7 +44,7 @@ function clientIp(req: Request) {
   );
 }
 
-async function countFailures(column: "identifier" | "ip", value: string, kind?: Action) {
+async function countFailures(column: "identifier" | "ip", value: string, kind?: Action, extraIp?: string) {
   const since = new Date(Date.now() - WINDOW_MINUTES * 60_000).toISOString();
   let q = admin
     .from("auth_attempts")
@@ -53,6 +53,10 @@ async function countFailures(column: "identifier" | "ip", value: string, kind?: 
     .eq("success", false)
     .gte("created_at", since);
   if (kind) q = q.eq("kind", kind);
+  // Password lockouts are scoped to (identifier, source IP): an attacker who
+  // fails logins from their own machine locks themselves out, but cannot
+  // deliberately lock a victim's email from a different address.
+  if (extraIp) q = q.eq("ip", extraIp);
   const { count } = await q;
   return count ?? 0;
 }
@@ -108,7 +112,7 @@ Deno.serve(async (req) => {
 
   // Lockout checks before any credential is touched.
   const [idFailures, ipFailures] = await Promise.all([
-    countFailures("identifier", identifier),
+    countFailures("identifier", identifier, undefined, ip),
     countFailures("ip", ip),
   ]);
   if (idFailures >= MAX_FAILURES_PER_IDENTIFIER || ipFailures >= MAX_FAILURES_PER_IP) {
