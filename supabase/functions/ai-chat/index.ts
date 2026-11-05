@@ -53,7 +53,7 @@ When recommending, suggest specific artists and studios. Keep responses warm, kn
       },
       body: JSON.stringify({
         model: "manus-1",
-        messages: [systemMessage, ...messages],
+        messages: [systemMessage, ...sanitized],
         stream: true,
       }),
     });
@@ -75,7 +75,7 @@ When recommending, suggest specific artists and studios. Keep responses warm, kn
           },
           body: JSON.stringify({
             model: "google/gemini-2.5-flash",
-            messages: [systemMessage, ...messages],
+            messages: [systemMessage, ...sanitized],
             stream: true,
           }),
         });
