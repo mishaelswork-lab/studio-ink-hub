@@ -27,11 +27,12 @@ export const useMembership = () => {
   const canChat = isMember || chatCount < 3;
   const chatsRemaining = isMember ? Infinity : Math.max(0, 3 - chatCount);
 
+  // chat_count is derived server-side from real consultations; here we only
+  // re-read it so the UI stays in sync after a chat starts.
   const incrementChatCount = async () => {
     if (!user || isMember) return;
-    const newCount = chatCount + 1;
-    await supabase.from("profiles").update({ chat_count: newCount }).eq("user_id", user.id);
-    setChatCount(newCount);
+    const { data: prof } = await supabase.from("profiles").select("chat_count").eq("user_id", user.id).maybeSingle();
+    setChatCount(prof?.chat_count ?? 0);
   };
 
   return { isMember, membership, loading, canChat, chatsRemaining, incrementChatCount, chatCount };

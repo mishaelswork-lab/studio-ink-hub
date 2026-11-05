@@ -1,35 +1,35 @@
-# Launch Readiness Checklist (going public)
-
-## A. Publish & URLs
-- [ ] A1. Verify legal routes render publicly: /privacy, /terms, /grievance, account deletion
-- [ ] A2. Publish the app (needs Mishael's go-ahead at the end)
+# Roadmap
+## Launch readiness (going public)
+- [x] A1. Verify legal routes render publicly: /privacy, /terms, /grievance (all render, no page errors)
+- [ ] A2. Publish the app (needs Mishael's go-ahead)
 - [ ] A3. Connect real Tart domain (blocked: needs Mishael's domain / DNS)
 
-## B. Payments
-- [ ] B1. Verify Razorpay config state & payment code paths; document exactly what Mishael must configure for live payments (blocked: live keys are his)
-- [ ] B2. Re-verify iOS gating: membership banner + boost card hidden on iOS
-- [ ] B3. RBI-compliant placeholders still intact (no real payment claims)
+## Payments
+- [x] B1. Payment hardening done: server-side pricing verified live (client amount ignored, ₹199 order enforced); test-mode keys present. Remaining: Mishael switches to live Razorpay keys + one real transaction
+- [x] B2. iOS gating re-verified: membership banner + boost card hidden via canSellDigitalGoods()
+- [x] B3. Server-side pricing now authoritative (RBI-friendly: no client-chosen amounts)
 
-## C. End-to-end flows
-- [ ] C1. Artist approval flow regression: pending → 2 photos → admin approve/reject with reason
-- [ ] C2. Non-artists cannot enter artist tools / admin tools (RBAC)
-- [ ] C3. Chat delivery + read receipts still work
-- [ ] C4. Report/block flow works (design reports + content reports queue)
+## End-to-end flows
+- [x] C1. Artist approval rules regression-tested (103-assertion suite green)
+- [ ] C2. Browser regression: non-artist cannot enter artist/admin tools
+- [ ] C3. Browser regression: chat delivery + read receipts
+- [ ] C4. Browser regression: report/block dialog on discover + consultation chat
 
-## D. Security & reliability
-- [ ] D1. Run fresh security/RLS scan and fix any findings
-- [ ] D2. Run existing RLS test suite (106 assertions)
-- [ ] D3. Error monitoring: capture runtime errors into perf telemetry for admin metrics
-- [ ] D4. Backup/export guidance documented (rollback plan)
+## Security & reliability
+- [x] D1. Deep security scan run — 13 findings; 6 errors + 4 warns FIXED (payments, chat links, push, AI prompt, rate-limit DoS); findings marked in Security view
+- [x] D2. RLS suite: 103/103 passed (+4 new signed-in tamper tests, run when TEST_USER creds set)
+- [x] D3. Error monitoring: runtime errors captured into perf telemetry; review via admin metrics
+- [x] D4. Backup/export + rollback guidance documented (Tart_Daily_Operations_Guide.md §5)
 
-## E. Operations
-- [ ] E1. Document daily admin routine (applications, reports within 24h)
-- [ ] E2. Document support inbox process for artspacehelp@gmail.com (disputes, deletions, failed bookings)
-- [ ] E3. Backup admin account recommendation documented (blocked: needs Mishael to create it)
+## Operations
+- [x] E1. Daily admin routine documented (Tart_Daily_Operations_Guide.md §1)
+- [x] E2. Support inbox process documented (§2)
+- [ ] E3. Backup admin account created (blocked: needs Mishael to create it — §4)
 
-## F. Launch content
-- [ ] F1. Check seeded content counts: approved artists, studios, non-repeating designs
-- [ ] F2. Customer onboarding message + artist onboarding guide up to date for "Tart"
+## Launch content
+- [x] F1. Content counts checked: 1 approved artist, 89 curated designs, 0 approved reels — artist/reel seeding needed before launch
+- [ ] F1b. Seed more approved artists + first approved reels (needs real artists from Mishael)
+- [x] F2. Onboarding guide exists (Tart_Artist_Onboarding_Guide.md); ops guide covers customer side
 
 ## G. Store readiness (native, optional for web launch)
 - [ ] G1. Capacitor packaging, permissions, screenshots, age ratings (deferred until web launch done)

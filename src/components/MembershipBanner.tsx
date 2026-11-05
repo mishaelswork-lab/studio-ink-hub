@@ -12,6 +12,20 @@ interface Props {
   showChatTrigger?: boolean;
 }
 
+declare global {
+  interface Window { Razorpay: any }
+}
+
+const loadRazorpay = () =>
+  new Promise<boolean>((resolve) => {
+    if (window.Razorpay) return resolve(true);
+    const s = document.createElement("script");
+    s.src = "https://checkout.razorpay.com/v1/checkout.js";
+    s.onload = () => resolve(true);
+    s.onerror = () => resolve(false);
+    document.body.appendChild(s);
+  });
+
 export const MembershipBanner = ({ chatsRemaining, showChatTrigger }: Props) => {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
@@ -21,23 +35,60 @@ export const MembershipBanner = ({ chatsRemaining, showChatTrigger }: Props) => 
   if (!canSellDigitalGoods()) return null;
 
 
+  // Membership activation is granted server-side by verify-razorpay-payment
+  // after a successful payment — never directly from the browser.
   const handleSubscribe = async () => {
     if (!user) { toast.error("Please sign in first"); return; }
     setLoading(true);
-    const { error } = await supabase.from("memberships").insert({
-      user_id: user.id,
-      plan: "premium",
-      amount: 199,
-      status: "active",
-    });
-    if (error) {
-      toast.error("Failed to activate membership");
-    } else {
-      toast.success("🎉 Welcome to Tart Premium!");
-      setOpen(false);
-      window.location.reload();
+    try {
+      const ok = await loadRazorpay();
+      if (!ok) { toast.error("Failed to load payment gateway"); return; }
+
+      const { data: order, error } = await supabase.functions.invoke("create-razorpay-order", {
+        body: { payment_type: "membership" },
+      });
+      if (error || !order?.order_id) {
+        toast.error(order?.error || "Payment gateway not configured yet");
+        return;
+      }
+
+      await new Promise<void>((resolve, reject) => {
+        const rzp = new window.Razorpay({
+          key: order.key_id,
+          amount: order.amount,
+          currency: order.currency,
+          name: "Tart",
+          description: "Tart Premium — ₹199 / 3 months",
+          order_id: order.order_id,
+          prefill: { email: user.email },
+          theme: { color: "#c9a96e" },
+          modal: { ondismiss: () => reject(new Error("cancelled")) },
+          handler: async (resp: any) => {
+            try {
+              await supabase.functions.invoke("verify-razorpay-payment", {
+                body: {
+                  razorpay_order_id: resp.razorpay_order_id,
+                  razorpay_payment_id: resp.razorpay_payment_id,
+                  razorpay_signature: resp.razorpay_signature,
+                },
+              });
+              toast.success("🎉 Welcome to Tart Premium!");
+              setOpen(false);
+              window.location.reload();
+              resolve();
+            } catch (e) {
+              toast.error("Payment captured, but activation failed. Contact support.");
+              reject(e);
+            }
+          },
+        });
+        rzp.open();
+      });
+    } catch (e) {
+      if ((e as Error)?.message !== "cancelled") toast.error("Could not complete subscription");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
