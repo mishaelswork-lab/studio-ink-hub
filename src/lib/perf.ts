@@ -64,6 +64,16 @@ export const initPerf = () => {
     }
   }, true);
 
+  // Uncaught script errors and promise rejections (error monitoring)
+  window.addEventListener("error", (e) => {
+    if (e.target && e.target !== window) return; // resource errors handled above
+    recordPerf({ event: "js_error", url: location.pathname, meta: { msg: String(e.message || "").slice(0, 300) } });
+  });
+  window.addEventListener("unhandledrejection", (e) => {
+    const msg = (e.reason && (e.reason.message || String(e.reason))) || "unknown";
+    recordPerf({ event: "js_error", url: location.pathname, meta: { msg: String(msg).slice(0, 300), kind: "promise" } });
+  });
+
   // Flush on unload
   window.addEventListener("pagehide", flush);
 };
