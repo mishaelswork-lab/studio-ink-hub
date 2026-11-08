@@ -1,4 +1,9 @@
 # Roadmap
+## Current request
+- [ ] Assign permanent OG badges to the first 150 new artist profiles per Indian state
+- [ ] Replace the hero tagline with “Where art of tattoos gets a start” in defaults and saved settings
+- [ ] Remove exposed demo admin credentials and grant admin access after the support account exists
+
 ## Launch readiness (going public)
 - [x] A1. Verify legal routes render publicly: /privacy, /terms, /grievance (all render, no page errors)
 - [ ] A2. Publish the app (needs Mishael's go-ahead)
