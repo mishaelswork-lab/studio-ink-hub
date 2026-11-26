@@ -134,11 +134,15 @@ const ArtistDashboard = () => {
     toast.success("Certification removed");
   };
 
-  const handleUpdateBookingStatus = async (id: string, status: string) => {
-    const { error } = await supabase.from("bookings").update({ status }).eq("id", id);
-    if (error) { toast.error("Failed to update"); return; }
-    toast.success(`Booking ${status}!`);
-    setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b));
+  const handleConfirmBooking = async (id: string) => {
+    const { error } = await supabase.rpc("artist_confirm_booking", { p_booking_id: id });
+    if (error) { toast.error(error.message || "Could not confirm booking"); return; }
+    toast.success("Booking confirmed!");
+    setBookings(prev => prev.map(b => b.id === id ? { ...b, status: "confirmed" } : b));
+  };
+
+  const explainBookingDecline = () => {
+    toast.error("Declining a paid booking is temporarily unavailable until the refund workflow is enabled. Contact support to resolve this booking.");
   };
 
   // Safeguard: only allow tattoo/art uploads (AI moderation + admin override).
@@ -305,8 +309,8 @@ const ArtistDashboard = () => {
                   {booking.description && <p className="text-muted-foreground text-sm mb-4">{booking.description}</p>}
                   {booking.status === "pending" && (
                     <div className="flex gap-2">
-                      <Button size="sm" variant="gold" onClick={() => handleUpdateBookingStatus(booking.id, "confirmed")} className="gap-1"><Check className="w-3.5 h-3.5" /> Accept</Button>
-                      <Button size="sm" variant="outline" onClick={() => handleUpdateBookingStatus(booking.id, "cancelled")} className="gap-1"><X className="w-3.5 h-3.5" /> Reject</Button>
+                      <Button size="sm" variant="gold" onClick={() => handleConfirmBooking(booking.id)} className="gap-1"><Check className="w-3.5 h-3.5" /> Accept</Button>
+                      <Button size="sm" variant="outline" onClick={explainBookingDecline} className="gap-1"><X className="w-3.5 h-3.5" /> Reject</Button>
                     </div>
                   )}
                 </div>
