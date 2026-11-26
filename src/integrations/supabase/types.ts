@@ -1093,6 +1093,28 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      artist_confirm_booking: {
+        Args: { p_booking_id: string }
+        Returns: { booking_id: string; booking_status: string }[]
+      }
+      create_booking_hold: {
+        Args: {
+          p_artist_id: string
+          p_starts_at: string
+          p_ends_at: string
+          p_service_type: string
+          p_brief: string
+          p_placement: string
+          p_size_description: string
+          p_idempotency_key: string
+        }
+        Returns: {
+          booking_id: string
+          design_request_id: string
+          booking_status: string
+          hold_expires_at: string
+        }[]
+      }
       can_write_media: { Args: { _name: string }; Returns: boolean }
       has_role: {
         Args: {
