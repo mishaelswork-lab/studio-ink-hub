@@ -48,6 +48,16 @@ const TermsOfService = () => (
         <li>Chargebacks raised without first using our grievance process may result in account suspension pending resolution.</li>
       </ul>
 
+      <h3>4.1 Memberships, cover charges and featured boosts</h3>
+      <ul>
+        <li>The current booking cover charge is ₹49 per booking.</li>
+        <li>Customers with an active ArtSpace membership receive a 10% discount on the cover charge. At the current price, this is ₹44.10 before any applicable taxes or payment-provider treatment.</li>
+        <li>The current membership price is a one-time payment of ₹395 for lifetime access, with no scheduled expiry. Membership benefits are personal to the purchasing account and are not transferable.</li>
+        <li>The current featured-artist boost price is ₹500 for 30 days. A boost promotes visibility and does not guarantee bookings, ranking, or a particular number of views.</li>
+        <li>ArtSpace may introduce different prices or time-limited membership plans, including a three-month plan, for future purchases. A future plan does not automatically shorten a lifetime membership already purchased. We will give advance notice of any material proposed change to existing members and will not silently convert an existing lifetime membership into a three-month membership. Changes affecting existing paid rights will be handled in accordance with applicable law.</li>
+        <li>Membership is a platform benefit and does not guarantee artist availability, appointment acceptance, or any particular tattoo or piercing outcome.</li>
+      </ul>
+
       <h2>5. Content you upload</h2>
       <p>
         You retain ownership of reference images and designs you upload. You grant Tart a worldwide,
@@ -124,7 +134,10 @@ const TermsOfService = () => (
       <h2>14. Changes to these Terms</h2>
       <p>
         We may update these Terms. Material changes will be notified in-app or by email at least seven
-        days before taking effect. Continued use after that date is acceptance of the revised Terms.
+        days before taking effect. Continued use after that date is acceptance of the revised Terms, subject
+        to applicable law and the specific protections for already-purchased lifetime memberships in
+        section 4.1. A material reduction of an existing paid membership benefit will not be imposed
+        merely by posting an updated Terms page.
       </p>
 
       <h2>15. Grievances, governing law and disputes</h2>
