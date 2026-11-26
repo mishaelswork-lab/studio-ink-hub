@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
       if (!Number.isSafeInteger(discountPercent) || discountPercent < 0 || discountPercent > 100) {
         return json({ error: "Membership discount configuration is invalid" }, 503);
       }
-      amountRupees = membership ? Math.ceil(base * (100 - discountPercent) / 100) : base;
+      amountRupees = membership ? base * (100 - discountPercent) / 100 : base;
     } else if (paymentType === "membership") {
       amountRupees = Number(pricing.membership_price);
       if (!Number.isSafeInteger(amountRupees) || amountRupees <= 0 ||
