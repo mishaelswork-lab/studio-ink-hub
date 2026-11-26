@@ -76,3 +76,22 @@ A read-only review of `supabase/functions/delete-account/index.ts` found it is n
 The live `artists` table has `city` and `country`, but no Indian state/UT field or OG-award field. The current schema therefore cannot safely implement the agreed first-150-per-state rule.
 
 **Required implementation:** add a normalized state/UT identifier and an immutable OG-award record (or equivalent constrained fields) through an additive migration. Allocation must occur inside a database transaction with a per-state counter/lock and a unique constraint that makes duplicate awards impossible; the database, not the browser, determines eligibility and award order. The first 150 successful allocations for each state/UT are permanent; retries must be idempotent. State values should be normalized against an authoritative India state/UT list before allocation. No OG schema or award was changed in this audit.
+
+## Booking hold workflow — implementation started
+
+Added `public.create_booking_hold(...)` and `supabase/functions/create-booking-hold/index.ts` on the security-audit branch. The additive RPC is also applied to production project `ufvabnxcpxhusbdgunmb`.
+
+The RPC:
+- Derives customer identity from `auth.uid()`; callers cannot provide another customer ID.
+- Locks the active artist row while validating/creating a hold, serializing concurrent requests for the same artist.
+- Requires a future appointment, a maximum eight-hour duration, bounded booking details, and a valid idempotency key.
+- Checks the artist's weekly local-time availability or an explicit available exception, then vetoes overlapping unavailable exceptions.
+- Rejects overlaps with pending/confirmed bookings and unexpired held/awaiting-payment bookings.
+- Creates a `design_requests` row and linked `held` booking atomically, with a 15-minute hold expiry.
+- Grants execution to authenticated users only; anon/public execution is revoked. The function has a fixed `pg_catalog, public` search path.
+
+The Razorpay order function now checks that a booking hold has not expired, extends the hold for a bounded 15-minute payment window, and sets the Razorpay order expiry to the same timestamp.
+
+**Verified in production:** RPC exists as SECURITY DEFINER; search path is `pg_catalog, public`; anon execute is false; authenticated execute is true. Existing booking/design-request client policies remain SELECT-only, so browser clients still cannot insert or update those rows directly.
+
+**Not yet verified:** End-to-end authenticated booking creation, real concurrency/overlap tests, Edge Function compilation, and Razorpay order expiry behavior. The Edge Function has not been deployed. Booking UI integration remains pending because the artist-facing UI currently depends on artist profile fields absent from the production schema; no fake compatibility data has been introduced.
