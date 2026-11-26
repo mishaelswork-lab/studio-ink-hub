@@ -1,0 +1,60 @@
+# Production schema reconciliation — 26 November 2026
+
+Target: Supabase project `ufvabnxcpxhusbdgunmb` (Tartspace). This document records a read-only comparison of the current application flows with the live production schema. It is not a deployment instruction.
+
+## Findings
+
+### Booking flow
+
+The current `src/pages/BookingPage.tsx` expects the legacy booking shape:
+- `date`, `time`, `style`, `placement`, `size`, `description`, `total_estimate`, and `customer_name`.
+- It directly inserts a booking from the browser.
+- It treats payment-order creation errors as a successful booking and ignores errors from payment verification before showing success.
+
+Production `public.bookings` instead has:
+- `customer_id`, `artist_id`, optional `design_request_id`
+- `starts_at`, `ends_at`
+- `amount_minor`, `currency`, `status`, `hold_expires_at`, `idempotency_key`
+- `cover_charge_paid`
+
+Production status constraints include `pending`, `held`, `awaiting_payment`, `confirmed`, `completed`, `cancelled`, and `expired`. The table currently permits participant-only SELECT; client INSERT/UPDATE remains blocked intentionally.
+
+**Required implementation:** add a server-authoritative booking creation/hold endpoint or RPC. It must authenticate the customer, verify the artist is active, validate start/end time and availability, prevent overlapping active bookings under a transaction/constraint-safe strategy, enforce an idempotency key, calculate any amount server-side, and create a `held`/payment-pending booking. Artist/customer status transitions must be separately authorized and constrained. The client must never write booking status, amount, customer identity, or payment state directly.
+
+Do not add legacy `date`/`time` columns to production merely to satisfy the old page.
+
+### Artist profile and onboarding
+
+Current `ArtistProfileEditor.tsx`, `ArtistProfile.tsx`, `BookingPage.tsx`, and `AuthContext.tsx` expect fields including `application_status`, `available`, `name`, `hourly_rate`, `experience_years`, `avatar_url`, `portfolio_images`, `specialty`, and `user_id`.
+
+Production `public.artists` currently contains:
+- `id`, `user_id`, `slug`, `bio`, `styles`, `studio_name`, `city`, `country`, `currency`, `status`, `verified_at`, `created_at`.
+
+Production status is constrained to `pending`, `active`, or `suspended`; `user_id` references `profiles(id)` and is unique. Do not allow artist clients to set `status`, `verified_at`, ownership, or approval/review metadata. Public discovery is currently restricted to active artists.
+
+**Required implementation:** reconcile the UI to the canonical `status` lifecycle (map active to approved/live in presentation only) and use the production portfolio model `portfolio_items` rather than a comma/list field on artists. Any new artist-editable profile fields should be added additively only after a field-by-field contract is agreed. Grant narrowly scoped column privileges and owner-only RLS; keep approval/status transitions server/admin-only. Artist signup must create a pending artist record through a trusted workflow and assign the artist role server-side.
+
+### Portfolio media and storage
+
+The current `src/lib/mediaUpload.ts` attempts an `s3-presign` function, then falls back to the `reels-videos` Supabase bucket and returns a public URL. Production currently has no Supabase Storage buckets and no deployed Edge Functions.
+
+This fallback conflicts with the approved private-by-default storage strategy and will fail when the bucket is absent. Do not create a public bucket as a workaround. Implement a private bucket and owner-scoped upload/read/delete policies only after media paths, moderation, public portfolio delivery, and signed URL lifetimes are agreed. Public artist portfolio display should use a controlled delivery mechanism for approved media, not unrestricted private object access.
+
+## Current security posture observed
+
+- RLS is enabled on the relevant production tables.
+- Artist public SELECT is limited to rows with `status = 'active'`.
+- Portfolio public SELECT requires `approved = true` and an active owning artist.
+- Booking SELECT is limited to the customer or the owning artist.
+- Booking client writes remain blocked.
+- Security advisor currently reports five RLS-enabled tables with no policies: `artist_leads`, `availability_exceptions`, `featured_artists`, `payments`, and `platform_settings`. These are intentionally closed pending purpose-specific access rules; do not add broad policies to silence the advisor.
+
+## Next implementation sequence
+
+1. Implement and test the server-authoritative booking hold workflow and update the booking UI to the canonical schema.
+2. Reconcile artist signup/profile editing with canonical fields and owner-only, column-scoped writes.
+3. Move portfolio media to a private storage design with explicit approved-public delivery.
+4. Repair artist dashboard booking transitions and related legacy table queries.
+5. Only then run Razorpay sandbox scenarios against valid held bookings.
+
+No production schema changes were made during this read-only comparison. Existing production data was not modified.
