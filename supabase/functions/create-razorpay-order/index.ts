@@ -135,7 +135,7 @@ Deno.serve(async (req) => {
 
     // Record the order server-side with the authoritative amount. The verify
     // step only completes payments that match this record.
-    await admin.from("payments").insert({
+    const { error: paymentInsertError } = await admin.from("payments").insert({
       booking_id: booking_id ?? null,
       customer_id: user.id,
       artist_id: notes.artist_id ?? null,
@@ -145,6 +145,11 @@ Deno.serve(async (req) => {
       razorpay_order_id: order.id,
       status: "pending",
     });
+    if (paymentInsertError) {
+      // Do not return an order to the browser unless its server-side attribution
+      // record exists; verification relies on this record as its source of truth.
+      return json({ error: "Could not record payment order" }, 500);
+    }
 
     return json({
       order_id: order.id,
