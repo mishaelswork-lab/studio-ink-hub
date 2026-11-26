@@ -54,17 +54,20 @@ Deno.serve(async (req) => {
       }
       const { data: membership, error: membershipError } = await admin.from("memberships")
         .select("id").eq("user_id", user.id).eq("status", "active")
-        .gt("expires_at", new Date().toISOString()).limit(1).maybeSingle();
+        .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
+        .limit(1).maybeSingle();
       if (membershipError) return json({ error: "Could not verify membership benefit" }, 500);
-      amountRupees = membership ? Math.ceil(base / 2) : base;
+      const discountPercent = Number(pricing.member_cover_charge_discount_percent ?? 0);
+      if (!Number.isSafeInteger(discountPercent) || discountPercent < 0 || discountPercent > 100) {
+        return json({ error: "Membership discount configuration is invalid" }, 503);
+      }
+      amountRupees = membership ? Math.ceil(base * (100 - discountPercent) / 100) : base;
     } else if (paymentType === "membership") {
       amountRupees = Number(pricing.membership_price);
-      const months = Number(pricing.membership_months);
       if (!Number.isSafeInteger(amountRupees) || amountRupees <= 0 ||
-          !Number.isSafeInteger(months) || months < 1 || months > 24) {
+          pricing.membership_duration !== "lifetime") {
         return json({ error: "Membership pricing is not configured" }, 503);
       }
-      metadata.membership_months = months;
     } else {
       if (!artistId) return json({ error: "Artist is required" }, 400);
       const { data: artist, error } = await admin.from("artists")
