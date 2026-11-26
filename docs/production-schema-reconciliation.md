@@ -58,3 +58,15 @@ This fallback conflicts with the approved private-by-default storage strategy an
 5. Only then run Razorpay sandbox scenarios against valid held bookings.
 
 No production schema changes were made during this read-only comparison. Existing production data was not modified.
+
+### Account deletion
+
+A read-only review of `supabase/functions/delete-account/index.ts` found it is not compatible with the production schema and must not be deployed:
+- It checks a legacy booking status `accepted`, while production statuses use `held` and `awaiting_payment` (along with pending/confirmed/completed/cancelled/expired).
+- It deletes `profiles` before resolving booking/payment references, but production bookings reference `profiles(id)`.
+- It attempts to set `bookings.customer_id = NULL`, while production `bookings.customer_id` is NOT NULL.
+- It uses legacy `consultations` / `consultation_messages` and artist-content table assumptions that do not match the canonical production `conversations` / `messages` model.
+- It runs many destructive cleanup requests in parallel and ignores individual errors, so partial deletion can be reported as success.
+- It removes memberships even where a lifetime entitlement/payment record may need to be retained for accounting or dispute handling.
+
+**Required implementation:** design deletion as a server-side, auditable, idempotent workflow with a transaction or staged state machine. Resolve legal/financial retention first; preserve required booking/payment records while de-identifying personal fields without violating NOT NULL/FK constraints; clean up conversation/media according to retention rules; revoke sessions; delete auth identity only after all dependent references are handled. Return success only when all mandatory steps complete, and retain retry-safe progress for partial failures. No deletion code or production data was changed in this audit.
