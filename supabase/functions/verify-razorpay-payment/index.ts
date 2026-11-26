@@ -61,18 +61,21 @@ Deno.serve(async (req) => {
     if (payment.order_id !== razorpay_order_id) {
       return json({ error: "Payment does not match this order" }, 400);
     }
-    if (payment.status !== "captured" && payment.status !== "authorized") {
-      return json({ error: `Payment not completed (status: ${payment.status})` }, 400);
+    // Razorpay's "authorized" state is not a completed/captured payment.
+    // Never grant booking or membership entitlements until capture is confirmed.
+    if (payment.status !== "captured") {
+      return json({ error: `Payment not captured (status: ${payment.status})` }, 400);
     }
 
     // 3. Match against the server-recorded pending order.
-    const { data: pending } = await admin
+    const { data: pending, error: pendingError } = await admin
       .from("payments")
       .select("*")
       .eq("razorpay_order_id", razorpay_order_id)
       .eq("status", "pending")
       .maybeSingle();
-    if (!pending) return json({ error: "Unknown order" }, 404);
+    if (pendingError) return json({ error: "Could not verify the pending order" }, 500);
+    if (!pending) return json({ error: "Unknown or already processed order" }, 404);
     if (pending.customer_id !== user.id) {
       return json({ error: "This order belongs to a different user" }, 403);
     }
@@ -81,21 +84,25 @@ Deno.serve(async (req) => {
     }
 
     // 4. Complete the payment record with the authoritative amounts.
-    await admin.from("payments").update({
+    const { error: paymentUpdateError } = await admin.from("payments").update({
       status: "completed",
       razorpay_payment_id,
       razorpay_signature,
       amount: Math.round(Number(payment.amount) / 100),
       artist_id: pending.artist_id ?? null,
       booking_id: pending.booking_id ?? null,
-    }).eq("id", pending.id);
+    }).eq("id", pending.id).eq("status", "pending");
+    if (paymentUpdateError) {
+      return json({ error: "Could not record captured payment" }, 500);
+    }
 
     // 5. Entitlements are applied here, server-side.
     if (pending.payment_type === "cover_charge" && pending.booking_id) {
-      await admin.from("bookings").update({ cover_charge_paid: true })
+      const { error: bookingUpdateError } = await admin.from("bookings").update({ cover_charge_paid: true })
         .eq("id", pending.booking_id)
         .eq("customer_id", user.id)
         .eq("cover_charge_paid", false);
+      if (bookingUpdateError) return json({ error: "Payment captured; booking update requires reconciliation" }, 500);
       // Consume the referral discount that was validated at order creation.
       const notesRes = await fetch(`https://api.razorpay.com/v1/orders/${razorpay_order_id}`, {
         headers: { Authorization: rzpAuth },
@@ -103,16 +110,18 @@ Deno.serve(async (req) => {
       const orderInfo = await notesRes.json();
       const referralCode = String(orderInfo?.notes?.referral_code || "");
       if (referralCode) {
-        await admin.from("referrals").update({ used: true, referred_id: user.id })
+        const { error: referralError } = await admin.from("referrals").update({ used: true, referred_id: user.id })
           .eq("referral_code", referralCode).eq("used", false);
+        if (referralError) return json({ error: "Payment captured; referral update requires reconciliation" }, 500);
       }
     }
 
     if (pending.payment_type === "membership") {
-      const { data: pricingRow } = await admin
+      const { data: pricingRow, error: pricingError } = await admin
         .from("platform_settings").select("value").eq("key", "pricing").maybeSingle();
+      if (pricingError) return json({ error: "Payment captured; membership pricing lookup requires reconciliation" }, 500);
       const months = Number(pricingRow?.value?.membership_months) || 3;
-      const { data: existing } = await admin
+      const { data: existing, error: membershipLookupError } = await admin
         .from("memberships")
         .select("id, expires_at")
         .eq("user_id", user.id).eq("status", "active")
@@ -120,13 +129,13 @@ Deno.serve(async (req) => {
         .order("expires_at", { ascending: false })
         .limit(1)
         .maybeSingle();
+      if (membershipLookupError) return json({ error: "Payment captured; membership lookup requires reconciliation" }, 500);
       const base = existing?.expires_at ? new Date(existing.expires_at) : new Date();
       const expires = new Date(base);
       expires.setMonth(expires.getMonth() + months);
-      if (existing) {
-        await admin.from("memberships").update({ expires_at: expires.toISOString() }).eq("id", existing.id);
-      } else {
-        await admin.from("memberships").insert({
+      const membershipWrite = existing
+        ? await admin.from("memberships").update({ expires_at: expires.toISOString() }).eq("id", existing.id)
+        : await admin.from("memberships").insert({
           user_id: user.id,
           plan: "premium",
           amount: Math.round(Number(payment.amount) / 100),
@@ -134,28 +143,29 @@ Deno.serve(async (req) => {
           started_at: new Date().toISOString(),
           expires_at: expires.toISOString(),
         });
-      }
+      if (membershipWrite.error) return json({ error: "Payment captured; membership activation requires reconciliation" }, 500);
     }
 
     if (pending.payment_type === "featured_boost" && pending.artist_id) {
-      const { data: pricingRow } = await admin
+      const { data: pricingRow, error: pricingError } = await admin
         .from("platform_settings").select("value").eq("key", "pricing").maybeSingle();
+      if (pricingError) return json({ error: "Payment captured; boost pricing lookup requires reconciliation" }, 500);
       const days = Number(pricingRow?.value?.featured_boost_days) || 30;
       const expires = new Date();
       expires.setDate(expires.getDate() + days);
-      const { data: existing } = await admin
+      const { data: existing, error: boostLookupError } = await admin
         .from("featured_artists").select("id").eq("artist_id", pending.artist_id).maybeSingle();
-      if (existing) {
-        await admin.from("featured_artists").update({ active: true, expires_at: expires.toISOString() })
-          .eq("id", existing.id);
-      } else {
-        await admin.from("featured_artists").insert({
+      if (boostLookupError) return json({ error: "Payment captured; boost lookup requires reconciliation" }, 500);
+      const boostWrite = existing
+        ? await admin.from("featured_artists").update({ active: true, expires_at: expires.toISOString() })
+          .eq("id", existing.id)
+        : await admin.from("featured_artists").insert({
           artist_id: pending.artist_id,
           active: true,
           priority: 1,
           expires_at: expires.toISOString(),
         });
-      }
+      if (boostWrite.error) return json({ error: "Payment captured; boost activation requires reconciliation" }, 500);
     }
 
     return json({ success: true });
