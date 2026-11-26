@@ -5,7 +5,7 @@ import { SUPPORT_EMAIL, mailto } from "@/lib/contact";
 const TermsOfService = () => (
   <div className="min-h-screen bg-background">
     <Navbar />
-    <LegalLayout title="Terms of Service" updated="Last updated: 4 August 2026">
+    <LegalLayout title="Terms of Service" updated="Last updated: 26 November 2026">
       <p>
         These Terms are a binding agreement between you and Tart. By creating an account, browsing,
         or otherwise using Tart you accept them in full. If you do not agree, you must stop using the
