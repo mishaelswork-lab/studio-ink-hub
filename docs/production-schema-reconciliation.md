@@ -95,3 +95,18 @@ The Razorpay order function now checks that a booking hold has not expired, exte
 **Verified in production:** RPC exists as SECURITY DEFINER; search path is `pg_catalog, public`; anon execute is false; authenticated execute is true. Existing booking/design-request client policies remain SELECT-only, so browser clients still cannot insert or update those rows directly.
 
 **Not yet verified:** End-to-end authenticated booking creation, real concurrency/overlap tests, Edge Function compilation, and Razorpay order expiry behavior. The Edge Function has not been deployed. Booking UI integration remains pending because the artist-facing UI currently depends on artist profile fields absent from the production schema; no fake compatibility data has been introduced.
+
+### Paid booking lifecycle and artist confirmation
+
+A second additive production migration now updates the Razorpay finalizer so a successfully paid cover-charge booking transitions from temporary `held` to durable `pending`, clears `hold_expires_at`, and continues blocking the slot until an artist acts. This avoids the paid appointment silently becoming bookable again after the checkout hold timeout.
+
+Added `public.artist_confirm_booking(uuid)`:
+- Requires an authenticated caller.
+- Verifies the caller owns the active artist attached to the booking.
+- Allows confirmation only for a `pending` booking whose cover charge is paid.
+- Locks the booking row and updates only the valid pending state.
+- Grants execution to authenticated users; anon/public execution is revoked.
+
+Production privilege/search-path verification confirms both booking RPCs are SECURITY DEFINER with `pg_catalog, public` search path, anon denied, authenticated allowed; the payment finalizer remains service-role-only.
+
+**Not yet implemented:** artist decline/cancellation and customer cancellation/refund workflows. Those must be designed with the payment/refund policy rather than silently deleting or cancelling paid bookings.
