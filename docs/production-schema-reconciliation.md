@@ -70,3 +70,9 @@ A read-only review of `supabase/functions/delete-account/index.ts` found it is n
 - It removes memberships even where a lifetime entitlement/payment record may need to be retained for accounting or dispute handling.
 
 **Required implementation:** design deletion as a server-side, auditable, idempotent workflow with a transaction or staged state machine. Resolve legal/financial retention first; preserve required booking/payment records while de-identifying personal fields without violating NOT NULL/FK constraints; clean up conversation/media according to retention rules; revoke sessions; delete auth identity only after all dependent references are handled. Return success only when all mandatory steps complete, and retain retry-safe progress for partial failures. No deletion code or production data was changed in this audit.
+
+### OG badge allocation
+
+The live `artists` table has `city` and `country`, but no Indian state/UT field or OG-award field. The current schema therefore cannot safely implement the agreed first-150-per-state rule.
+
+**Required implementation:** add a normalized state/UT identifier and an immutable OG-award record (or equivalent constrained fields) through an additive migration. Allocation must occur inside a database transaction with a per-state counter/lock and a unique constraint that makes duplicate awards impossible; the database, not the browser, determines eligibility and award order. The first 150 successful allocations for each state/UT are permanent; retries must be idempotent. State values should be normalized against an authoritative India state/UT list before allocation. No OG schema or award was changed in this audit.
