@@ -110,3 +110,5 @@ Added `public.artist_confirm_booking(uuid)`:
 Production privilege/search-path verification confirms both booking RPCs are SECURITY DEFINER with `pg_catalog, public` search path, anon denied, authenticated allowed; the payment finalizer remains service-role-only.
 
 **Not yet implemented:** artist decline/cancellation and customer cancellation/refund workflows. Those must be designed with the payment/refund policy rather than silently deleting or cancelling paid bookings.
+
+The artist dashboard's booking action now calls `artist_confirm_booking` instead of directly updating `bookings.status`. The reject action is temporarily disabled with an explanatory message until a refund-aware decline workflow exists. Supabase client function typings were updated for both booking RPCs.
