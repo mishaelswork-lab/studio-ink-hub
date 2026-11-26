@@ -112,3 +112,11 @@ Production privilege/search-path verification confirms both booking RPCs are SEC
 **Not yet implemented:** artist decline/cancellation and customer cancellation/refund workflows. Those must be designed with the payment/refund policy rather than silently deleting or cancelling paid bookings.
 
 The artist dashboard's booking action now calls `artist_confirm_booking` instead of directly updating `bookings.status`. The reject action is temporarily disabled with an explanatory message until a refund-aware decline workflow exists. Supabase client function typings were updated for both booking RPCs.
+
+### Booking security checks run
+
+- Production catalog check: both booking RPCs are SECURITY DEFINER with the fixed `pg_catalog, public` search path.
+- Privilege check: anon cannot execute either booking RPC; authenticated can. Payment finalization remains service-role-only.
+- Negative SQL checks: unauthenticated invocation of both booking creation and artist confirmation was rejected as expected.
+- Policy check: `bookings` and `design_requests` still expose only participant SELECT policies; no client INSERT/UPDATE policies were introduced.
+- Local build/test execution was attempted but the execution environment could not resolve GitHub, so app/Edge Function compilation and automated tests remain unverified.
