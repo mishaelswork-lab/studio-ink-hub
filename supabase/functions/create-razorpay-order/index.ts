@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
     if (paymentType === "cover_charge") {
       if (!bookingId) return json({ error: "Booking is required" }, 400);
       const { data: booking, error } = await admin.from("bookings")
-        .select("id, customer_id, status, cover_charge_paid")
+        .select("id, customer_id, status, cover_charge_paid, hold_expires_at")
         .eq("id", bookingId).maybeSingle();
       if (error) return json({ error: "Could not verify booking" }, 500);
       if (!booking) return json({ error: "Booking not found" }, 404);
@@ -47,6 +47,9 @@ Deno.serve(async (req) => {
       if (booking.cover_charge_paid) return json({ error: "Booking is already paid" }, 409);
       if (!["held", "awaiting_payment"].includes(booking.status)) {
         return json({ error: "Booking is not awaiting payment" }, 409);
+      }
+      if (!booking.hold_expires_at || Date.parse(booking.hold_expires_at) <= Date.now()) {
+        return json({ error: "Booking hold has expired. Please choose another time." }, 409);
       }
       const base = Number(pricing.cover_charge);
       if (!Number.isSafeInteger(base) || base <= 0) {
@@ -91,6 +94,21 @@ Deno.serve(async (req) => {
     const keySecret = Deno.env.get("RAZORPAY_KEY_SECRET");
     if (!keyId || !keySecret) return json({ error: "Razorpay not configured" }, 503);
 
+    let orderExpiresAt: number | null = null;
+    if (paymentType === "cover_charge" && bookingId) {
+      // Extend the slot hold for the same bounded period as the Razorpay order.
+      orderExpiresAt = Math.floor(Date.now() / 1000) + 15 * 60;
+      const { data: heldBooking, error: holdError } = await admin.from("bookings")
+        .update({ hold_expires_at: new Date(orderExpiresAt * 1000).toISOString() })
+        .eq("id", bookingId).eq("customer_id", user.id)
+        .in("status", ["held", "awaiting_payment"])
+        .gt("hold_expires_at", new Date().toISOString())
+        .select("id").maybeSingle();
+      if (holdError || !heldBooking) {
+        return json({ error: "Booking hold expired. Please choose another time." }, 409);
+      }
+    }
+
     const orderResponse = await fetch("https://api.razorpay.com/v1/orders", {
       method: "POST",
       headers: {
@@ -100,6 +118,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         amount: amountMinor,
         currency: "INR",
+        ...(orderExpiresAt ? { expire_by: orderExpiresAt } : {}),
         notes: { user_id: user.id, payment_type: paymentType, booking_id: bookingId ?? "", artist_id: resolvedArtistId ?? "" },
       }),
     });
