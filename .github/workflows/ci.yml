@@ -62,3 +62,4 @@ jobs:
           deno check supabase/functions/create-booking-hold/index.ts
           deno check supabase/functions/create-razorpay-order/index.ts
           deno check supabase/functions/verify-razorpay-payment/index.ts
+          deno check supabase/functions/delete-account/index.ts
