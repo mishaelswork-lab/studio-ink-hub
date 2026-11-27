@@ -81,16 +81,17 @@ Deno.serve(async (req) => {
     }
 
     // Create artist profile
+    const slugBase = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 48) || "artist";
     const { data: artist, error: artistErr } = await supabaseAdmin.from("artists").insert({
       user_id: userId,
+      slug: slugBase + "-" + userId.slice(0, 8),
       name: name.trim(),
       studio_name: studio_name?.trim() || null,
       specialty: specialty?.trim() || null,
       bio: bio?.trim() || null,
       hourly_rate: rate,
       experience_years: years,
-      portfolio_images: [],
-      application_status: "pending",
+      status: "pending",
       available: false,
     }).select().single();
 
