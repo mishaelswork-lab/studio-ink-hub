@@ -7,37 +7,7 @@ const json = (body: unknown, status = 200) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
-async function removeUserStorage(admin: ReturnType<typeof createClient>, bucket: string, userId: string) {
-  const paths: string[] = [];
-  const walk = async (folder: string): Promise<void> => {
-    let offset = 0;
-    for (;;) {
-      const { data, error } = await admin.storage.from(bucket).list(folder, {
-        limit: 100,
-        offset,
-        sortBy: { column: "name", order: "asc" },
-      });
-      if (error) throw new Error(`Could not enumerate private ${bucket} objects`);
-      const entries = data ?? [];
-      for (const entry of entries) {
-        const path = `${folder}/${entry.name}`;
-        if (entry.id == null && entry.metadata == null) {
-          await walk(path);
-        } else {
-          paths.push(path);
-        }
-      }
-      if (entries.length < 100) break;
-      offset += entries.length;
-    }
-  };
 
-  await walk(userId);
-  for (let i = 0; i < paths.length; i += 100) {
-    const { error } = await admin.storage.from(bucket).remove(paths.slice(i, i + 100));
-    if (error) throw new Error(`Could not remove private ${bucket} objects`);
-  }
-}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -65,6 +35,35 @@ Deno.serve(async (req) => {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
+    const removeUserStorage = async (bucket: string) => {
+      const paths: string[] = [];
+      const walk = async (folder: string): Promise<void> => {
+        let offset = 0;
+        for (;;) {
+          const { data, error } = await admin.storage.from(bucket).list(folder, {
+            limit: 100,
+            offset,
+            sortBy: { column: "name", order: "asc" },
+          });
+          if (error) throw new Error(`Could not enumerate private ${bucket} objects`);
+          const entries = data ?? [];
+          for (const entry of entries) {
+            const path = `${folder}/${entry.name}`;
+            if (entry.id == null && entry.metadata == null) await walk(path);
+            else paths.push(path);
+          }
+          if (entries.length < 100) break;
+          offset += entries.length;
+        }
+      };
+
+      await walk(userId);
+      for (let i = 0; i < paths.length; i += 100) {
+        const { error } = await admin.storage.from(bucket).remove(paths.slice(i, i + 100));
+        if (error) throw new Error(`Could not remove private ${bucket} objects`);
+      }
+    };
+
     // This transaction rechecks active bookings and the last-admin safeguard,
     // anonymises financial references, and removes the account's authored content.
     const { data: prepared, error: prepareError } = await admin.rpc("prepare_account_deletion", {
@@ -89,7 +88,7 @@ Deno.serve(async (req) => {
     // an Auth user while that user still owns Storage objects. A retry is safe:
     // the database preparation is idempotent and the object paths are user-scoped.
     for (const bucket of ["portfolio-private", "portfolio-reels"]) {
-      await removeUserStorage(admin, bucket, userId);
+      await removeUserStorage(bucket);
     }
 
     const { error: deleteError } = await admin.auth.admin.deleteUser(userId);
