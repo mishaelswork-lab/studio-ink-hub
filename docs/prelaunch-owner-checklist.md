@@ -25,7 +25,7 @@ This checklist separates code readiness from external setup. Nothing here author
 
 ## Known launch blockers / owner decisions
 
-- **Artist self-service registration is not implemented in the routed app.** The current admin panel provisions artist accounts; an artist invitation and first-login consent flow should be built before opening artist registration publicly. Never record consent on an artist's behalf.
+- **Artist self-service registration is not implemented in the routed app.** The admin panel currently provisions artist accounts. A first-login artist consent gate now records the artist's own 18+ attestation, Privacy Policy acceptance, and Terms acceptance; a self-service artist application/invitation journey is still required before public artist registration. Never record consent on an artist's behalf.
 - **Edge Functions are not deployed.** Authentication and payment flows that depend on them cannot be considered end-to-end tested.
 - Razorpay sandbox credentials and real Meta professional-account access have not been supplied/tested.
 - No production test users exist, so customer/artist/admin E2E and cross-user authorization journeys remain unverified.
