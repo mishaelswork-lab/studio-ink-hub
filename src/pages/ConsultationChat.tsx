@@ -14,6 +14,13 @@ import { useBlock } from "@/hooks/useBlock";
 
 type DeliveryStatus = "queued" | "sending" | "sent" | "read" | "failed";
 
+const attachmentUrl = (value: unknown): string | null => {
+  if (!Array.isArray(value) || value.length === 0) return null;
+  const first = value[0];
+  if (typeof first !== "object" || first === null || !("url" in first)) return null;
+  return typeof first.url === "string" ? first.url : null;
+};
+
 interface Message {
   id: string;
   sender_id: string;
@@ -61,7 +68,7 @@ const ConsultationChat = () => {
         c.design_request_id
           ? supabase.from("design_requests").select("brief,reference_images").eq("id", c.design_request_id).maybeSingle()
           : Promise.resolve({ data: null }),
-        supabase.from("messages").select("id,sender_id,body,created_at,read_at")
+        supabase.from("messages").select("id,sender_id,body,attachments,created_at,read_at")
           .eq("conversation_id", consultationId).order("created_at", { ascending: true }),
       ]);
       if (!peer) { navigate("/dashboard"); return; }
@@ -69,7 +76,7 @@ const ConsultationChat = () => {
       setConsultation(hydrated);
       setOtherParty({ name: peer.peer_name, display_name: peer.peer_name, avatar_url: peer.peer_avatar_url });
       setMessages((msgs || []).map(m => ({
-        id: m.id, sender_id: m.sender_id || "", message: m.body, image_url: null,
+        id: m.id, sender_id: m.sender_id || "", message: m.body, image_url: attachmentUrl(m.attachments),
         created_at: m.created_at || new Date().toISOString(), read_at: m.read_at,
         _status: (m.sender_id === user.id ? (m.read_at ? "read" : "sent") : "sent") as DeliveryStatus,
       })));
@@ -103,7 +110,7 @@ const ConsultationChat = () => {
 
     const onSent = (e: any) => {
       const { tempId, message: rawMessage } = e.detail;
-      const message: Message = { id: rawMessage.id, sender_id: rawMessage.sender_id || "", message: rawMessage.body, image_url: null, created_at: rawMessage.created_at || new Date().toISOString(), read_at: rawMessage.read_at };
+      const message: Message = { id: rawMessage.id, sender_id: rawMessage.sender_id || "", message: rawMessage.body, image_url: attachmentUrl(rawMessage.attachments), created_at: rawMessage.created_at || new Date().toISOString(), read_at: rawMessage.read_at };
       setMessages(prev => {
         const filtered = prev.filter(m => m._tempId !== tempId);
         if (filtered.some(m => m.id === message.id)) return filtered;
@@ -129,8 +136,8 @@ const ConsultationChat = () => {
         event: "INSERT", schema: "public", table: "messages",
         filter: `conversation_id=eq.${consultationId}`,
       }, (payload) => {
-        const raw = payload.new as { id: string; sender_id: string | null; body: string | null; created_at: string | null; read_at: string | null };
-        const incoming: Message = { id: raw.id, sender_id: raw.sender_id || "", message: raw.body, image_url: null, created_at: raw.created_at || new Date().toISOString(), read_at: raw.read_at };
+        const raw = payload.new as { id: string; sender_id: string | null; body: string | null; attachments: unknown; created_at: string | null; read_at: string | null };
+        const incoming: Message = { id: raw.id, sender_id: raw.sender_id || "", message: raw.body, image_url: attachmentUrl(raw.attachments), created_at: raw.created_at || new Date().toISOString(), read_at: raw.read_at };
         setMessages(prev => {
           if (prev.some(m => m.id === incoming.id)) return prev;
           return [...prev, { ...incoming, _status: "sent" }];
