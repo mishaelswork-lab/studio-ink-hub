@@ -107,7 +107,7 @@ const ConsultationChat = () => {
       setMessages(prev => {
         const filtered = prev.filter(m => m._tempId !== tempId);
         if (filtered.some(m => m.id === message.id)) return filtered;
-        return [...filtered, { ...message, _status: "sent" }].sort(
+        return [...filtered, { ...message, _status: "sent" as DeliveryStatus }].sort(
           (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
         );
       });
