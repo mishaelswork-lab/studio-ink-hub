@@ -36,7 +36,16 @@ const ArtistProfile = () => {
         supabase.from("reviews").select("rating, comment, created_at").eq("artist_id", id).order("created_at", { ascending: false }).limit(10),
         supabase.from("artist_certifications").select("*").eq("artist_id", id).order("created_at", { ascending: false }),
       ]);
-      setDbArtist(art);
+      let publicArtist = art;
+      if (art?.avatar_url) {
+        try {
+          const { getArtistAvatarUrl } = await import("@/lib/portfolioMedia");
+          publicArtist = { ...art, avatar_url: await getArtistAvatarUrl(art.id) };
+        } catch {
+          publicArtist = { ...art, avatar_url: null };
+        }
+      }
+      setDbArtist(publicArtist);
       setReviews(revs || []);
       if (art) {
         const { data: items } = await supabase.from("portfolio_items")
