@@ -24,7 +24,7 @@ type ArtistCertification = Database["public"]["Tables"]["artist_certifications"]
 
 const ArtistProfile = () => {
   const { id } = useParams();
-  const { user } = useAuth();
+  const { user, artistProfile: ownArtistProfile } = useAuth();
   const [dbArtist, setDbArtist] = useState<PublicArtist | null>(null);
   const [reviews, setReviews] = useState<ArtistReview[]>([]);
   const [portfolioItems, setPortfolioItems] = useState<ArtistPortfolioItem[]>([]);
@@ -169,7 +169,7 @@ const ArtistProfile = () => {
                     <Flag className="w-5 h-5 text-muted-foreground" />
                   </button>
                 )}
-                {user && dbArtist?.user_id && dbArtist.user_id !== user.id && (
+                {user && ownArtistProfile?.id !== dbArtist.id && (
                   <button onClick={toggleBlock} disabled={blockLoading} className="p-2 rounded-full hover:bg-card transition-colors" aria-label={isBlocked ? "Unblock this artist" : "Block this artist"} title={isBlocked ? "Unblock" : "Block"}>
                     <Ban className={`w-5 h-5 ${isBlocked ? "text-destructive" : "text-muted-foreground"}`} />
                   </button>
