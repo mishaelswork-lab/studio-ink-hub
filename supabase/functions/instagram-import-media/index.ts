@@ -115,7 +115,45 @@ Deno.serve(async (req) => {
       try { return normalizePermalink(item.permalink) === permalink; } catch { return false; }
     });
     if (!media) throw new Error("This post was not found in the connected Instagram account. Only media owned by that account can be imported.");
-    if (!["IMAGE","VIDEO"].includes(media.media_type)) throw new Error("Carousel posts are not supported yet. Import individual photo posts instead.");
+    if (media.media_type === "CAROUSEL_ALBUM") {
+      const childrenUrl = new URL(`https://graph.instagram.com/${encodeURIComponent(media.id)}/children`);
+      childrenUrl.searchParams.set("fields", "id,media_type,media_url");
+      childrenUrl.searchParams.set("limit", "50");
+      childrenUrl.searchParams.set("access_token", token);
+      const childrenResponse = await fetch(childrenUrl);
+      if (!childrenResponse.ok) throw new Error("Could not read photos in this Instagram carousel");
+      const children = await childrenResponse.json();
+      const photos = (Array.isArray(children.data) ? children.data : []).filter((item: any) => item.media_type === "IMAGE" && typeof item.media_url === "string");
+      if (!photos.length) throw new Error("This carousel has no importable photos");
+      const imported: { item_id: string; media_type: "photo" }[] = [];
+      for (const photo of photos) {
+        const { data: duplicatePhoto } = await admin.from("portfolio_items").select("id")
+          .eq("artist_id", artistId).eq("instagram_media_id", photo.id).maybeSingle();
+        if (duplicatePhoto) continue;
+        let path: string | null = null;
+        try {
+          const image = await downloadMedia(photo.media_url, 5 * 1024 * 1024, ["image/jpeg","image/png","image/webp"]);
+          path = `${artist.user_id}/${artist.id}/${crypto.randomUUID()}.${extension(image.mime)}`;
+          const { error: storageError } = await admin.storage.from("portfolio-private").upload(path, image.bytes, { contentType: image.mime, upsert: false, cacheControl: "3600" });
+          if (storageError) continue;
+          const caption = captionOverride ?? (typeof media.caption === "string" ? media.caption.slice(0, 2200) : null);
+          const { data: row, error: insertError } = await admin.from("portfolio_items").insert({
+            artist_id: artistId, media_url: path, media_type: "image", caption,
+            source_url: permalink, instagram_media_id: photo.id, approved: false,
+          }).select("id").single();
+          if (insertError || !row) {
+            await admin.storage.from("portfolio-private").remove([path]);
+            continue;
+          }
+          imported.push({ item_id: row.id, media_type: "photo" });
+        } catch {
+          if (path) await admin.storage.from("portfolio-private").remove([path]);
+        }
+      }
+      if (!imported.length) return json({ success: true, duplicate: true, items: [] });
+      return json({ success: true, media_type: "photo", items: imported, moderation_status: "pending" });
+    }
+    if (!["IMAGE","VIDEO"].includes(media.media_type)) throw new Error("This Instagram post type is not supported for portfolio import.");
     const isVideo = media.media_type === "VIDEO";
     const { data: duplicate } = isVideo
       ? await admin.from("reels").select("id").eq("artist_id", artistId).eq("instagram_media_id", media.id).maybeSingle()
@@ -153,7 +191,7 @@ Deno.serve(async (req) => {
         if (thumbnailPath) await admin.storage.from("portfolio-private").remove([thumbnailPath]);
         throw new Error("Could not save Reel submission");
       }
-      return json({ success: true, media_type: "reel", item_id: inserted.id, moderation_status: "pending" });
+      return json({ success: true, media_type: "reel", item_id: inserted.id, items: [{ item_id: inserted.id, media_type: "reel" }], moderation_status: "pending" });
     }
     const { data: inserted, error } = await admin.from("portfolio_items").insert({
       artist_id: artistId, media_url: objectPath, media_type: "image",
@@ -163,7 +201,7 @@ Deno.serve(async (req) => {
       await admin.storage.from(bucket).remove([objectPath]);
       throw new Error("Could not save photo submission");
     }
-    return json({ success: true, media_type: "photo", item_id: inserted.id, moderation_status: "pending" });
+    return json({ success: true, media_type: "photo", item_id: inserted.id, items: [{ item_id: inserted.id, media_type: "photo" }], moderation_status: "pending" });
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : "Instagram import failed" }, 400);
   }
