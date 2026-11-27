@@ -143,8 +143,8 @@ const ConsultationChat = () => {
         }
       })
       .on("postgres_changes", {
-        event: "UPDATE", schema: "public", table: "consultation_messages",
-        filter: `consultation_id=eq.${consultationId}`,
+        event: "UPDATE", schema: "public", table: "messages",
+        filter: `conversation_id=eq.${consultationId}`,
       }, (payload) => {
         const updated = payload.new as { id: string; read_at: string | null };
         setMessages(prev => prev.map(m =>
@@ -162,7 +162,7 @@ const ConsultationChat = () => {
     if (!user || !consultationId || loading) return;
     const markRead = async () => {
       if (document.visibilityState !== "visible") return;
-      await supabase.from("consultation_messages")
+      await supabase.from("messages")
         .update({ read_at: new Date().toISOString() })
         .eq("conversation_id", consultationId)
         .neq("sender_id", user.id)
