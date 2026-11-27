@@ -1,55 +1,34 @@
-// Unified media upload: prefers AWS S3 (served via CloudFront) to keep
-// Cloud egress costs down, falls back to Supabase Storage when the S3
-// edge function is not configured.
 import { supabase } from "@/integrations/supabase/client";
 import { logUsage } from "@/lib/usage";
 
-export type UploadFolder = "portfolio" | "reels" | "avatars";
+export type UploadFolder = "portfolio";
 
-const extOf = (file: File) => {
-  const fromName = file.name.split(".").pop()?.toLowerCase();
-  if (fromName && fromName.length <= 5) return fromName;
-  return file.type.split("/")[1] || "bin";
+const extensionByType: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
 };
 
-async function s3Upload(file: File, folder: UploadFolder, ownerId: string): Promise<string | null> {
-  try {
-    const { data, error } = await supabase.functions.invoke("s3-presign", {
-      body: {
-        folder,
-        ownerId,
-        filename: `${Date.now()}.${extOf(file)}`,
-        contentType: file.type || "application/octet-stream",
-      },
-    });
-    if (error || !data?.uploadUrl || !data?.publicUrl) return null;
+/**
+ * Upload portfolio media to private storage. The returned value is an object
+ * path, never a public URL. Public delivery is handled by get-portfolio-media.
+ */
+export async function uploadMedia(file: File, folder: UploadFolder, artistId: string): Promise<string> {
+  if (folder !== "portfolio") throw new Error("Unsupported upload category");
+  if (!extensionByType[file.type]) throw new Error("Only JPEG, PNG, and WebP images are allowed");
+  if (file.size <= 0 || file.size > 5 * 1024 * 1024) throw new Error("Image must be 5MB or smaller");
 
-    const put = await fetch(data.uploadUrl, {
-      method: "PUT",
-      headers: { "Content-Type": file.type || "application/octet-stream" },
-      body: file,
-    });
-    if (!put.ok) return null;
+  const { data: auth, error: authError } = await supabase.auth.getUser();
+  if (authError || !auth.user) throw new Error("Sign in required");
+  const objectPath = `${auth.user.id}/${artistId}/${crypto.randomUUID()}.${extensionByType[file.type]}`;
 
-    logUsage("media", "s3-upload", { folder, size: file.size, type: file.type });
-    return data.publicUrl as string;
-  } catch {
-    return null;
-  }
-}
-
-async function supabaseUpload(file: File, folder: UploadFolder, ownerId: string): Promise<string> {
-  const path = `${folder}/${ownerId}/${Date.now()}.${extOf(file)}`;
-  const { error } = await supabase.storage.from("reels-videos").upload(path, file);
+  const { error } = await supabase.storage.from("portfolio-private").upload(objectPath, file, {
+    contentType: file.type,
+    upsert: false,
+    cacheControl: "3600",
+  });
   if (error) throw error;
-  const { data } = supabase.storage.from("reels-videos").getPublicUrl(path);
-  logUsage("media", "supabase-upload", { folder, size: file.size, type: file.type });
-  return data.publicUrl;
-}
 
-/** Upload a file and return its public URL (CloudFront when S3 is configured). */
-export async function uploadMedia(file: File, folder: UploadFolder, ownerId: string): Promise<string> {
-  const s3 = await s3Upload(file, folder, ownerId);
-  if (s3) return s3;
-  return supabaseUpload(file, folder, ownerId);
+  logUsage("media", "private-portfolio-upload", { size: file.size, type: file.type });
+  return objectPath;
 }
