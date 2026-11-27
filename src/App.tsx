@@ -15,6 +15,7 @@ const BookingPage = lazy(() => import("./pages/BookingPage"));
 const AIConsultant = lazy(() => import("./pages/AIConsultant"));
 const DiscoverPage = lazy(() => import("./pages/DiscoverPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
+const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 const ArtistLogin = lazy(() => import("./pages/ArtistLogin"));
 const ArtistDashboard = lazy(() => import("./pages/ArtistDashboard"));
 const ArtistProfileEditor = lazy(() => import("./pages/ArtistProfileEditor"));
