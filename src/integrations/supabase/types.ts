@@ -79,73 +79,67 @@ export type Database = {
       }
       artists: {
         Row: {
-          application_status: string
-          availability_hours: Json | null
-          available: boolean | null
-          avatar_url: string | null
-          bio: string | null
-          created_at: string
-          experience_years: number | null
-          hourly_rate: number
           id: string
-          instagram_url: string | null
-          name: string
-          portfolio_images: string[] | null
-          rating: number | null
-          rejection_reason: string | null
-          reviewed_at: string | null
-          reviewed_by: string | null
-          specialty: string | null
-          studio_name: string | null
-          submitted_at: string
-          updated_at: string
           user_id: string
+          slug: string
+          bio: string | null
+          styles: string[] | null
+          studio_name: string | null
+          city: string | null
+          country: string | null
+          currency: string | null
+          status: string | null
+          verified_at: string | null
+          created_at: string | null
+          name: string | null
+          specialty: string | null
+          hourly_rate: number
+          experience_years: number
+          avatar_url: string | null
+          available: boolean
+          rejection_reason: string | null
         }
         Insert: {
-          application_status?: string
-          availability_hours?: Json | null
-          available?: boolean | null
-          avatar_url?: string | null
-          bio?: string | null
-          created_at?: string
-          experience_years?: number | null
-          hourly_rate?: number
           id?: string
-          instagram_url?: string | null
-          name: string
-          portfolio_images?: string[] | null
-          rating?: number | null
-          rejection_reason?: string | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          specialty?: string | null
-          studio_name?: string | null
-          submitted_at?: string
-          updated_at?: string
           user_id: string
+          slug: string
+          bio?: string | null
+          styles?: string[] | null
+          studio_name?: string | null
+          city?: string | null
+          country?: string | null
+          currency?: string | null
+          status?: string | null
+          verified_at?: string | null
+          created_at?: string | null
+          name?: string | null
+          specialty?: string | null
+          hourly_rate?: number
+          experience_years?: number
+          avatar_url?: string | null
+          available?: boolean
+          rejection_reason?: string | null
         }
         Update: {
-          application_status?: string
-          availability_hours?: Json | null
-          available?: boolean | null
-          avatar_url?: string | null
-          bio?: string | null
-          created_at?: string
-          experience_years?: number | null
-          hourly_rate?: number
           id?: string
-          instagram_url?: string | null
-          name?: string
-          portfolio_images?: string[] | null
-          rating?: number | null
-          rejection_reason?: string | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          specialty?: string | null
-          studio_name?: string | null
-          submitted_at?: string
-          updated_at?: string
           user_id?: string
+          slug?: string
+          bio?: string | null
+          styles?: string[] | null
+          studio_name?: string | null
+          city?: string | null
+          country?: string | null
+          currency?: string | null
+          status?: string | null
+          verified_at?: string | null
+          created_at?: string | null
+          name?: string | null
+          specialty?: string | null
+          hourly_rate?: number
+          experience_years?: number
+          avatar_url?: string | null
+          available?: boolean
+          rejection_reason?: string | null
         }
         Relationships: []
       }
@@ -845,6 +839,85 @@ export type Database = {
           value?: Json
         }
         Relationships: []
+      }
+      portfolio_items: {
+        Row: {
+          id: string
+          artist_id: string
+          media_url: string
+          media_type: string | null
+          caption: string | null
+          source_url: string | null
+          approved: boolean | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          artist_id: string
+          media_url: string
+          media_type?: string | null
+          caption?: string | null
+          source_url?: string | null
+          approved?: boolean | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          artist_id?: string
+          media_url?: string
+          media_type?: string | null
+          caption?: string | null
+          source_url?: string | null
+          approved?: boolean | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portfolio_items_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      artist_availability: {
+        Row: {
+          id: string
+          artist_id: string
+          weekday: number
+          start_time: string
+          end_time: string
+          timezone: string | null
+          is_active: boolean | null
+        }
+        Insert: {
+          id?: string
+          artist_id: string
+          weekday: number
+          start_time: string
+          end_time: string
+          timezone?: string | null
+          is_active?: boolean | null
+        }
+        Update: {
+          id?: string
+          artist_id?: string
+          weekday?: number
+          start_time?: string
+          end_time?: string
+          timezone?: string | null
+          is_active?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artist_availability_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
