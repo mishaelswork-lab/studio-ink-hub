@@ -87,6 +87,7 @@ const ArtistDashboard = () => {
   const [payments, setPayments] = useState<any[]>([]);
   const [consultations, setConsultations] = useState<any[]>([]);
   const [certs, setCerts] = useState<any[]>([]);
+  const [portfolioImages, setPortfolioImages] = useState<string[]>([]);
   const [newCert, setNewCert] = useState({ name: "", issuing_body: "", url: "" });
   const [availability, setAvailability] = useState<AvailabilityHours>(defaultHours);
   const [savingHours, setSavingHours] = useState(false);
@@ -106,8 +107,19 @@ const ArtistDashboard = () => {
       setPayments(paymentsRes.data || []);
       setConsultations(consultationsRes.data || []);
       setCerts(certsRes.data || []);
-      if (artistProfile.availability_hours) {
-        setAvailability(artistProfile.availability_hours as AvailabilityHours);
+      const [{ data: portfolioRows }, { data: hoursRows }] = await Promise.all([
+        supabase.from("portfolio_items").select("media_url").eq("artist_id", artistProfile.id).order("created_at", { ascending: false }),
+        supabase.from("artist_availability").select("weekday,start_time,end_time,is_active").eq("artist_id", artistProfile.id),
+      ]);
+      setPortfolioImages((portfolioRows || []).map(item => item.media_url));
+      if (hoursRows) {
+        const dayNames = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
+        const next = { ...defaultHours };
+        for (const row of hoursRows) {
+          const day = dayNames[row.weekday];
+          if (day) next[day] = { start: row.start_time.slice(0,5), end: row.end_time.slice(0,5), off: !row.is_active };
+        }
+        setAvailability(next);
       }
     };
     fetchData();
@@ -179,13 +191,12 @@ const ArtistDashboard = () => {
     if (!artistProfile) return;
     const ok = await moderate(url);
     if (!ok) return;
-    const currentImages = artistProfile.portfolio_images || [];
-    const { error } = await supabase.from("artists").update({
-      portfolio_images: [...currentImages, url],
-    }).eq("id", artistProfile.id);
+    const { error } = await supabase.from("portfolio_items").insert({
+      artist_id: artistProfile.id, media_url: url, media_type: "image", caption, source_url: url, approved: false,
+    });
     if (error) { toast.error("Failed to import"); return; }
-    toast.success("Portfolio photo added from Instagram!");
-    artistProfile.portfolio_images = [...currentImages, url];
+    setPortfolioImages(prev => [url, ...prev]);
+    toast.success("Portfolio photo submitted for review");
   };
 
   const handlePortfolioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -206,20 +217,19 @@ const ArtistDashboard = () => {
     const ok = await moderate(publicUrl);
     if (!ok) return;
 
-    const currentImages = artistProfile.portfolio_images || [];
-    const { error } = await supabase.from("artists").update({
-      portfolio_images: [...currentImages, publicUrl],
-    }).eq("id", artistProfile.id);
+    const { error } = await supabase.from("portfolio_items").insert({
+      artist_id: artistProfile.id, media_url: publicUrl, media_type: "image", approved: false,
+    });
     if (error) { toast.error("Failed to save"); return; }
-    artistProfile.portfolio_images = [...currentImages, publicUrl];
-    toast.success("Photo added to portfolio!");
+    setPortfolioImages(prev => [publicUrl, ...prev]);
+    toast.success("Photo submitted for portfolio review");
   };
 
 
   const handleSaveAvailability = async () => {
     if (!artistProfile) return;
     setSavingHours(true);
-    const { error } = await supabase.from("artists").update({ availability_hours: availability as any }).eq("id", artistProfile.id);
+    const { error } = await supabase.rpc("artist_replace_weekly_availability", { p_schedule: availability as any });
     setSavingHours(false);
     if (error) { toast.error("Failed to save"); return; }
     toast.success("Availability updated!");
@@ -334,7 +344,7 @@ const ArtistDashboard = () => {
               </div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {(artistProfile.portfolio_images || []).map((img: string, i: number) => (
+              {portfolioImages.map((img: string, i: number) => (
                 <div key={i} className="aspect-square rounded-lg overflow-hidden border border-border">
                   <img src={img} alt={`Work ${i + 1}`} loading="lazy" decoding="async" width={600} height={600} className="w-full h-full object-cover" />
                 </div>
