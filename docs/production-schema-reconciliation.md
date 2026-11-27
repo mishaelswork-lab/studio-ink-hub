@@ -215,3 +215,22 @@ Updated the workflow to run `npm install --package-lock-only --ignore-scripts --
 ### Public artist profile compatibility
 
 After removing public SELECT access to `artists.user_id`, the public artist profile query was changed from `select(*)` to an explicit public-column projection. The public page no longer subscribes to full-row realtime updates, which could otherwise expose non-public columns in row payloads. The block control currently depends on the private owner ID and therefore remains unavailable on that public page until a safe artist-ID-based block RPC is implemented.
+
+
+### Private portfolio storage — first implementation slice — 27 November 2026
+
+**Production bucket created:** `portfolio-private`, private (not public), 5 MiB maximum object size, allowed MIME types JPEG/PNG/WebP. No public read policy exists.
+
+**Owner-scoped object policies:** authenticated insert, read and delete are limited to paths `<auth.uid>/<artist.id>/<random-file>` and require the artist row to belong to the authenticated user. A policy qualification ambiguity was caught during verification and corrected immediately; the final catalog check shows the artist relation compares against `storage.objects.name`. The bucket is private throughout.
+
+**Branch implementation:**
+- Replaced the old S3/public CloudFront and public Supabase fallback uploader with a private Supabase Storage uploader that enforces MIME type and 5 MiB size client-side; server bucket limits remain authoritative.
+- Added `get-portfolio-media` Edge Function. It verifies JWTs when present, permits anonymous access only to approved media for active artists, permits owners to access their own pending media, permits admins via database role, validates the object path, and issues a 120-second signed URL.
+- Added `src/lib/portfolioMedia.ts` signed URL helper.
+- Updated artist dashboard to create pending portfolio rows, resolve signed media for moderation, and clean up object/row when moderation or media delivery fails.
+- Updated public artist profile to resolve only approved portfolio media through the signed-media function.
+- Direct Instagram photo URL import is temporarily disabled; importing remote URLs directly into a private media table would bypass the storage boundary.
+
+**Not yet complete / important blocker:** the signed-media Edge Function has not been deployed. Until it is deployed and verified, portfolio uploads intentionally fail closed and public portfolio images will not resolve. Do not re-enable public CDN URLs as a fallback. Edge Function deployment requires separate approval and secret/runtime verification. No actual user media has been uploaded or modified.
+
+**Verification:** production bucket configuration and policy catalog reviewed; internal artist owner ID and portfolio source URL grants remain zero for anon/authenticated. No authenticated storage upload/read/delete test has been run yet.
