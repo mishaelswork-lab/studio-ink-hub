@@ -28,20 +28,31 @@ const ArtistChatsPage = () => {
     else setLoadingMore(true);
 
     try {
+      const { data: artistRows, error: artistError } = await supabase.rpc("get_my_artist_profile");
+      if (artistError) throw artistError;
+      const artistId = artistRows?.[0]?.id;
+      if (!artistId) { setChats([]); setHasMore(false); return; }
       const { data: cs, error: e1 } = await supabase
-        .from("consultations")
-        .select("*")
-        .eq("artist_id", user.id)
-        .order("updated_at", { ascending: false })
+        .from("conversations")
+        .select("id,customer_id,artist_id,design_request_id,created_at")
+        .eq("artist_id", artistId)
+        .order("created_at", { ascending: false })
         .range(from, to);
       if (e1) throw e1;
       const list = cs || [];
       const customerIds = Array.from(new Set(list.map((c: any) => c.customer_id))).filter(Boolean);
-      const { data: profiles } = customerIds.length
-        ? await supabase.from("profiles").select("user_id,display_name,avatar_url").in("user_id", customerIds)
-        : { data: [] as any[] };
-      const byUser = new Map((profiles || []).map((p: any) => [p.user_id, p]));
-      const hydrated = list.map((c: any) => ({ ...c, customer: byUser.get(c.customer_id) }));
+      const requestIds = Array.from(new Set(list.map((c: any) => c.design_request_id))).filter(Boolean);
+      const [{ data: profiles }, { data: requests }] = await Promise.all([
+        customerIds.length
+          ? supabase.from("profiles").select("id,display_name,avatar_url").in("id", customerIds)
+          : Promise.resolve({ data: [] as any[] }),
+        requestIds.length
+          ? supabase.from("design_requests").select("id,brief,status").in("id", requestIds)
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+      const byCustomer = new Map((profiles || []).map((p: any) => [p.id, p]));
+      const byRequest = new Map((requests || []).map((r: any) => [r.id, r]));
+      const hydrated = list.map((c: any) => ({ ...c, customer: byCustomer.get(c.customer_id), request: byRequest.get(c.design_request_id) }));
       setChats(prev => reset ? hydrated : [...prev, ...hydrated]);
       setHasMore(list.length === PAGE);
       pageRef.current += 1;
@@ -107,9 +118,9 @@ const ArtistChatsPage = () => {
                 <img src={c.customer?.avatar_url || "https://via.placeholder.com/44"} alt={c.customer?.display_name || "Customer"} className="w-11 h-11 rounded-full object-cover border border-gold/20" />
                 <div className="flex-1 min-w-0">
                   <p className="text-foreground text-sm font-medium truncate">{c.customer?.display_name || "Customer"}</p>
-                  <p className="text-muted-foreground text-xs truncate">{c.design_description || "Design consultation"}</p>
+                  <p className="text-muted-foreground text-xs truncate">{c.request?.brief || "Design consultation"}</p>
                 </div>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full ${c.status === "active" ? "bg-emerald-500/10 text-emerald-400" : c.status === "pending" ? "bg-gold/10 text-gold" : "bg-primary/10 text-primary"}`}>{c.status}</span>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full ${c.status === "active" ? "bg-emerald-500/10 text-emerald-400" : c.status === "pending" ? "bg-gold/10 text-gold" : "bg-primary/10 text-primary"}`}>{c.request?.status || "open"}</span>
               </Link>
             ))}
             <div ref={sentinelRef} className="py-4 flex justify-center">
