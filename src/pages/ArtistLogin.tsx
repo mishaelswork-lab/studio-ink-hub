@@ -290,8 +290,8 @@ const ArtistLogin = () => {
         <div className="mt-6 pt-6 border-t border-border text-center">
           <Link to="/login" className="text-sm text-muted-foreground hover:text-gold transition-colors">← Customer Login</Link>
         </div>
+        </div>
       )}
-      </div>
     </div>
   );
 };
