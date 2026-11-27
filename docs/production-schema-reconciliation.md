@@ -120,3 +120,28 @@ The artist dashboard's booking action now calls `artist_confirm_booking` instead
 - Negative SQL checks: unauthenticated invocation of both booking creation and artist confirmation was rejected as expected.
 - Policy check: `bookings` and `design_requests` still expose only participant SELECT policies; no client INSERT/UPDATE policies were introduced.
 - Local build/test execution was attempted but the execution environment could not resolve GitHub, so app/Edge Function compilation and automated tests remain unverified.
+
+## Artist schema reconciliation — 27 November 2026
+
+Production schema was confirmed to use `artists.status` (`pending`, `active`, `suspended`), `portfolio_items`, and `artist_availability`. The previous frontend expected legacy `application_status`, `portfolio_images`, and `availability_hours`; these legacy fields do not exist in production. No production artist rows existed during the audit.
+
+Additive production changes:
+- Added artist display/profile fields required by the current UI: `name`, `specialty`, `hourly_rate`, `experience_years`, `avatar_url`, and `available`, with rate/experience constraints.
+- Added owner-scoped `artist_update_own_profile`, `artist_set_availability`, and `artist_replace_weekly_availability` SECURITY DEFINER RPCs. These use `auth.uid()`, fixed search paths, and authenticated-only execution.
+- Added owner-scoped read/insert/delete policies for portfolio items. New portfolio items use the database default `approved=false`; artists cannot approve their own media.
+- Added owner read policy for weekly availability.
+- Added `get_my_artist_profile()` so the app can fetch the current artist record without exposing `artists.user_id` to clients.
+- Removed SELECT privilege on `artists.user_id` for both anon and authenticated roles. Verified both are false.
+- Added admin-only read policies for artist applications and portfolio items.
+- Added `admin_review_artist` and `artist_resubmit_application`. Approval requires at least two portfolio items, approves the submitted portfolio set, marks the artist active but not available, and writes an admin audit entry. Rejection requires a reason and marks the artist suspended/hidden. Resubmission is owner-only.
+- Added private `admin_audit_log` because this production table did not exist; admin reads are role-scoped and clients cannot write audit rows.
+- Updated artist profile, dashboard, auth context, admin review UI, and admin-add-artist function to use the canonical schema. Admin artist creation now creates the required `profiles` row explicitly because production has no auth.users profile-creation trigger.
+
+Production checks:
+- Artist owner/profile/availability/review RPCs are SECURITY DEFINER with `pg_catalog, public` search path; anon execution is denied and authenticated execution is granted only where intended.
+- Artist owner ID column is not selectable by anon or authenticated clients.
+- Artist and portfolio RLS policies are in place; artist approval is no longer a direct client table update.
+- The security advisor still reports five intentionally closed tables and warns about authenticated-executable SECURITY DEFINER RPCs. These RPCs are intentional narrowly scoped workflows with explicit owner/admin checks and fixed search paths; the advisor is a generic warning, not a passing security certification.
+- Production currently has zero admin-role assignments and zero artist rows. Admin approval flow cannot be exercised until an authorized admin role is provisioned and a test artist account exists.
+
+Not tested: web build, TypeScript, lint, browser/device journeys, authenticated owner RPC end-to-end, admin review end-to-end, media upload/storage privacy. Edge Functions remain undeployed.
