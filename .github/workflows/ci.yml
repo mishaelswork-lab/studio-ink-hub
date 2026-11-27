@@ -1,4 +1,4 @@
-name: ArtSpace CI # includes safe account deletion checks
+name: ArtSpace CI # final verification after account deletion and booking-link hardening
 
 on:
   push:
