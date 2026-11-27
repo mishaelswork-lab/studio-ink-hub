@@ -32,17 +32,6 @@ const ArtistLogin = () => {
         toast.error("This account is not registered as an artist.");
         return false;
       }
-      const { data: consents, error: consentError } = await supabase
-        .from("consent_records")
-        .select("purpose")
-        .eq("user_id", user.id)
-        .in("purpose", ["personal_data_processing", "terms_of_service"]);
-      const recordedPurposes = new Set((consents ?? []).map((record) => record.purpose));
-      if (consentError || !recordedPurposes.has("personal_data_processing") || !recordedPurposes.has("terms_of_service")) {
-        await supabase.auth.signOut();
-        toast.error("Please complete customer account registration and consent before using the artist portal.");
-        return false;
-      }
       return true;
     } catch {
       return false;
