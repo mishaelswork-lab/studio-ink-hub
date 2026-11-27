@@ -66,10 +66,11 @@ export async function fetchPlatformSettings(): Promise<PlatformSettings> {
   if (error) throw error;
   const merged = structuredClone(DEFAULT_SETTINGS);
   const groups = data?.settings && typeof data.settings === "object" ? data.settings : {};
+  const target = merged as unknown as Record<keyof PlatformSettings, Record<string, unknown>>;
   for (const key of Object.keys(merged) as (keyof PlatformSettings)[]) {
     const value = groups[key];
     if (value && typeof value === "object" && !Array.isArray(value)) {
-      merged[key] = { ...merged[key], ...value } as PlatformSettings[typeof key];
+      target[key] = { ...target[key], ...(value as Record<string, unknown>) };
     }
   }
   return merged;
