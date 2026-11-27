@@ -33,6 +33,7 @@ Supabase provides `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROL
 - Single photos and multi-photo carousel posts become pending `portfolio_items`; Instagram videos/Reels become pending `reels`. Neither is public before moderation/approval.
 - Signed media endpoints issue short-lived URLs and check owner, admin, and approved-public access.
 - Duplicate Instagram media IDs are blocked by database unique indexes.
+- Meta may omit `media_url` for copyrighted or restricted media (including some Reels with copyrighted audio); those items cannot be copied through this API and must use the manual upload fallback.
 
 ## Not yet launch-ready
 
