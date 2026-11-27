@@ -1,7 +1,7 @@
 import { QuotesLoader } from "@/components/QuotesLoader";
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Camera, ArrowLeft, Mail, Phone, User as UserIcon, Heart, Star, Trash2, Gauge } from "lucide-react";
+import { Camera, ArrowLeft, Mail, Phone, User as UserIcon, Heart, Trash2, Gauge } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Navbar } from "@/components/layout/Navbar";
@@ -193,7 +193,7 @@ const ProfilePage = () => {
               </div>
               <div>
                 <label className="text-sm text-muted-foreground flex items-center gap-1.5 mb-1.5"><Phone className="w-3.5 h-3.5" /> Phone</label>
-                <Input value={profile?.phone || user?.phone || "Not set"} readOnly className="bg-card opacity-70 cursor-not-allowed" />
+                <Input value={user?.phone || "Not set"} readOnly className="bg-card opacity-70 cursor-not-allowed" />
               </div>
             </div>
 
@@ -259,9 +259,7 @@ const ProfilePage = () => {
                       <Link to={`/artist/${artist.id}`} className="text-foreground font-medium hover:text-gold transition-colors">{artist.name}</Link>
                       <p className="text-muted-foreground text-xs">{artist.specialty} · {artist.studio_name}</p>
                       <div className="flex items-center gap-1 mt-1">
-                        <Star className="w-3 h-3 fill-gold text-gold" />
-                        <span className="text-xs text-foreground">{artist.rating}</span>
-                        <span className="text-xs text-muted-foreground ml-2">₹{artist.hourly_rate}/hr</span>
+                        <span className="text-xs text-muted-foreground">₹{artist.hourly_rate}/hr</span>
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -299,7 +297,7 @@ const ProfilePage = () => {
                 {favDesigns.length === 0 && <p className="text-muted-foreground text-sm">No saved designs.</p>}
                 {favDesigns.map(d => (
                   <div key={d.id} className="break-inside-avoid mb-3 relative group rounded-lg overflow-hidden border border-border">
-                    <img src={d.thumb_url || d.image_url} alt={d.description || "Tattoo design"} loading="lazy" className="w-full" />
+                    <img src={d.image_url} alt={d.description || "Tattoo design"} loading="lazy" className="w-full" />
                     <button onClick={() => removeFavorite("design", d.id)} className="absolute top-2 right-2 bg-black/50 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Trash2 className="w-3.5 h-3.5 text-white" />
                     </button>
