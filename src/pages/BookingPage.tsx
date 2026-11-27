@@ -8,8 +8,6 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
-import { useMembership } from "@/hooks/useMembership";
-import { Crown } from "lucide-react";
 
 declare global {
   interface Window {
@@ -21,13 +19,9 @@ const BookingPage = () => {
   const { artistId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { isMember } = useMembership();
   const [dbArtist, setDbArtist] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
-  const [referralCode, setReferralCode] = useState("");
-  const [referralDiscount, setReferralDiscount] = useState(0);
-  const [referralChecked, setReferralChecked] = useState(false);
   const [form, setForm] = useState({
     serviceType: "Tattoo", date: "", time: "", style: "", placement: "", size: "Medium", description: "",
   });
@@ -35,7 +29,7 @@ const BookingPage = () => {
   useEffect(() => {
     if (!artistId) { setLoading(false); return; }
     const fetchArtist = async () => {
-      const { data } = await supabase.from("artists").select("*").eq("id", artistId).eq("application_status", "approved").eq("available", true).maybeSingle();
+      const { data } = await supabase.from("artists").select("*").eq("id", artistId).eq("status", "active").eq("available", true).maybeSingle();
       setDbArtist(data);
       setLoading(false);
     };
@@ -56,31 +50,6 @@ const BookingPage = () => {
   const artistRate = artist.hourly_rate;
   const artistStudio = artist.studio_name;
   const artistDbId = dbArtist?.id;
-
-  const applyReferral = async () => {
-    if (!referralCode.trim() || !user) return;
-    const { data } = await supabase
-      .from("referrals")
-      .select("*")
-      .eq("referral_code", referralCode.trim().toUpperCase())
-      .eq("used", false)
-      .maybeSingle();
-
-    if (data && data.referrer_id !== user.id) {
-      setReferralDiscount(data.discount_amount);
-      setReferralChecked(true);
-      toast.success(`₹${data.discount_amount} discount applied!`);
-    } else if (data && data.referrer_id === user.id) {
-      toast.error("You cannot use your own referral code");
-      setReferralChecked(true);
-    } else {
-      toast.error("Invalid or already used referral code");
-      setReferralChecked(true);
-    }
-  };
-
-  const baseCover = isMember ? 250 : 500;
-  const coverCharge = Math.max(0, baseCover - referralDiscount);
 
   const sendPushNotification = (title: string, body: string) => {
     if ("Notification" in window && Notification.permission === "granted") {
@@ -118,45 +87,46 @@ const BookingPage = () => {
     setPaying(true);
 
     try {
-      const { data: booking, error: bookingErr } = await supabase.from("bookings").insert({
-        customer_id: user.id,
-        artist_id: artistDbId,
-        customer_name: user.user_metadata?.display_name || user.email || "Customer",
-        date: form.date,
-        time: form.time,
-        style: `[${form.serviceType}] ${form.style}`,
-        placement: form.placement,
-        size: form.size,
-        description: form.description,
-        total_estimate: artistRate * 2,
-      }).select().single();
+      // Convert the selected India-local appointment time to an explicit
+      // offset timestamp. The database RPC validates availability and creates
+      // a short-lived, idempotent hold; clients must not insert bookings directly.
+      const match = form.time.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+      if (!match) throw new Error("Please select a valid appointment time");
+      let hour = Number(match[1]) % 12;
+      if (match[3].toUpperCase() === "PM") hour += 12;
+      const localStart = new Date(`${form.date}T${String(hour).padStart(2, "0")}:${match[2]}:00+05:30`);
+      if (Number.isNaN(localStart.getTime()) || localStart.getTime() <= Date.now()) {
+        throw new Error("Please choose a future appointment time");
+      }
+      const localEnd = new Date(localStart.getTime() + 2 * 60 * 60 * 1000);
+      const bookingBrief = `${form.style.trim()} — ${form.description.trim()}`;
+      if (bookingBrief.trim().length < 10 || bookingBrief.length > 4000) {
+        throw new Error("Please provide at least 10 characters describing your design");
+      }
+      const { data: holdRows, error: bookingErr } = await supabase.rpc("create_booking_hold", {
+        p_artist_id: artistDbId,
+        p_starts_at: localStart.toISOString(),
+        p_ends_at: localEnd.toISOString(),
+        p_service_type: form.serviceType,
+        p_brief: bookingBrief,
+        p_placement: form.placement,
+        p_size_description: form.size,
+        p_idempotency_key: crypto.randomUUID(),
+      });
 
       if (bookingErr) throw bookingErr;
-
-      // Referral discounts are validated and consumed server-side when the
-      // payment is settled — the browser only supplies the code the user typed.
+      const booking = Array.isArray(holdRows) ? holdRows[0] : holdRows;
+      if (!booking?.booking_id) throw new Error("Could not reserve this appointment slot");
 
       const orderRes = await supabase.functions.invoke("create-razorpay-order", {
         body: {
           payment_type: "cover_charge",
-          booking_id: booking.id,
-          referral_code: referralCode || undefined,
+          booking_id: booking.booking_id,
         },
       });
 
-      if (orderRes.data?.free) {
-        // Server validated the referral and settled the charge itself.
-        toast.success("Booking confirmed! Referral discount covered the charge.", { description: `Your session with ${artistName} is set.` });
-        sendPushNotification("🎨 Booking Confirmed!", `Great choice! Your session with ${artistName} is booked. You saved ₹${referralDiscount}!`);
-        navigate("/dashboard");
-        return;
-      }
-
       if (orderRes.error || orderRes.data?.error) {
-        toast.success("Booking created! Payment will be configured soon.", { description: "The artist will confirm your appointment." });
-        sendPushNotification("🎨 Booking Created!", `Your session with ${artistName} is pending confirmation.`);
-        navigate("/");
-        return;
+        throw new Error(orderRes.data?.error || orderRes.error?.message || "Could not start secure payment. Your appointment hold has not been paid.");
       }
 
       const loaded = await loadRazorpayScript();
@@ -171,16 +141,21 @@ const BookingPage = () => {
         amount: orderRes.data.amount,
         currency: orderRes.data.currency,
         name: "Tart",
-        description: `Cover Charge - ${artistName}${referralDiscount > 0 ? ` (₹${referralDiscount} off)` : ""}`,
+        description: `Booking cover charge - ${artistName}`,
         order_id: orderRes.data.order_id,
         handler: async (response: any) => {
-          await supabase.functions.invoke("verify-razorpay-payment", {
+          const verification = await supabase.functions.invoke("verify-razorpay-payment", {
             body: {
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
             },
           });
+          if (verification.error || !verification.data?.success) {
+            toast.error(verification.data?.error || verification.error?.message || "Payment verification failed. Contact support before retrying.");
+            setPaying(false);
+            return;
+          }
           toast.success("Payment successful! Booking confirmed.", { description: "The artist will review your appointment." });
           sendPushNotification("🎨 Booking Confirmed!", `Excellent choice! Your session with ${artistName} is confirmed. You're going to love it!`);
           navigate("/dashboard");
@@ -263,58 +238,21 @@ const BookingPage = () => {
               <textarea required rows={3} placeholder="Describe your idea in detail..." value={form.description} onChange={e => setForm(p => ({...p, description: e.target.value}))} className="w-full px-3 py-2 rounded-md bg-secondary border border-border text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-gold placeholder:text-muted-foreground resize-none" />
             </div>
 
-            {/* Referral Code */}
-            <div>
-              <label className="text-sm text-muted-foreground mb-1.5 block">Have a referral code?</label>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Enter code e.g. ART1A2B3C"
-                  value={referralCode}
-                  onChange={e => { setReferralCode(e.target.value); setReferralChecked(false); setReferralDiscount(0); }}
-                  className="bg-secondary border-border text-foreground"
-                />
-                <Button type="button" variant="gold-outline" size="sm" onClick={applyReferral} disabled={!referralCode.trim() || referralChecked}>
-                  Apply
-                </Button>
-              </div>
-              {referralDiscount > 0 && <p className="text-emerald-400 text-xs mt-1">✓ ₹{referralDiscount} discount applied</p>}
-            </div>
-
             <div className="bg-secondary/50 rounded-md p-4 border border-border">
               <div className="flex justify-between text-sm mb-1">
-                <span className="text-muted-foreground">Cover Charge</span>
-                {isMember ? (
-                  <span className="text-foreground font-medium"><span className="line-through text-muted-foreground mr-1.5">₹500</span>₹250</span>
-                ) : (
-                  <span className="text-foreground font-medium">₹500</span>
-                )}
-              </div>
-              {isMember && (
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gold flex items-center gap-1"><Crown className="w-3 h-3" /> Member Discount</span>
-                  <span className="text-gold font-medium">-₹250</span>
-                </div>
-              )}
-              {referralDiscount > 0 && (
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-emerald-400">Referral Discount</span>
-                  <span className="text-emerald-400 font-medium">-₹{referralDiscount}</span>
-                </div>
-              )}
-              <div className="flex justify-between text-sm mb-1">
-                <span className="text-muted-foreground font-semibold">Total</span>
-                <span className="text-foreground font-bold">₹{coverCharge}</span>
+                <span className="text-muted-foreground">Booking Cover Charge</span>
+                <span className="text-foreground font-medium">₹49 standard</span>
               </div>
               <div className="flex justify-between text-sm mt-2 pt-2 border-t border-border">
                 <span className="text-muted-foreground">Artist Rate</span>
                 <span className="text-foreground">₹{artistRate}/hr</span>
               </div>
-              <p className="text-muted-foreground text-xs mt-2">Final price will be discussed with the artist after confirmation.</p>
-              {!isMember && <p className="text-gold text-xs mt-1">💡 Premium members pay only ₹250 cover charge!</p>}
+              <p className="text-muted-foreground text-xs mt-2">Active members receive a 10% cover-charge discount at checkout. Final service pricing is discussed with the artist.</p>
+              
             </div>
 
             <Button type="submit" variant="gold" size="lg" className="w-full" disabled={paying}>
-              {paying ? "Processing..." : `Pay ₹${coverCharge} & Book`}
+              {paying ? "Processing..." : `Continue to payment & book`}
             </Button>
           </form>
         </div>

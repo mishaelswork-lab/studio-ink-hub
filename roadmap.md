@@ -10,7 +10,7 @@
 - [ ] A3. Connect real Tart domain (blocked: needs Mishael's domain / DNS)
 
 ## Payments
-- [x] B1. Payment hardening done: server-side pricing verified live (client amount ignored, ₹199 order enforced); test-mode keys present. Remaining: Mishael switches to live Razorpay keys + one real transaction
+- [ ] B1. Payment reconciliation in progress: branch-only Edge Function changes now use canonical `payments` columns and `finalize_razorpay_payment`; live pricing verified as ₹49 booking cover, ₹395 lifetime membership, 10% member cover discount, ₹500/30-day featured boost. Not deployed or sandbox-tested. Owner action: regenerate lockfile, confirm Razorpay test credentials/secrets, then run sandbox scenarios. Never run a real transaction without explicit approval.
 - [x] B2. iOS gating re-verified: membership banner + boost card hidden via canSellDigitalGoods()
 - [x] B3. Server-side pricing now authoritative (RBI-friendly: no client-chosen amounts)
 
@@ -19,12 +19,17 @@
 - [ ] C2. Browser regression: non-artist cannot enter artist/admin tools
 - [ ] C3. Browser regression: chat delivery + read receipts
 - [ ] C4. Browser regression: report/block dialog on discover + consultation chat
+- [ ] C5. End-to-end booking, membership, and featured boost payment sandbox tests
 
 ## Security & reliability
 - [x] D1. Deep security scan run — 13 findings; 6 errors + 4 warns FIXED (payments, chat links, push, AI prompt, rate-limit DoS); findings marked in Security view
 - [x] D2. RLS suite: 103/103 passed (+4 new signed-in tamper tests, run when TEST_USER creds set)
 - [x] D3. Error monitoring: runtime errors captured into perf telemetry; review via admin metrics
 - [x] D4. Backup/export + rollback guidance documented (Tart_Daily_Operations_Guide.md §5)
+- [x] D5. Restore restricted admin role helper required by reel moderation/admin audit RPCs; anon execution denied
+- [x] D6. Restore safe public reads and admin-only writes for platform settings; verify anon cannot insert and non-admin update is blocked
+- [ ] D7. Account deletion Edge Function source reconciled with database preparation RPC and private storage cleanup; Deno compile and disposable-account test still required
+- [ ] D8. Review CORS wildcard allow-list and payment duplicate-order/idempotency handling before deployment
 
 ## Operations
 - [x] E1. Daily admin routine documented (Tart_Daily_Operations_Guide.md §1)
@@ -38,3 +43,6 @@
 
 ## G. Store readiness (native, optional for web launch)
 - [ ] G1. Capacitor packaging, permissions, screenshots, age ratings (deferred until web launch done)
+
+## Immediate owner action
+- [ ] Regenerate `package-lock.json` locally with `npm install`, then commit and push to `audit/launch-readiness-2026-11-27`. CI is currently blocked at `npm ci`; lint, tests and build have not run on the branch.
