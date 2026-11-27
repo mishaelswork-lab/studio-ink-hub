@@ -28,6 +28,13 @@ Deno.serve(async (req) => {
     if (!supabaseUrl || !serviceKey) return json({ error: "Payment service unavailable" }, 503);
     const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
 
+    const { data: accountState, error: accountStateError } = await admin
+      .from("profiles").select("deletion_pending_at").eq("id", user.id).maybeSingle();
+    if (accountStateError) return json({ error: "Could not verify account status" }, 500);
+    if (!accountState || accountState.deletion_pending_at) {
+      return json({ error: "Account deletion is in progress; new payments are disabled" }, 409);
+    }
+
     const { data: setting, error: settingError } = await admin
       .from("platform_settings").select("value").eq("key", "pricing").maybeSingle();
     if (settingError) return json({ error: "Pricing configuration unavailable" }, 503);
