@@ -43,11 +43,14 @@ const ProfilePage = () => {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const [profRes, favsRes] = await Promise.all([
+      try {
+        const [profRes, favsRes] = await Promise.all([
         supabase.from("profiles").select("id,display_name,avatar_url,city,country,created_at").eq("id", user.id).maybeSingle(),
         supabase.from("favorites").select("*").eq("user_id", user.id),
-      ]);
-      let profileData = profRes.data;
+        ]);
+        if (profRes.error) throw profRes.error;
+        if (favsRes.error) throw favsRes.error;
+        let profileData = profRes.data;
       if (profileData?.avatar_url && !/^https?:\/\//i.test(profileData.avatar_url)) {
         const { data: signedAvatar } = await supabase.storage.from("portfolio-private").createSignedUrl(profileData.avatar_url, 900);
         profileData = { ...profileData, avatar_url: signedAvatar?.signedUrl ?? null };
@@ -92,10 +95,14 @@ const ProfilePage = () => {
           return { ...reel, video_url: media.videoUrl, thumbnail_url: media.thumbnailUrl };
         } catch { return null; }
       }));
-      setFavArtists(signedArtists);
-      setFavReels(signedReels.filter((reel): reel is FavoriteReel => reel !== null));
-      setFavDesigns(designs);
-      setLoading(false);
+        setFavArtists(signedArtists);
+        setFavReels(signedReels.filter((reel): reel is FavoriteReel => reel !== null));
+        setFavDesigns(designs);
+      } catch (error: unknown) {
+        toast.error(error instanceof Error ? error.message : "Could not load your profile");
+      } finally {
+        setLoading(false);
+      }
     })();
   }, [user]);
 
