@@ -37,6 +37,7 @@ const AdminPanel = () => {
   const [activeTab, setActiveTab] = useState<AdminTab>("overview");
   const { signOut, user, roles } = useAuth();
   const [dbArtists, setDbArtists] = useState<any[]>([]);
+  const [artistPortfolios, setArtistPortfolios] = useState<Record<string, string[]>>({});
   const [dbBookings, setDbBookings] = useState<any[]>([]);
   const [dbReels, setDbReels] = useState<any[]>([]);
   const [dbPayments, setDbPayments] = useState<any[]>([]);
@@ -86,6 +87,10 @@ const AdminPanel = () => {
       supabase.from("content_reports").select("*").order("created_at", { ascending: false }).limit(200),
     ]);
     setDbArtists(artistsRes.data || []);
+    const { data: portfolioRows } = await supabase.from("portfolio_items").select("artist_id,media_url").order("created_at", { ascending: false });
+    const grouped: Record<string, string[]> = {};
+    for (const item of portfolioRows || []) grouped[item.artist_id] = [...(grouped[item.artist_id] || []), item.media_url];
+    setArtistPortfolios(grouped);
     setDbBookings(bookingsRes.data || []);
     setDbReels(reelsRes.data || []);
     setDbPayments(paymentsRes.data || []);
@@ -114,7 +119,7 @@ const AdminPanel = () => {
 
   const totalRevenue = dbPayments.reduce((sum, p) => sum + p.amount, 0);
   const pendingCount = dbBookings.filter(b => b.status === "pending").length;
-  const artistApplications = dbArtists.filter(a => a.application_status !== "approved");
+  const artistApplications = dbArtists.filter(a => a.status !== "active");
 
   const writeAudit = async (action: string, target_type: string, target_id: string, reason?: string, metadata?: any) => {
     if (!user) return;
@@ -135,17 +140,19 @@ const AdminPanel = () => {
 
   const handleApproveArtist = async (artist: any) => {
     if (!isAdmin) return;
-    if ((artist.portfolio_images || []).length < 2) { toast.error("Two portfolio photos are required before approval"); return; }
-    const { error } = await supabase.from("artists").update({ application_status: "approved", rejection_reason: null }).eq("id", artist.id);
+    if ((artistPortfolios[artist.id] || []).length < 2) { toast.error("Two portfolio photos are required before approval"); return; }
+    const { error } = await supabase.rpc("admin_review_artist", { p_artist_id: artist.id, p_decision: "approve", p_reason: null });
     if (error) { toast.error(error.message || "Could not approve artist"); return; }
-    toast.success(`${artist.name} approved`);
+    toast.success((artist.name || "Artist") + " approved");
     fetchData();
   };
 
   const handleRejectArtist = async () => {
     if (!isAdmin || !artistRejectDialog || artistRejectReason.trim().length < 3) return;
-    const { error } = await supabase.from("artists").update({ application_status: "rejected", rejection_reason: artistRejectReason.trim(), available: false }).eq("id", artistRejectDialog.id);
-    if (error) { toast.error(error.message || "Could not reject application"); return; }
+    const { error } = await supabase.rpc("admin_review_artist", {
+      p_artist_id: artistRejectDialog.id, p_decision: "reject", p_reason: artistRejectReason.trim(),
+    });
+    if (error) { toast.error(error.message || "Could not return application"); return; }
     toast.success("Application returned to the artist");
     setArtistRejectDialog(null);
     setArtistRejectReason("");
@@ -459,22 +466,22 @@ const AdminPanel = () => {
                       <div>
                         <div className="flex items-center gap-2">
                           <h3 className="font-heading text-lg font-semibold text-foreground">{artist.name}</h3>
-                          <span className={`text-xs px-2 py-1 rounded-full capitalize ${artist.application_status === "rejected" ? "bg-destructive/10 text-destructive" : "bg-gold/10 text-gold"}`}>{artist.application_status}</span>
+                          <span className={`text-xs px-2 py-1 rounded-full capitalize ${artist.status === "rejected" ? "bg-destructive/10 text-destructive" : "bg-gold/10 text-gold"}`}>{artist.status}</span>
                         </div>
                         <p className="text-gold text-sm">{artist.specialty || "Specialty not set"} · ₹{artist.hourly_rate}/hr</p>
-                        <p className="text-muted-foreground text-xs mt-1">{artist.studio_name || "Independent artist"} · Submitted {new Date(artist.submitted_at).toLocaleString()}</p>
+                        <p className="text-muted-foreground text-xs mt-1">{artist.studio_name || "Independent artist"} · Submitted {new Date(artist.created_at).toLocaleString()}</p>
                         {artist.bio && <p className="text-muted-foreground text-sm mt-3 max-w-2xl">{artist.bio}</p>}
                         {artist.rejection_reason && <p className="text-destructive text-sm mt-2">Previous feedback: {artist.rejection_reason}</p>}
                       </div>
                       <div className="flex gap-2 shrink-0">
-                        <Button size="sm" variant="gold" className="gap-1" disabled={(artist.portfolio_images || []).length < 2} onClick={() => handleApproveArtist(artist)}><Check className="w-3.5 h-3.5" /> Approve</Button>
+                        <Button size="sm" variant="gold" className="gap-1" disabled={(artistPortfolios[artist.id] || []).length < 2} onClick={() => handleApproveArtist(artist)}><Check className="w-3.5 h-3.5" /> Approve</Button>
                         <Button size="sm" variant="outline" className="gap-1 border-destructive/50 text-destructive" onClick={() => { setArtistRejectDialog({ id: artist.id, name: artist.name }); setArtistRejectReason(""); }}><X className="w-3.5 h-3.5" /> Reject</Button>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      {(artist.portfolio_images || []).map((url: string, index: number) => <img key={url} src={url} alt={`${artist.name} work ${index + 1}`} width={400} height={400} loading="lazy" decoding="async" className="w-full aspect-square object-cover rounded-md border border-border" />)}
+                      {(artistPortfolios[artist.id] || []).map((url: string, index: number) => <img key={url} src={url} alt={`${artist.name} work ${index + 1}`} width={400} height={400} loading="lazy" decoding="async" className="w-full aspect-square object-cover rounded-md border border-border" />)}
                     </div>
-                    {(artist.portfolio_images || []).length < 2 && <p className="text-gold text-xs mt-3">Waiting for the artist to upload two portfolio photos. Approval is locked.</p>}
+                    {(artistPortfolios[artist.id] || []).length < 2 && <p className="text-gold text-xs mt-3">Waiting for the artist to upload two portfolio photos. Approval is locked.</p>}
                   </div>
                 ))}
               </div>
