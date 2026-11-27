@@ -1382,6 +1382,14 @@ export type Database = {
         }
       }
       prepare_account_deletion: { Args: { p_user_id: string }; Returns: Json }
+      start_consultation: {
+        Args: { p_artist_id: string; p_brief: string; p_reference_images?: Json }
+        Returns: string
+      }
+      conversation_peer: {
+        Args: { p_conversation_id: string }
+        Returns: { peer_user_id: string; peer_name: string | null; peer_avatar_url: string | null }[]
+      }
     }
     Enums: {
       app_role: "customer" | "artist" | "admin"
