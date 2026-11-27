@@ -23,7 +23,7 @@ function isInstagramCdn(raw: string) {
 }
 async function downloadMedia(rawUrl: string, maxBytes: number, allowed: string[]) {
   if (!isInstagramCdn(rawUrl)) throw new Error("Instagram returned an unsupported media host");
-  const response = await fetch(rawUrl, { signal: AbortSignal.timeout(25000) });
+  const response = await fetch(rawUrl, { signal: AbortSignal.timeout(60000) });
   if (!response.ok) throw new Error("Could not download Instagram media");
   const mime = (response.headers.get("content-type") || "").split(";")[0].toLowerCase();
   const sizeHeader = Number(response.headers.get("content-length") || 0);
@@ -162,6 +162,9 @@ Deno.serve(async (req) => {
       : await admin.from("portfolio_items").select("id").eq("artist_id", artistId).eq("instagram_media_id", media.id).maybeSingle();
     if (duplicate) return json({ success: true, duplicate: true, media_type: isVideo ? "reel" : "photo", item_id: duplicate.id });
 
+    if (typeof media.media_url !== "string") {
+      throw new Error("Instagram did not provide a downloadable media file. Copyrighted or restricted content may not be available through Meta's API.");
+    }
     const downloaded = await downloadMedia(media.media_url, isVideo ? 100 * 1024 * 1024 : 5 * 1024 * 1024,
       isVideo ? ["video/mp4"] : ["image/jpeg","image/png","image/webp"]);
     const objectPath = `${artist.user_id}/${artist.id}/${crypto.randomUUID()}.${extension(downloaded.mime)}`;
