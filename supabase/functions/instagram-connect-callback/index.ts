@@ -12,7 +12,8 @@ async function encryptToken(token: string, secret: string) {
 Deno.serve(async (req) => {
   if (req.method !== "GET") return json({ error: "Method not allowed" }, 405);
   const requestUrl = new URL(req.url);
-  const appUrl = Deno.env.get("ARTSPACE_APP_URL") || "https://artspaceconnect.com";
+  const appUrl = Deno.env.get("ARTSPACE_APP_URL");
+  if (!appUrl) return json({ error: "ARTSPACE_APP_URL is not configured" }, 503);
   const redirect = (status: string) => Response.redirect(new URL("/artist-dashboard?instagram=" + status, appUrl), 302);
   const code = requestUrl.searchParams.get("code"), state = requestUrl.searchParams.get("state");
   const oauthError = requestUrl.searchParams.get("error");
