@@ -121,7 +121,7 @@ const BookingPage = () => {
       // Convert the selected India-local appointment time to an explicit
       // offset timestamp. The database RPC validates availability and creates
       // a short-lived, idempotent hold; clients must not insert bookings directly.
-      const match = form.time.match(/^(\\d{1,2}):(\\d{2})\\s*(AM|PM)$/i);
+      const match = form.time.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
       if (!match) throw new Error("Please select a valid appointment time");
       let hour = Number(match[1]) % 12;
       if (match[3].toUpperCase() === "PM") hour += 12;
