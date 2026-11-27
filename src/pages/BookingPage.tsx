@@ -8,7 +8,6 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
-import { useMembership } from "@/hooks/useMembership";
 
 declare global {
   interface Window {
@@ -20,7 +19,6 @@ const BookingPage = () => {
   const { artistId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { isMember } = useMembership();
   const [dbArtist, setDbArtist] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
