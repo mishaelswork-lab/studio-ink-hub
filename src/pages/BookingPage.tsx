@@ -29,7 +29,7 @@ const BookingPage = () => {
   useEffect(() => {
     if (!artistId) { setLoading(false); return; }
     const fetchArtist = async () => {
-      const { data } = await supabase.from("artists").select("*").eq("id", artistId).eq("status", "approved").eq("available", true).maybeSingle();
+      const { data } = await supabase.from("artists").select("*").eq("id", artistId).eq("status", "active").eq("available", true).maybeSingle();
       setDbArtist(data);
       setLoading(false);
     };
@@ -50,8 +50,6 @@ const BookingPage = () => {
   const artistRate = artist.hourly_rate;
   const artistStudio = artist.studio_name;
   const artistDbId = dbArtist?.id;
-
-  const baseCover = 49;
 
   const sendPushNotification = (title: string, body: string) => {
     if ("Notification" in window && Notification.permission === "granted") {
@@ -240,10 +238,6 @@ const BookingPage = () => {
               <div className="flex justify-between text-sm mb-1">
                 <span className="text-muted-foreground">Booking Cover Charge</span>
                 <span className="text-foreground font-medium">₹49 standard</span>
-              </div>
-              <div className="flex justify-between text-sm mb-1">
-                <span className="text-muted-foreground font-semibold">Total</span>
-                <span className="text-foreground font-bold">₹{coverCharge}</span>
               </div>
               <div className="flex justify-between text-sm mt-2 pt-2 border-t border-border">
                 <span className="text-muted-foreground">Artist Rate</span>
