@@ -20,12 +20,11 @@ import { toast } from "sonner";
 
 interface DesignRow {
   id: string;
-  external_id: string;
+  title: string;
   image_url: string;
-  thumb_url: string | null;
-  source_url: string | null;
-  photographer: string | null;
   description: string | null;
+  placement: string | null;
+  style: string | null;
 }
 
 const REPORT_REASONS = [
@@ -36,7 +35,7 @@ const REPORT_REASONS = [
   "Other",
 ];
 
-const fileBase = (d: DesignRow) => `tart-stencil-${d.external_id.replace(/[^a-z0-9]/gi, "-")}`;
+const fileBase = (d: DesignRow) => `tart-stencil-${d.id}`;
 
 const loadImage = (src: string) =>
   new Promise<HTMLImageElement>((resolve, reject) => {
@@ -53,8 +52,8 @@ const useDesignActions = (design: DesignRow) => {
   const handleShare = async () => {
     const ok = await shareLink({
       title: "Tattoo stencil idea",
-      text: design.description || "Check out this tattoo stencil",
-      url: design.source_url || design.image_url,
+      text: design.description || design.title || "Check out this tattoo stencil",
+      url: design.image_url,
     });
     return ok;
   };
@@ -125,15 +124,19 @@ const useDesignActions = (design: DesignRow) => {
     if (!user) { toast.error("Sign in to share with an artist"); return; }
     const t = toast.loading("Sending to your artist…");
     const { data: cons } = await supabase
-      .from("consultations").select("id, artist_id, artists!inner(name)")
-      .eq("customer_id", user.id).eq("status", "active").limit(1).maybeSingle();
+      .from("conversations").select("id,artist_id")
+      .eq("customer_id", user.id).limit(1).maybeSingle();
     if (!cons) { toast.error("Start a consultation first to share designs", { id: t }); return; }
-    const { error } = await supabase.from("consultation_messages").insert({
-      consultation_id: cons.id, sender_id: user.id, image_url: design.image_url,
-      message: "Sharing this stencil idea",
-    });
+    const [{ error }, { data: artist }] = await Promise.all([
+      supabase.from("messages").insert({
+        conversation_id: cons.id, sender_id: user.id,
+        body: `Sharing this stencil idea: ${design.title}`,
+        attachments: [{ type: "image", url: design.image_url }],
+      }),
+      supabase.from("artists").select("name").eq("id", cons.artist_id).maybeSingle(),
+    ]);
     if (error) toast.error("Could not send — try again", { id: t });
-    else toast.success(`Sent to ${(cons as any).artists?.name || "artist"}`, { id: t });
+    else toast.success(`Sent to ${artist?.name || "artist"}`, { id: t });
   };
 
   return { handleShare, downloadPNG, downloadPDF, printDesign, sendToArtist };
@@ -246,7 +249,7 @@ const DesignCard = ({ design, onReport }: { design: DesignRow; onReport: (d: Des
       >
 
         <img
-          src={design.thumb_url || design.image_url}
+          src={design.image_url}
           alt={design.description || "Tattoo stencil"}
           loading="lazy"
           decoding="async"
@@ -298,15 +301,15 @@ const DesignsFeed = () => {
   const sentinel = useRef<HTMLDivElement>(null);
 
   const { data: designs = [], isLoading } = useQuery<DesignRow[]>({
-    queryKey: ["daily_designs"],
+    queryKey: ["designs"],
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     queryFn: async () => {
       const { data } = await supabase
-        .from("daily_designs")
-        .select("*")
-        .like("external_id", "pinterest:%")
-        .order("fetched_at", { ascending: false })
+        .from("designs")
+        .select("id,title,image_url,description,placement,style")
+        .eq("is_public", true)
+        .order("created_at", { ascending: false })
         .limit(500);
       return data || [];
     },
@@ -342,7 +345,7 @@ const DesignsFeed = () => {
     setRefreshing(true);
     const { error } = await supabase.functions.invoke("refresh-designs");
     if (error) toast.error("Refresh failed");
-    else { toast.success("Designs refreshed"); await qc.invalidateQueries({ queryKey: ["daily_designs"] }); }
+    else { toast.success("Designs refreshed"); await qc.invalidateQueries({ queryKey: ["designs"] }); }
     setRefreshing(false);
   };
 
@@ -350,8 +353,8 @@ const DesignsFeed = () => {
     if (!user) { toast.error("Sign in to report"); return; }
     if (!reportDialog) return;
     const reasonText = reportReason + (reportNote.trim() ? ` — ${reportNote.trim()}` : "");
-    const { error } = await supabase.from("design_reports").insert({
-      design_id: reportDialog.id, reporter_id: user.id, reason: reasonText,
+    const { error } = await supabase.from("content_reports").insert({
+      content_type: "design", content_id: reportDialog.id, reporter_id: user.id, reason: reasonText,
     });
     if (error) {
       if ((error as any).code === "23505") toast.error("You already reported this design");
