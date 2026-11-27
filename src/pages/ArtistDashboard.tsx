@@ -139,7 +139,7 @@ const ArtistDashboard = () => {
       const requestIds = Array.from(new Set((consultationsRes.data || []).map(c => c.design_request_id))).filter(Boolean);
       const { data: requests } = requestIds.length
         ? await supabase.from("design_requests").select("id,brief,status,reference_images").in("id", requestIds)
-        : { data: [] as { id: string; brief: string; status: string | null }[] };
+        : { data: [] as { id: string; brief: string; status: string | null; reference_images: Json | null }[] };
       const requestById = new Map((requests || []).map(request => [request.id, request]));
       setConsultations((consultationsRes.data || []).map(c => ({
         ...c,
