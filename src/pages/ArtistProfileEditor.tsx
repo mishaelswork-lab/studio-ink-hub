@@ -203,8 +203,13 @@ const ArtistProfileEditor = () => {
     if (!artistProfile || !canPublish) return;
     setSaving(true);
     const saved = await saveProfile();
+    if (saved && applicationStatus === "rejected") {
+      const { error } = await supabase.rpc("artist_resubmit_application");
+      if (error) { setSaving(false); toast.error(error.message || "Could not resubmit application"); return; }
+      await refreshProfile();
+    }
     setSaving(false);
-    if (saved) toast.success("Profile saved. Your application remains pending admin approval.");
+    if (saved) toast.success("Profile saved. Your application is awaiting admin approval.");
   };
 
   if (!user || !artistProfile || !ready) {
