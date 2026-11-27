@@ -74,9 +74,9 @@ Deno.serve(async (req) => {
     } else {
       if (!artistId) return json({ error: "Artist is required" }, 400);
       const { data: artist, error } = await admin.from("artists")
-        .select("id").eq("id", artistId).eq("user_id", user.id).maybeSingle();
+        .select("id,status").eq("id", artistId).eq("user_id", user.id).eq("status", "active").maybeSingle();
       if (error) return json({ error: "Could not verify artist ownership" }, 500);
-      if (!artist) return json({ error: "You can only boost your own artist profile" }, 403);
+      if (!artist) return json({ error: "Only your approved, active artist profile can be featured" }, 403);
       amountRupees = Number(pricing.featured_boost_price);
       const days = Number(pricing.featured_boost_days);
       if (!Number.isSafeInteger(amountRupees) || amountRupees <= 0 ||
