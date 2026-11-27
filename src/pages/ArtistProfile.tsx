@@ -96,7 +96,7 @@ const ArtistProfile = () => {
   const specialty = artist.specialty;
   const studioName = artist.studio_name;
   const experience = `${artist.experience_years || 0} years`;
-  const rating = artist.rating;
+  const rating = reviews.length ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length : null;
   const bio = artist.bio;
   const hourlyRate = artist.hourly_rate;
   const avatarUrl = artist.avatar_url || "/placeholder.svg";
