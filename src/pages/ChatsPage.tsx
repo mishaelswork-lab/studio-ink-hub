@@ -29,19 +29,24 @@ const ChatsPage = () => {
 
     try {
       const { data: cs, error: e1 } = await supabase
-        .from("consultations")
-        .select("*")
+        .from("conversations")
+        .select("id,customer_id,artist_id,design_request_id,created_at")
         .eq("customer_id", user.id)
-        .order("updated_at", { ascending: false })
+        .order("created_at", { ascending: false })
         .range(from, to);
       if (e1) throw e1;
       const list = cs || [];
       const artistUserIds = Array.from(new Set(list.map((c: any) => c.artist_id))).filter(Boolean);
       const { data: artists } = artistUserIds.length
-        ? await supabase.from("artists").select("user_id,name,avatar_url,specialty").in("user_id", artistUserIds)
+        ? await supabase.from("artists").select("id,name,avatar_url,specialty").in("id", artistUserIds)
         : { data: [] as any[] };
-      const byUser = new Map((artists || []).map((a: any) => [a.user_id, a]));
-      const hydrated = list.map((c: any) => ({ ...c, artist: byUser.get(c.artist_id) }));
+      const requestIds = Array.from(new Set(list.map((c: any) => c.design_request_id))).filter(Boolean);
+      const { data: requests } = requestIds.length
+        ? await supabase.from("design_requests").select("id,brief,status").in("id", requestIds)
+        : { data: [] as any[] };
+      const byArtist = new Map((artists || []).map((a: any) => [a.id, a]));
+      const byRequest = new Map((requests || []).map((r: any) => [r.id, r]));
+      const hydrated = list.map((c: any) => ({ ...c, artist: byArtist.get(c.artist_id), request: byRequest.get(c.design_request_id) }));
       setChats(prev => reset ? hydrated : [...prev, ...hydrated]);
       setHasMore(list.length === PAGE);
       pageRef.current += 1;
@@ -125,9 +130,9 @@ const ChatsPage = () => {
                 <img src={c.artist?.avatar_url || "https://via.placeholder.com/44"} alt={c.artist?.name || "Artist"} className="w-11 h-11 rounded-full object-cover border border-gold/20" />
                 <div className="flex-1 min-w-0">
                   <p className="text-foreground text-sm font-medium truncate">{c.artist?.name || "Artist"}</p>
-                  <p className="text-muted-foreground text-xs truncate">{c.design_description || "Design consultation"}</p>
+                  <p className="text-muted-foreground text-xs truncate">{c.request?.brief || "Design consultation"}</p>
                 </div>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full ${c.status === "active" ? "bg-emerald-500/10 text-emerald-400" : c.status === "pending" ? "bg-gold/10 text-gold" : "bg-primary/10 text-primary"}`}>{c.status}</span>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full ${c.status === "active" ? "bg-emerald-500/10 text-emerald-400" : c.status === "pending" ? "bg-gold/10 text-gold" : "bg-primary/10 text-primary"}`}>{c.request?.status || "open"}</span>
               </Link>
             ))}
             <div ref={sentinelRef} className="py-4 flex justify-center">
