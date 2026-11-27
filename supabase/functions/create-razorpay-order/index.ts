@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
     if (settingError) return json({ error: "Pricing configuration unavailable" }, 503);
     const pricing = setting?.value ?? {};
     let amountRupees: number;
-    let metadata: Record<string, number> = {};
+    const metadata: Record<string, number> = {};
     let resolvedArtistId: string | null = null;
 
     if (paymentType === "cover_charge") {
