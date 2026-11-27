@@ -1,6 +1,7 @@
 // Shared authentication guards for edge functions.
 // Every public endpoint must call one of these before doing any work.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import type { User } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
 export const guardCors = {
   "Access-Control-Allow-Origin": "*",
@@ -47,14 +48,14 @@ export async function hasRole(userId: string, role: string) {
 }
 
 /** Requires a signed-in user. Returns { user } or { response } to return early. */
-export async function requireUser(req: Request): Promise<{ user?: any; response?: Response }> {
+export async function requireUser(req: Request): Promise<{ user?: User; response?: Response }> {
   const user = await getUser(req);
   if (!user) return { response: deny(401, "Sign in required") };
   return { user };
 }
 
 /** Requires an admin user. */
-export async function requireAdmin(req: Request): Promise<{ user?: any; response?: Response }> {
+export async function requireAdmin(req: Request): Promise<{ user?: User; response?: Response }> {
   const { user, response } = await requireUser(req);
   if (response) return { response };
   if (!(await hasRole(user.id, "admin"))) return { response: deny(403, "Admin access required") };
