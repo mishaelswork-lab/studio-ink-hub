@@ -665,6 +665,7 @@ export type Database = {
           status: string
           updated_at: string
           user_id: string
+          currency: string
         }
         Insert: {
           amount?: number
@@ -676,6 +677,7 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id: string
+          currency: string
         }
         Update: {
           amount?: number
@@ -687,6 +689,7 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id?: string
+          currency: string
         }
         Relationships: []
       }
