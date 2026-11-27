@@ -1227,6 +1227,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      is_artist_blocked: {
+        Args: { p_artist_id: string }
+        Returns: boolean
+      }
+      toggle_artist_block: {
+        Args: { p_artist_id: string }
+        Returns: boolean
+      }
       admin_review_artist: {
         Args: { p_artist_id: string; p_decision: string; p_reason?: string }
         Returns: {
