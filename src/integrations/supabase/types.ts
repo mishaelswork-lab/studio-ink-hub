@@ -1003,6 +1003,7 @@ export type Database = {
           video_url: string
           views: number
           instagram_media_id: string | null
+          moderation_reason: string | null
         }
         Insert: {
           artist_id: string
@@ -1018,6 +1019,7 @@ export type Database = {
           video_url: string
           views?: number
           instagram_media_id?: string | null
+          moderation_reason?: string | null
         }
         Update: {
           artist_id?: string
@@ -1033,6 +1035,7 @@ export type Database = {
           video_url?: string
           views?: number
           instagram_media_id?: string | null
+          moderation_reason?: string | null
         }
         Relationships: [
           {
@@ -1186,6 +1189,14 @@ export type Database = {
       }
       artist_resubmit_application: { Args: Record<PropertyKey, never>; Returns: boolean }
       get_my_artist_profile: { Args: Record<PropertyKey, never>; Returns: Database["public"]["Tables"]["artists"]["Row"][] }
+      admin_write_audit: {
+        Args: { p_action: string; p_target_type: string; p_target_id: string; p_reason?: string | null; p_metadata?: Json }
+        Returns: string
+      }
+      admin_review_reel: {
+        Args: { p_reel_id: string; p_decision: string; p_reason?: string | null }
+        Returns: { reel_id: string; moderation_status: string }[]
+      }
       admin_review_artist: {
         Args: { p_artist_id: string; p_decision: string; p_reason?: string | null }
         Returns: Database["public"]["Tables"]["artists"]["Row"]
