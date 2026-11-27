@@ -111,7 +111,7 @@ Deno.serve(async (req) => {
       if (Array.isArray(result.data)) candidates.push(...result.data);
       next = typeof result.paging?.next === "string" ? result.paging.next : null;
       const match = candidates.find(item => {
-        try { return normalizePermalink(item.permalink) === permalink; } catch { return false; }
+        try { return typeof item.permalink === "string" && normalizePermalink(item.permalink) === permalink; } catch { return false; }
       });
       if (match) break;
     }
@@ -127,7 +127,7 @@ Deno.serve(async (req) => {
       const childrenResponse = await fetch(childrenUrl);
       if (!childrenResponse.ok) throw new Error("Could not read photos in this Instagram carousel");
       const children = await childrenResponse.json();
-      const photos = (Array.isArray(children.data) ? children.data as InstagramMediaItem[] : []).filter(item => item.media_type === "IMAGE" && typeof item.media_url === "string");
+      const photos = (Array.isArray(children.data) ? children.data as InstagramMediaItem[] : []).filter((item): item is InstagramMediaItem & { media_url: string } => item.media_type === "IMAGE" && typeof item.media_url === "string");
       if (!photos.length) throw new Error("This carousel has no importable photos");
       const imported: { item_id: string; media_type: "photo" }[] = [];
       for (const photo of photos) {
