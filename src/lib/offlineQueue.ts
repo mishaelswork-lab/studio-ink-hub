@@ -62,11 +62,11 @@ export const flushQueue = async () => {
     for (const item of q) {
       if (item.nextRetryAt > now) continue;
       const { data, error } = await supabase
-        .from("consultation_messages")
+        .from("messages")
         .insert({
-          consultation_id: item.consultationId,
+          conversation_id: item.consultationId,
           sender_id: item.senderId,
-          message: item.message,
+          body: item.message,
         })
         .select().single();
       q = read();
