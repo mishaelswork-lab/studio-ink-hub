@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
       !objectPath.startsWith(`${artist.user_id}/${artist.id}/`)) {
     return json({ error: "Avatar path is invalid" }, 409);
   }
-  const { data: signed, error: signError } = await admin.storage.from("portfolio-private").createSignedUrl(objectPath, 120);
+  const { data: signed, error: signError } = await admin.storage.from("portfolio-private").createSignedUrl(objectPath, 900);
   if (signError || !signed?.signedUrl) return json({ error: "Unable to access avatar" }, 500);
-  return json({ signed_url: signed.signedUrl, expires_in: 120 });
+  return json({ signed_url: signed.signedUrl, expires_in: 900 });
 });
