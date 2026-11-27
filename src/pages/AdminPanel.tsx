@@ -121,7 +121,7 @@ const AdminPanel = () => {
           return null;
         }
       }));
-      return resolved.filter((reel): reel is ResolvedReel<T> => reel !== null);
+      return resolved.filter((reel): reel is NonNullable<typeof reel> => reel !== null);
     };
     setDbBookings(bookingsRes.data || []);
     setDbReels((await resolveReels(reelsRes.data || [])).filter(Boolean));
@@ -348,8 +348,8 @@ const AdminPanel = () => {
                 ))}
               </div>
               <div className="bg-card rounded-lg border border-border p-6">
-                <h3 className="text-foreground font-medium mb-4">Top Artists</h3>
-                {dbArtists.sort((a, b) => (b.rating || 0) - (a.rating || 0)).slice(0, 4).map(a => (
+                <h3 className="text-foreground font-medium mb-4">Recently added artists</h3>
+                {dbArtists.slice(0, 4).map(a => (
                   <div key={a.id} className="flex items-center gap-3 py-3 border-b border-border last:border-0">
                     <img src={a.avatar_url || "https://via.placeholder.com/40"} alt={a.name} className="w-8 h-8 rounded-full object-cover border border-gold/20" />
                     <div className="flex-1">
@@ -357,8 +357,7 @@ const AdminPanel = () => {
                       <p className="text-muted-foreground text-xs">{a.specialty}</p>
                     </div>
                     <div className="flex items-center gap-1">
-                      <Star className="w-3.5 h-3.5 fill-gold text-gold" />
-                      <span className="text-foreground text-sm">{a.rating}</span>
+                      <span className="text-muted-foreground text-xs">{a.status === "active" ? "Approved" : "Pending review"}</span>
                     </div>
                   </div>
                 ))}
@@ -621,32 +620,7 @@ const AdminPanel = () => {
               )}
             </div>
 
-            <h2 className="font-heading text-2xl font-bold text-foreground mt-10 mb-2">Artist & Booking Change Log</h2>
-            <p className="text-muted-foreground text-sm mb-6">Every create, edit and delete on artists and bookings — recorded automatically.</p>
-            <div className="bg-card rounded-lg border border-border overflow-hidden">
-              {changeLog.length === 0 ? (
-                <p className="text-muted-foreground text-sm text-center py-12">No record changes captured yet.</p>
-              ) : (
-                <div className="divide-y divide-border">
-                  {changeLog.map(entry => (
-                    <div key={entry.id} className="p-4 flex items-start gap-3">
-                      <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${entry.operation === "INSERT" ? "bg-emerald-400" : entry.operation === "DELETE" ? "bg-destructive" : "bg-gold"}`} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-foreground text-sm font-medium">{entry.operation} on {entry.table_name}</p>
-                        <p className="text-muted-foreground text-xs mt-0.5">
-                          record <span className="font-mono">{String(entry.record_id).slice(0, 8)}</span> · by{" "}
-                          <span className="font-mono">{entry.changed_by ? String(entry.changed_by).slice(0, 8) : "system"}</span>
-                        </p>
-                        {Array.isArray(entry.changed_fields) && entry.changed_fields.length > 0 && (
-                          <p className="text-muted-foreground text-xs mt-1">Fields: {entry.changed_fields.join(", ")}</p>
-                        )}
-                      </div>
-                      <span className="text-muted-foreground text-xs whitespace-nowrap">{new Date(entry.created_at).toLocaleString()}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+
           </div>
         )}
 
