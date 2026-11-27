@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
       if (!Number.isFinite(base) || base <= 0) return json({ error: "Invalid cover charge configuration" }, 503);
       amountRupees = base;
       const { data: membership } = await admin.from("memberships").select("id")
-        .eq("user_id", user.id).eq("status", "active").is("expires_at", null).limit(1).maybeSingle();
+        .eq("user_id", user.id).eq("status", "active").or(`expires_at.is.null,expires_at.gte.${new Date().toISOString()}`).limit(1).maybeSingle();
       if (membership) {
         const discount = Number(pricing.member_cover_charge_discount_percent ?? 0);
         if (!Number.isFinite(discount) || discount < 0 || discount > 100) {
