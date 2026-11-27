@@ -1093,6 +1093,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      artist_update_own_profile: {
+        Args: { p_name: string; p_studio_name: string; p_specialty: string; p_bio: string; p_hourly_rate: number; p_experience_years: number; p_avatar_url?: string | null }
+        Returns: Database["public"]["Tables"]["artists"]["Row"]
+      }
+      artist_set_availability: {
+        Args: { p_available: boolean }
+        Returns: boolean
+      }
       artist_confirm_booking: {
         Args: { p_booking_id: string }
         Returns: { booking_id: string; booking_status: string }[]
