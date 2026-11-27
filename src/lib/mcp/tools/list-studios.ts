@@ -15,10 +15,11 @@ export default defineTool({
     // Studios aren't a dedicated table — derive distinct studio names from artists.
     const { data, error } = await supabase
       .from("artists")
-      .select("studio_name, studio_location")
+      .select("studio_name, city, country")
+      .eq("status", "active")
       .limit(limit ?? 50);
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
-    const uniq = Array.from(new Map((data ?? []).map((r: any) => [r.studio_name, r])).values());
+    const uniq = Array.from(new Map((data ?? []).map((r) => [`${r.studio_name ?? ""}:${r.city ?? ""}:${r.country ?? ""}`, r])).values());
     return {
       content: [{ type: "text", text: JSON.stringify(uniq) }],
       structuredContent: { studios: uniq },
