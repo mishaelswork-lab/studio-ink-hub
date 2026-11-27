@@ -9,6 +9,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import type { Database } from "@/integrations/supabase/types";
+
+type ArtistBooking = Pick<Database["public"]["Tables"]["bookings"]["Row"], "id" | "customer_id" | "artist_id" | "design_request_id" | "starts_at" | "ends_at" | "status" | "cover_charge_paid" | "hold_expires_at" | "created_at"> & {
+  design_requests: Pick<Database["public"]["Tables"]["design_requests"]["Row"], "brief" | "placement" | "size_description"> | null;
+};
 
 const tabs = [
   { id: "bookings", label: "Bookings", icon: CalendarDays },
@@ -82,7 +87,7 @@ const ArtistDashboard = () => {
   const [activeTab, setActiveTab] = useState<Tab>("bookings");
   const { user, artistProfile, signOut } = useAuth();
   const navigate = useNavigate();
-  const [bookings, setBookings] = useState<any[]>([]);
+  const [bookings, setBookings] = useState<ArtistBooking[]>([]);
   const [reels, setReels] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
   const [consultations, setConsultations] = useState<any[]>([]);
@@ -108,7 +113,9 @@ const ArtistDashboard = () => {
       setInstagramConnected(igStatus?.connected === true);
       setInstagramUsername(typeof igStatus?.username === "string" ? igStatus.username : null);
       const [bookingsRes, reelsRes, paymentsRes, consultationsRes, certsRes] = await Promise.all([
-        supabase.from("bookings").select("*").eq("artist_id", artistProfile.id).order("created_at", { ascending: false }),
+        supabase.from("bookings")
+          .select("id,customer_id,artist_id,design_request_id,starts_at,ends_at,status,cover_charge_paid,hold_expires_at,created_at,design_requests(brief,placement,size_description)")
+          .eq("artist_id", artistProfile.id).order("created_at", { ascending: false }),
         supabase.from("reels").select("*").eq("artist_id", artistProfile.id).order("created_at", { ascending: false }),
         supabase.from("payments").select("id,booking_id,amount_minor,currency,status,created_at,artist_id,payment_type").eq("artist_id", artistProfile.id).eq("status", "captured"),
         supabase.from("conversations").select("id,customer_id,artist_id,design_request_id,created_at").eq("artist_id", artistProfile.id).order("created_at", { ascending: false }),
@@ -391,8 +398,8 @@ const ArtistDashboard = () => {
                 <div key={booking.id} className="bg-card rounded-lg border border-border p-5">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
                     <div>
-                      <h3 className="text-foreground font-medium">{booking.customer_name}</h3>
-                      <p className="text-muted-foreground text-sm">{booking.date} · {booking.time}</p>
+                      <h3 className="text-foreground font-medium">{booking.customer_id ? `Customer · ${booking.customer_id.slice(0, 8)}` : "Customer"}</h3>
+                      <p className="text-muted-foreground text-sm">{new Date(booking.starts_at).toLocaleDateString()} · {new Date(booking.starts_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</p>
                     </div>
                     <div className="flex items-center gap-2">
                       {booking.cover_charge_paid && <span className="text-xs px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-400">Cover charge paid</span>}
@@ -404,8 +411,7 @@ const ArtistDashboard = () => {
                       }`}>{booking.status}</span>
                     </div>
                   </div>
-                  <p className="text-muted-foreground text-sm mb-1">{booking.style} · {booking.placement} · {booking.size}</p>
-                  {booking.description && <p className="text-muted-foreground text-sm mb-4">{booking.description}</p>}
+                  <p className="text-muted-foreground text-sm mb-1">{booking.design_requests?.brief?.replace(/^\[[^\]]+\]\s*/, "") || "Tattoo consultation"} · {booking.design_requests?.placement || "Placement not provided"} · {booking.design_requests?.size_description || "Size not provided"}</p>
                   {booking.status === "pending" && (
                     <div className="flex gap-2">
                       <Button size="sm" variant="gold" onClick={() => handleConfirmBooking(booking.id)} className="gap-1"><Check className="w-3.5 h-3.5" /> Accept</Button>
