@@ -28,7 +28,7 @@ The following functions are intentionally callable by signed-in users, and each 
 - `artist_resubmit_application` — resolves the artist from `auth.uid()` and enforces suspended status plus the two-item minimum.
 - `artist_set_availability` — resolves the artist from `auth.uid()` and only enables availability for active artists with two approved items.
 - `artist_update_own_profile` — resolves the artist from `auth.uid()` and validates profile fields and private avatar paths.
-- `create_booking_hold` — requires an authenticated customer, locks the profile and artist, validates booking details, availability, overlaps and idempotency.
+- `create_booking_hold` — requires an authenticated customer, locks the profile and artist, validates booking details, availability, overlaps and idempotency, and rejects self-booking or either-direction user blocks. The production function already contains these checks under the applied `prevent_blocked_and_self_booking` migration.
 - `get_my_artist_profile` — returns only the artist row whose `user_id` matches `auth.uid()`.
 
 A separate privilege check confirmed all ten are executable by `authenticated` and not executable by `anon`. These functions should not be blindly revoked: the reviewed code contains the relevant caller/owner checks. Continue reviewing any future SECURITY DEFINER function before granting execute.
