@@ -75,7 +75,7 @@ const ProtectedRoute = ({ children, requiredRole, redirectTo = "/login" }: Props
         const { data, error } = await supabase.functions.invoke("verify-admin", {
           headers: { Authorization: `Bearer ${session.access_token}` },
         });
-        if (!cancelled) setServerChecked(!error && (data as any)?.isAdmin === true);
+        if (!cancelled) setServerChecked(!error && (data as { isAdmin?: boolean } | null)?.isAdmin === true);
       } catch {
         if (!cancelled) setServerChecked(false);
       }
