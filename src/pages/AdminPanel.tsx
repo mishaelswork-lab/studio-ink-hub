@@ -220,7 +220,11 @@ const AdminPanel = () => {
       if (r.content_type === "reel") {
         await supabase.from("reels").update({ moderation_status: "rejected" }).eq("id", r.content_id);
       } else if (r.content_type === "design") {
-        await supabase.from("designs").update({ is_public: false }).eq("id", r.content_id);
+        const { error } = await supabase.rpc("admin_moderate_design", {
+          p_design_id: r.content_id,
+          p_reason: adminNote[r.id] || null,
+        });
+        if (error) { toast.error(error.message || "Could not remove design"); return; }
       }
       await writeAudit("content_report_actioned", r.content_type, r.content_id, adminNote[r.id] || undefined);
       toast.success("Content actioned");
