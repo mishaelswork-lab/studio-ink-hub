@@ -15,8 +15,8 @@ export default defineTool({
     const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
-    let q = supabase.from("artists").select("id, name, style, studio_name, studio_location, hourly_rate, bio, avatar_url").limit(limit ?? 20);
-    if (style) q = q.ilike("style", `%${style}%`);
+    let q = supabase.from("artists").select("id, name, styles, specialty, studio_name, city, country, hourly_rate, bio, avatar_url").eq("status", "active").limit(limit ?? 20);
+    if (style) q = q.contains("styles", [style]);
     const { data, error } = await q;
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
     return {
