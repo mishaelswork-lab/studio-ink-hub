@@ -1,120 +1,96 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
-import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { adminClient, guardCors, requireUser } from "../_shared/guard.ts";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...guardCors, "Content-Type": "application/json" },
   });
 
+async function collectObjectPaths(
+  admin: ReturnType<typeof adminClient>,
+  bucket: string,
+  prefix: string,
+  visited = new Set<string>(),
+): Promise<string[]> {
+  if (visited.has(prefix)) return [];
+  visited.add(prefix);
+
+  const paths: string[] = [];
+  let offset = 0;
+
+  while (true) {
+    const { data, error } = await admin.storage.from(bucket).list(prefix, {
+      limit: 1000,
+      offset,
+      sortBy: { column: "name", order: "asc" },
+    });
+    if (error) throw new Error(`Storage listing failed for ${bucket}`);
+
+    const entries = data ?? [];
+    for (const entry of entries) {
+      const path = `${prefix}/${entry.name}`;
+      // Storage folders have no object id or metadata; files have an object id.
+      if (!entry.id && !entry.metadata) {
+        paths.push(...await collectObjectPaths(admin, bucket, path, visited));
+      } else {
+        paths.push(path);
+      }
+    }
+
+    if (entries.length < 1000) break;
+    offset += entries.length;
+  }
+
+  return paths;
+}
+
+async function removeUserObjects(
+  admin: ReturnType<typeof adminClient>,
+  bucket: string,
+  userId: string,
+) {
+  const paths = await collectObjectPaths(admin, bucket, userId);
+  for (let index = 0; index < paths.length; index += 100) {
+    const { error } = await admin.storage.from(bucket).remove(paths.slice(index, index + 100));
+    if (error) throw new Error(`Storage cleanup failed for ${bucket}`);
+  }
+}
+
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response("ok", { headers: guardCors });
+  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+
+  const auth = await requireUser(req);
+  if (auth.response) return auth.response;
 
   try {
-    const authHeader = req.headers.get("Authorization") ?? "";
-    const token = authHeader.replace("Bearer ", "").trim();
-    if (!token) return json({ error: "Not authenticated" }, 401);
+    const admin = adminClient();
+    const userId = auth.user.id;
 
-    const url = Deno.env.get("SUPABASE_URL")!;
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-    const userClient = createClient(url, anonKey, {
-      global: { headers: { Authorization: `Bearer ${token}` } },
+    // The RPC refuses deletion while the user has unresolved bookings or is the last admin.
+    // It also marks deletion pending before any private media is removed.
+    const { data: prepared, error: prepareError } = await admin.rpc("prepare_account_deletion", {
+      p_user_id: userId,
     });
-    const { data: userData, error: userErr } = await userClient.auth.getUser();
-    if (userErr || !userData?.user) return json({ error: "Not authenticated" }, 401);
-    const userId = userData.user.id;
-
-    const admin = createClient(url, serviceKey);
-
-    // Block deletion while money-bearing commitments are open.
-    const { data: openBookings } = await admin
-      .from("bookings")
-      .select("id")
-      .eq("customer_id", userId)
-      .in("status", ["pending", "accepted", "confirmed"]);
-    if (openBookings && openBookings.length > 0) {
-      return json(
-        { error: "You have upcoming bookings. Please cancel or complete them before deleting your account." },
-        409,
-      );
+    if (prepareError || prepared?.success !== true) {
+      console.error("Account deletion preparation failed", prepareError?.message ?? "Unexpected RPC response");
+      return json({ error: "Account cannot be deleted yet. Resolve outstanding bookings or contact support." }, 409);
     }
 
-    const { data: artistRow } = await admin
-      .from("artists").select("id").eq("user_id", userId).maybeSingle();
-    if (artistRow) {
-      const { data: artistBookings } = await admin
-        .from("bookings").select("id").eq("artist_id", artistRow.id)
-        .in("status", ["pending", "accepted", "confirmed"]);
-      if (artistBookings && artistBookings.length > 0) {
-        return json(
-          { error: "You have active client bookings. Please settle or cancel them before deleting your account." },
-          409,
-        );
-      }
+    // Remove private user media with service-role access. This is retryable: if storage cleanup
+    // or Auth deletion fails, another authenticated request can resume from remaining objects.
+    await removeUserObjects(admin, "portfolio-private", userId);
+    await removeUserObjects(admin, "portfolio-reels", userId);
+
+    const { error: deleteError } = await admin.auth.admin.deleteUser(userId);
+    if (deleteError) {
+      console.error("Auth account deletion failed", deleteError.message);
+      return json({ error: "Your account is prepared for deletion, but final removal failed. Contact support." }, 503);
     }
-
-    // Consultations this user is part of (messages cascade with the consultation).
-    const { data: consults } = await admin
-      .from("consultations").select("id")
-      .or(`customer_id.eq.${userId},artist_id.eq.${userId}`);
-    const consultIds = (consults || []).map(c => c.id);
-    if (consultIds.length) {
-      await admin.from("consultation_messages").delete().in("consultation_id", consultIds);
-      await admin.from("consultations").delete().in("id", consultIds);
-    }
-
-    // Remove the user's private consultation media so signed image links die
-    // with the account instead of living on for a year.
-    try {
-      for (const prefix of [`ref-${userId}-`, ...consultIds.map(id => `${id}/`)]) {
-        const { data: objs } = await admin.storage.from("consultation-media").list("", { search: prefix });
-        if (objs?.length) {
-          await admin.storage.from("consultation-media").remove(objs.map(o => o.name));
-        }
-      }
-    } catch (e) {
-      console.error("consultation media cleanup failed:", e);
-    }
-
-    // Personal data — hard delete.
-    await Promise.all([
-      admin.from("favorites").delete().eq("user_id", userId),
-      admin.from("design_views").delete().eq("user_id", userId),
-      admin.from("push_subscriptions").delete().eq("user_id", userId),
-      admin.from("booking_notifications").delete().eq("user_id", userId),
-      admin.from("consent_records").delete().eq("user_id", userId),
-      admin.from("content_reports").delete().eq("reporter_id", userId),
-      admin.from("design_reports").delete().eq("reporter_id", userId),
-      admin.from("user_blocks").delete().eq("blocker_id", userId),
-      admin.from("user_blocks").delete().eq("blocked_id", userId),
-      admin.from("memberships").delete().eq("user_id", userId),
-      admin.from("reviews").delete().eq("customer_id", userId),
-      admin.from("profiles").delete().eq("user_id", userId),
-      admin.from("user_roles").delete().eq("user_id", userId),
-    ]);
-
-    // Artist-owned content.
-    if (artistRow) {
-      await admin.from("reels").delete().eq("artist_id", artistRow.id);
-      await admin.from("artist_certifications").delete().eq("artist_id", artistRow.id);
-      await admin.from("featured_artists").delete().eq("artist_id", artistRow.id);
-      await admin.from("featured_requests").delete().eq("artist_id", artistRow.id);
-      await admin.from("artists").delete().eq("id", artistRow.id);
-    }
-
-    // Financial / dispute records are retained but de-identified.
-    await admin.from("bookings")
-      .update({ customer_id: null, customer_name: "Deleted user", customer_phone: null, description: null })
-      .eq("customer_id", userId);
-    await admin.from("payments").update({ customer_id: null }).eq("customer_id", userId);
-
-    const { error: delErr } = await admin.auth.admin.deleteUser(userId);
-    if (delErr) return json({ error: "Account deletion failed. Please contact support." }, 500);
 
     return json({ success: true });
-  } catch {
-    return json({ error: "Account deletion failed. Please contact support." }, 500);
+  } catch (error) {
+    console.error("Account deletion cleanup failed", error instanceof Error ? error.message : "Unknown error");
+    return json({ error: "Account deletion is pending. Contact support if retrying does not complete it." }, 503);
   }
 });
