@@ -9,7 +9,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { useMembership } from "@/hooks/useMembership";
-import { Crown } from "lucide-react";
 
 declare global {
   interface Window {
@@ -79,7 +78,7 @@ const BookingPage = () => {
     }
   };
 
-  const baseCover = isMember ? 250 : 500;
+  const baseCover = 49;
   const coverCharge = Math.max(0, baseCover - referralDiscount);
 
   const sendPushNotification = (title: string, body: string) => {
@@ -165,10 +164,7 @@ const BookingPage = () => {
       }
 
       if (orderRes.error || orderRes.data?.error) {
-        toast.success("Booking created! Payment will be configured soon.", { description: "The artist will confirm your appointment." });
-        sendPushNotification("🎨 Booking Created!", `Your session with ${artistName} is pending confirmation.`);
-        navigate("/");
-        return;
+        throw new Error(orderRes.data?.error || orderRes.error?.message || "Could not start secure payment. Your appointment hold has not been paid.");
       }
 
       const loaded = await loadRazorpayScript();
@@ -186,13 +182,18 @@ const BookingPage = () => {
         description: `Cover Charge - ${artistName}${referralDiscount > 0 ? ` (₹${referralDiscount} off)` : ""}`,
         order_id: orderRes.data.order_id,
         handler: async (response: any) => {
-          await supabase.functions.invoke("verify-razorpay-payment", {
+          const verification = await supabase.functions.invoke("verify-razorpay-payment", {
             body: {
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
             },
           });
+          if (verification.error || !verification.data?.success) {
+            toast.error(verification.data?.error || verification.error?.message || "Payment verification failed. Contact support before retrying.");
+            setPaying(false);
+            return;
+          }
           toast.success("Payment successful! Booking confirmed.", { description: "The artist will review your appointment." });
           sendPushNotification("🎨 Booking Confirmed!", `Excellent choice! Your session with ${artistName} is confirmed. You're going to love it!`);
           navigate("/dashboard");
@@ -294,19 +295,9 @@ const BookingPage = () => {
 
             <div className="bg-secondary/50 rounded-md p-4 border border-border">
               <div className="flex justify-between text-sm mb-1">
-                <span className="text-muted-foreground">Cover Charge</span>
-                {isMember ? (
-                  <span className="text-foreground font-medium"><span className="line-through text-muted-foreground mr-1.5">₹500</span>₹250</span>
-                ) : (
-                  <span className="text-foreground font-medium">₹500</span>
-                )}
+                <span className="text-muted-foreground">Booking Cover Charge</span>
+                <span className="text-foreground font-medium">₹49</span>
               </div>
-              {isMember && (
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gold flex items-center gap-1"><Crown className="w-3 h-3" /> Member Discount</span>
-                  <span className="text-gold font-medium">-₹250</span>
-                </div>
-              )}
               {referralDiscount > 0 && (
                 <div className="flex justify-between text-sm mb-1">
                   <span className="text-emerald-400">Referral Discount</span>
@@ -322,7 +313,7 @@ const BookingPage = () => {
                 <span className="text-foreground">₹{artistRate}/hr</span>
               </div>
               <p className="text-muted-foreground text-xs mt-2">Final price will be discussed with the artist after confirmation.</p>
-              {!isMember && <p className="text-gold text-xs mt-1">💡 Premium members pay only ₹250 cover charge!</p>}
+              
             </div>
 
             <Button type="submit" variant="gold" size="lg" className="w-full" disabled={paying}>
