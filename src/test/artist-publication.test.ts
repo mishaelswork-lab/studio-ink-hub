@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isPublishedArtist } from "@/hooks/usePublicArtists";
+import { isPublishedArtist } from "@/lib/artistPublication";
 
 describe("artist publication", () => {
   const artist = { status: "active", available: true, portfolio: ["signed-url-1", "signed-url-2"] };
