@@ -108,10 +108,14 @@ const ArtistDashboard = () => {
       setConsultations(consultationsRes.data || []);
       setCerts(certsRes.data || []);
       const [{ data: portfolioRows }, { data: hoursRows }] = await Promise.all([
-        supabase.from("portfolio_items").select("media_url").eq("artist_id", artistProfile.id).order("created_at", { ascending: false }),
+        supabase.from("portfolio_items").select("id").eq("artist_id", artistProfile.id).order("created_at", { ascending: false }),
         supabase.from("artist_availability").select("weekday,start_time,end_time,is_active").eq("artist_id", artistProfile.id),
       ]);
-      setPortfolioImages((portfolioRows || []).map(item => item.media_url));
+      const { getPortfolioMediaUrl } = await import("@/lib/portfolioMedia");
+      const signedImages = await Promise.all((portfolioRows || []).map(async item => {
+        try { return await getPortfolioMediaUrl(item.id); } catch { return null; }
+      }));
+      setPortfolioImages(signedImages.filter((url): url is string => !!url));
       if (hoursRows) {
         const dayNames = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
         const next = { ...defaultHours };
@@ -189,14 +193,8 @@ const ArtistDashboard = () => {
 
   const handleInstagramPhotoImport = async (url: string, caption: string) => {
     if (!artistProfile) return;
-    const ok = await moderate(url);
-    if (!ok) return;
-    const { error } = await supabase.from("portfolio_items").insert({
-      artist_id: artistProfile.id, media_url: url, media_type: "image", caption, source_url: url,
-    });
-    if (error) { toast.error("Failed to import"); return; }
-    setPortfolioImages(prev => [url, ...prev]);
-    toast.success("Portfolio photo submitted for review");
+    toast.error("Direct Instagram photo imports are temporarily unavailable. Download the image and upload it through the private portfolio uploader.");
+    void url; void caption;
   };
 
   const handlePortfolioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -204,24 +202,43 @@ const ArtistDashboard = () => {
     if (!file || !artistProfile) return;
     if (file.size > 5 * 1024 * 1024) { toast.error("Max 5MB"); return; }
 
-    // Upload via S3+CloudFront when configured (falls back to Supabase Storage).
     const { uploadMedia } = await import("@/lib/mediaUpload");
-    let publicUrl: string;
+    const { getPortfolioMediaUrl } = await import("@/lib/portfolioMedia");
+    let objectPath: string;
     try {
-      publicUrl = await uploadMedia(file, "portfolio", artistProfile.id);
-    } catch {
-      toast.error("Upload failed"); return;
+      objectPath = await uploadMedia(file, "portfolio", artistProfile.id);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Upload failed");
+      return;
     }
 
-    // Moderate ONLY the final URL (debounced + cached — no calls on previews).
-    const ok = await moderate(publicUrl);
-    if (!ok) return;
+    const { data: inserted, error: insertError } = await supabase.from("portfolio_items")
+      .insert({ artist_id: artistProfile.id, media_url: objectPath, media_type: "image", approved: false })
+      .select("id").single();
+    if (insertError || !inserted) {
+      await supabase.storage.from("portfolio-private").remove([objectPath]);
+      toast.error("Could not save portfolio submission");
+      return;
+    }
 
-    const { error } = await supabase.from("portfolio_items").insert({
-      artist_id: artistProfile.id, media_url: publicUrl, media_type: "image",
-    });
-    if (error) { toast.error("Failed to save"); return; }
-    setPortfolioImages(prev => [publicUrl, ...prev]);
+    let signedUrl: string;
+    try {
+      signedUrl = await getPortfolioMediaUrl(inserted.id);
+    } catch {
+      await supabase.from("portfolio_items").delete().eq("id", inserted.id);
+      await supabase.storage.from("portfolio-private").remove([objectPath]);
+      toast.error("Private media delivery is not ready yet. Please try again after the media service is enabled.");
+      return;
+    }
+
+    const ok = await moderate(signedUrl);
+    if (!ok) {
+      await supabase.from("portfolio_items").delete().eq("id", inserted.id);
+      await supabase.storage.from("portfolio-private").remove([objectPath]);
+      return;
+    }
+
+    setPortfolioImages(prev => [signedUrl, ...prev]);
     toast.success("Photo submitted for portfolio review");
   };
 
