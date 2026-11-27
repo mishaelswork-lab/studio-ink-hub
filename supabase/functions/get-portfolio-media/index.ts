@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
 
   const objectPath = item.media_url;
   if (typeof objectPath !== "string" || objectPath.startsWith("http") ||
-      !objectPath.startsWith(`${item.artist_id ? artist?.user_id : ""}/${item.artist_id}/`)) {
+      !objectPath.startsWith(`${artist?.user_id}/${item.artist_id}/`)) {
     return json({ error: "Media path is invalid" }, 409);
   }
 
