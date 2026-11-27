@@ -74,7 +74,14 @@ Deno.serve(async (req) => {
       const message = prepareError.message || "Could not prepare account deletion";
       const status = /OPEN_CUSTOMER_BOOKINGS|OPEN_ARTIST_BOOKINGS|LAST_ADMIN_ACCOUNT/.test(message) ? 409 :
         prepareError.code === "P0002" ? 404 : 500;
-      return json({ error: message }, status);
+      const friendlyMessage = message.includes("OPEN_CUSTOMER_BOOKINGS")
+        ? "You have active bookings as a customer. Cancel or complete them before deleting your account."
+        : message.includes("OPEN_ARTIST_BOOKINGS")
+          ? "You have active client bookings. Complete or cancel them before deleting your artist account."
+          : message.includes("LAST_ADMIN_ACCOUNT")
+            ? "Transfer administrator access to another trusted admin before deleting this account."
+            : status === 404 ? "Your account profile could not be found. Please contact support." : "Could not prepare account deletion. Please retry or contact support.";
+      return json({ error: friendlyMessage }, status);
     }
     if (!prepared?.success) return json({ error: "Could not prepare account deletion" }, 500);
 
