@@ -850,6 +850,7 @@ export type Database = {
           source_url: string | null
           approved: boolean | null
           created_at: string | null
+          instagram_media_id: string | null
         }
         Insert: {
           id?: string
@@ -860,6 +861,7 @@ export type Database = {
           source_url?: string | null
           approved?: boolean | null
           created_at?: string | null
+          instagram_media_id?: string | null
         }
         Update: {
           id?: string
@@ -870,6 +872,7 @@ export type Database = {
           source_url?: string | null
           approved?: boolean | null
           created_at?: string | null
+          instagram_media_id?: string | null
         }
         Relationships: [
           {
@@ -999,6 +1002,7 @@ export type Database = {
           updated_at: string
           video_url: string
           views: number
+          instagram_media_id: string | null
         }
         Insert: {
           artist_id: string
@@ -1013,6 +1017,7 @@ export type Database = {
           updated_at?: string
           video_url: string
           views?: number
+          instagram_media_id?: string | null
         }
         Update: {
           artist_id?: string
@@ -1027,6 +1032,7 @@ export type Database = {
           updated_at?: string
           video_url?: string
           views?: number
+          instagram_media_id?: string | null
         }
         Relationships: [
           {
