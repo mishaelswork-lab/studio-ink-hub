@@ -149,3 +149,5 @@ Not tested: web build, TypeScript, lint, browser/device journeys, authenticated 
 ### Media/storage status
 
 Production storage currently has zero buckets and zero object policies. The app's Supabase fallback still targets a nonexistent public `reels-videos` bucket. The S3 presign source returns a CloudFront public URL and does not implement private read authorization; its Edge Function is also not deployed. Therefore portfolio upload and private-media access are not launch-ready. No bucket or storage policy was created, and no public-media exception was introduced. Before enabling uploads, implement private object storage with owner-scoped upload, admin moderation, and short-lived signed read URLs (or a verified private CDN signing design); remove public URL assumptions from gallery and media delivery.
+
+Negative SQL checks also confirmed unauthenticated calls to `admin_review_artist` and `artist_update_own_profile` are rejected. The current production role table has zero admin assignments; admin workflows are correctly inaccessible until an owner-authorized admin role is provisioned.
