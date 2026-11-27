@@ -192,7 +192,7 @@ const AdminPanel = () => {
 
   const handlePromoteToFeatured = async (artistId: string) => {
     if (!isAdmin) { toast.error("Admin only"); return; }
-    const { error } = await supabase.from("featured_artists").insert({ artist_id: artistId, active: true, priority: 10 });
+    const { error } = await supabase.from("featured_artists").insert({ artist_id: artistId, active: true, priority: 10, expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() });
     if (error) { toast.error(error.message || "Failed to feature artist"); return; }
     await writeAudit("artist_featured", "artist", artistId);
     toast.success("Artist featured!");
