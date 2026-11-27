@@ -205,45 +205,56 @@ const ArtistDashboard = () => {
     const { data, error } = await supabase.functions.invoke("instagram-import-media", {
       body: { artist_id: artistProfile.id, instagram_url: url, caption_override: caption },
     });
-    if (error || data?.success !== true || typeof data?.item_id !== "string") {
+    if (error || data?.success !== true) {
       toast.error(data?.error || error?.message || "Instagram import failed");
       return;
     }
-    if (data.duplicate) {
+    if (data.duplicate || (Array.isArray(data.items) && data.items.length === 0)) {
       toast.info("This Instagram post is already in your portfolio");
       return;
     }
-
+    const importedItems = Array.isArray(data.items)
+      ? data.items as { item_id: string; media_type: "photo" | "reel" }[]
+      : [{ item_id: data.item_id as string, media_type: data.media_type as "photo" | "reel" }];
     const { getPortfolioMediaUrl, getReelMediaUrl } = await import("@/lib/portfolioMedia");
-    if (data.media_type === "photo" && expectedType === "photo") {
-      const signedUrl = await getPortfolioMediaUrl(data.item_id);
-      const ok = await moderate(signedUrl);
-      if (!ok) {
-        const { data: row } = await supabase.from("portfolio_items").select("media_url").eq("id", data.item_id).maybeSingle();
-        await supabase.from("portfolio_items").delete().eq("id", data.item_id);
-        if (row?.media_url) await supabase.storage.from("portfolio-private").remove([row.media_url]);
-        return;
+    let importedCount = 0;
+    for (const item of importedItems) {
+      if (!item.item_id || item.media_type !== expectedType) {
+        toast.error("Choose the matching Instagram photo or Reel import option");
+        continue;
       }
-      setPortfolioImages(prev => [signedUrl, ...prev]);
-    } else if (data.media_type === "reel" && expectedType === "reel") {
-      const media = await getReelMediaUrl(data.item_id);
-      if (media.thumbnailUrl) {
-        const ok = await moderate(media.thumbnailUrl);
-        if (!ok) {
-          const { data: row } = await supabase.from("reels").select("video_url,thumbnail_url").eq("id", data.item_id).maybeSingle();
-          await supabase.from("reels").delete().eq("id", data.item_id);
-          if (row?.video_url) await supabase.storage.from("portfolio-reels").remove([row.video_url]);
-          if (row?.thumbnail_url) await supabase.storage.from("portfolio-private").remove([row.thumbnail_url]);
-          return;
-        }
+      if (item.media_type === "photo") {
+        try {
+          const signedUrl = await getPortfolioMediaUrl(item.item_id);
+          const ok = await moderate(signedUrl);
+          if (!ok) {
+            const { data: row } = await supabase.from("portfolio_items").select("media_url").eq("id", item.item_id).maybeSingle();
+            await supabase.from("portfolio_items").delete().eq("id", item.item_id);
+            if (row?.media_url) await supabase.storage.from("portfolio-private").remove([row.media_url]);
+            continue;
+          }
+          setPortfolioImages(prev => [signedUrl, ...prev]);
+          importedCount++;
+        } catch { toast.error("Imported photo could not be resolved privately"); }
+      } else {
+        try {
+          const media = await getReelMediaUrl(item.item_id);
+          if (media.thumbnailUrl && !(await moderate(media.thumbnailUrl))) {
+            const { data: row } = await supabase.from("reels").select("video_url,thumbnail_url").eq("id", item.item_id).maybeSingle();
+            await supabase.from("reels").delete().eq("id", item.item_id);
+            if (row?.video_url) await supabase.storage.from("portfolio-reels").remove([row.video_url]);
+            if (row?.thumbnail_url) await supabase.storage.from("portfolio-private").remove([row.thumbnail_url]);
+            continue;
+          }
+          const { data: reel } = await supabase.from("reels").select("*").eq("id", item.item_id).maybeSingle();
+          if (reel) {
+            setReels(prev => [{ ...reel, video_url: media.videoUrl, thumbnail_url: media.thumbnailUrl }, ...prev]);
+            importedCount++;
+          }
+        } catch { toast.error("Imported Reel could not be resolved privately"); }
       }
-      const { data: reel } = await supabase.from("reels").select("*").eq("id", data.item_id).maybeSingle();
-      if (reel) setReels(prev => [{ ...reel, video_url: media.videoUrl, thumbnail_url: media.thumbnailUrl }, ...prev]);
-    } else {
-      toast.error("The Instagram link does not match the selected media type");
-      return;
     }
-    toast.success("Imported to your private portfolio — pending admin review");
+    if (importedCount) toast.success(`${importedCount} item(s) imported to your private portfolio — pending admin review`);
   };
 
   const handleInstagramImport = (url: string, caption: string) => importInstagramMedia(url, caption, "reel");
