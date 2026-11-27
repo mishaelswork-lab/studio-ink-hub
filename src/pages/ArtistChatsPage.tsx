@@ -7,12 +7,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { SEO } from "@/lib/seo";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import type { Database } from "@/integrations/supabase/types";
+
+type ConversationRow = Pick<Database["public"]["Tables"]["conversations"]["Row"], "id" | "customer_id" | "artist_id" | "design_request_id" | "created_at">;
+type ProfileSummary = Pick<Database["public"]["Tables"]["profiles"]["Row"], "id" | "display_name" | "avatar_url">;
+type RequestSummary = Pick<Database["public"]["Tables"]["design_requests"]["Row"], "id" | "brief" | "status">;
+type ChatRow = ConversationRow & { customer?: ProfileSummary; request?: RequestSummary };
 
 const PAGE = 15;
 
 const ArtistChatsPage = () => {
   const { user } = useAuth();
-  const [chats, setChats] = useState<any[]>([]);
+  const [chats, setChats] = useState<ChatRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,25 +45,33 @@ const ArtistChatsPage = () => {
         .order("created_at", { ascending: false })
         .range(from, to);
       if (e1) throw e1;
-      const list = cs || [];
-      const customerIds = Array.from(new Set(list.map((c: any) => c.customer_id))).filter(Boolean);
-      const requestIds = Array.from(new Set(list.map((c: any) => c.design_request_id))).filter(Boolean);
-      const [{ data: profiles }, { data: requests }] = await Promise.all([
-        customerIds.length
-          ? supabase.from("profiles").select("id,display_name,avatar_url").in("id", customerIds)
-          : Promise.resolve({ data: [] as any[] }),
-        requestIds.length
-          ? supabase.from("design_requests").select("id,brief,status").in("id", requestIds)
-          : Promise.resolve({ data: [] as any[] }),
-      ]);
-      const byCustomer = new Map((profiles || []).map((p: any) => [p.id, p]));
-      const byRequest = new Map((requests || []).map((r: any) => [r.id, r]));
-      const hydrated = list.map((c: any) => ({ ...c, customer: byCustomer.get(c.customer_id), request: byRequest.get(c.design_request_id) }));
+      const list: ConversationRow[] = cs || [];
+      const customerIds = Array.from(new Set(list.map(c => c.customer_id))).filter((id): id is string => Boolean(id));
+      const requestIds = Array.from(new Set(list.map(c => c.design_request_id))).filter((id): id is string => Boolean(id));
+      let profiles: ProfileSummary[] = [];
+      let requests: RequestSummary[] = [];
+      if (customerIds.length) {
+        const { data, error } = await supabase.from("profiles").select("id,display_name,avatar_url").in("id", customerIds);
+        if (error) throw error;
+        profiles = data ?? [];
+      }
+      if (requestIds.length) {
+        const { data, error } = await supabase.from("design_requests").select("id,brief,status").in("id", requestIds);
+        if (error) throw error;
+        requests = data ?? [];
+      }
+      const byCustomer = new Map(profiles.map(profile => [profile.id, profile]));
+      const byRequest = new Map(requests.map(request => [request.id, request]));
+      const hydrated: ChatRow[] = list.map(conversation => ({
+        ...conversation,
+        customer: byCustomer.get(conversation.customer_id),
+        request: conversation.design_request_id ? byRequest.get(conversation.design_request_id) : undefined,
+      }));
       setChats(prev => reset ? hydrated : [...prev, ...hydrated]);
       setHasMore(list.length === PAGE);
       pageRef.current += 1;
-    } catch (err: any) {
-      setError(err?.message || "Could not load chats");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Could not load chats");
     } finally {
       setLoading(false);
       setLoadingMore(false);
