@@ -1,13 +1,16 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
+
+type ArtistProfile = Database["public"]["Tables"]["artists"]["Row"];
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
   roles: string[];
-  artistProfile: any | null;
+  artistProfile: ArtistProfile | null;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -34,7 +37,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [roles, setRoles] = useState<string[]>([]);
-  const [artistProfile, setArtistProfile] = useState<any | null>(null);
+  const [artistProfile, setArtistProfile] = useState<ArtistProfile | null>(null);
   const activeUserId = useRef<string | null>(null);
 
   const fetchRoles = async (userId: string) => {
@@ -49,7 +52,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const fetchArtistProfile = async (userId: string) => {
     const { data } = await supabase.rpc("get_my_artist_profile");
     if (activeUserId.current !== userId) return;
-    const profile = Array.isArray(data) ? data[0] ?? null : data;
+    const profile = (Array.isArray(data) ? data[0] ?? null : data) as ArtistProfile | null;
     setArtistProfile(profile);
     cacheSet(ARTIST_KEY, profile);
   };
