@@ -1,7 +1,7 @@
 import { QuotesLoader } from "@/components/QuotesLoader";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Heart, Star, Trash2, ArrowLeft } from "lucide-react";
+import { Heart, Trash2, ArrowLeft } from "lucide-react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
