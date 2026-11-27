@@ -14,3 +14,7 @@ verify_jwt = false
 
 [functions.get-public-settings]
 verify_jwt = false
+
+[functions.auth-guard]
+# Public entrypoint for password/OTP auth; validates inputs and enforces server-side rate limits.
+verify_jwt = false
