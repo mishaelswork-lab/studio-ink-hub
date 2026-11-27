@@ -21,7 +21,7 @@ const AdminLogin = () => {
       const [{ data: role, error: roleError }, { data: consents, error: consentError }] = await Promise.all([
         supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle(),
         supabase.from("consent_records").select("purpose").eq("user_id", user.id)
-          .in("purpose", ["personal_data_processing", "terms_of_service"]),
+          .in("purpose", ["personal_data_processing", "terms_of_service", "age_attestation"]),
       ]);
       const recordedPurposes = new Set((consents ?? []).map((record) => record.purpose));
       if (roleError || !role) {
@@ -30,7 +30,7 @@ const AdminLogin = () => {
         navigate("/admin");
         return;
       }
-      if (consentError || !recordedPurposes.has("personal_data_processing") || !recordedPurposes.has("terms_of_service")) {
+      if (consentError || !recordedPurposes.has("personal_data_processing") || !recordedPurposes.has("terms_of_service") || !recordedPurposes.has("age_attestation")) {
         await supabase.auth.signOut();
         toast.error("This account has not completed the required signup consent.");
         navigate("/admin");
