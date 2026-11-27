@@ -1,6 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
-import { Users, CalendarDays, BarChart3, Settings, LogOut, Star, TrendingUp, IndianRupee, Film, Trash2, Shield, ShieldCheck, Check, X, ScrollText, Sparkles, Activity, Zap, Flag } from "lucide-react";
+import { Users, CalendarDays, BarChart3, Settings, LogOut, TrendingUp, IndianRupee, Film, Trash2, Shield, ShieldCheck, Check, X, ScrollText, Sparkles, Activity, Zap, Flag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -283,7 +283,7 @@ const AdminPanel = () => {
                 <span className="ml-auto bg-gold text-primary-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">{artistApplications.length}</span>
               )}
               {tab.id === "ugc" && contentReports.filter(r => r.status === "pending").length > 0 && (
-                <span className="ml-auto bg-destructive text-destructive-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">{contentReports.filter((r: any) => r.status === "pending").length}</span>
+                <span className="ml-auto bg-destructive text-destructive-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">{contentReports.filter(r => r.status === "pending").length}</span>
               )}
             </button>
           ))}
@@ -383,7 +383,7 @@ const AdminPanel = () => {
                       <th className="text-left text-muted-foreground text-xs uppercase tracking-wider p-4">Studio</th>
                       <th className="text-left text-muted-foreground text-xs uppercase tracking-wider p-4">Specialty</th>
                       <th className="text-left text-muted-foreground text-xs uppercase tracking-wider p-4">Rate</th>
-                      <th className="text-left text-muted-foreground text-xs uppercase tracking-wider p-4">Rating</th>
+                      <th className="text-left text-muted-foreground text-xs uppercase tracking-wider p-4">Experience</th>
                       <th className="text-left text-muted-foreground text-xs uppercase tracking-wider p-4">Status</th>
                     </tr>
                   </thead>
@@ -399,7 +399,7 @@ const AdminPanel = () => {
                         <td className="p-4 text-muted-foreground text-sm">{a.studio_name || "—"}</td>
                         <td className="p-4 text-gold text-sm">{a.specialty || "—"}</td>
                         <td className="p-4 text-foreground text-sm">₹{a.hourly_rate}/hr</td>
-                        <td className="p-4"><div className="flex items-center gap-1"><Star className="w-3.5 h-3.5 fill-gold text-gold" /><span className="text-foreground text-sm">{a.rating}</span></div></td>
+                        <td className="p-4 text-foreground text-sm">{a.experience_years == null ? "—" : `${a.experience_years} yrs`}</td>
                         <td className="p-4"><span className={`text-xs px-2 py-1 rounded-full ${a.available ? "bg-emerald-500/10 text-emerald-400" : "bg-destructive/10 text-destructive"}`}>{a.available ? "Active" : "Inactive"}</span></td>
                       </tr>
                     ))}
