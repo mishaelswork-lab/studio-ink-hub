@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
   const { data: artist, error } = await admin.from("artists")
     .select("id,user_id,status,avatar_url").eq("id", artistId).maybeSingle();
   if (error || !artist || !artist.avatar_url) return json({ error: "Avatar not found" }, 404);
-  const isOwner = artist.user_id === authData.user.id;
+  const isOwner = !!userId && artist.user_id === userId;
   const isPublic = artist.status === "active";
   if (!isOwner && !isPublic) return json({ error: "Forbidden" }, 403);
 
