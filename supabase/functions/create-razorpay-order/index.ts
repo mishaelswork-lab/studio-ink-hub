@@ -1,15 +1,14 @@
-import { requireUser } from "../_shared/guard.ts";
+import { requireUser, guardCors } from "../_shared/guard.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.0/cors";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...guardCors, "Content-Type": "application/json" },
   });
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response("ok", { headers: guardCors });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
   const auth = await requireUser(req);
   if (auth.response) return auth.response;
