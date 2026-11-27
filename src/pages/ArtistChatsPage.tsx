@@ -134,7 +134,7 @@ const ArtistChatsPage = () => {
                   <p className="text-foreground text-sm font-medium truncate">{c.customer?.display_name || "Customer"}</p>
                   <p className="text-muted-foreground text-xs truncate">{c.request?.brief || "Design consultation"}</p>
                 </div>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full ${c.status === "active" ? "bg-emerald-500/10 text-emerald-400" : c.status === "pending" ? "bg-gold/10 text-gold" : "bg-primary/10 text-primary"}`}>{c.request?.status || "open"}</span>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full ${c.request?.status === "active" ? "bg-emerald-500/10 text-emerald-400" : c.request?.status === "pending" ? "bg-gold/10 text-gold" : "bg-primary/10 text-primary"}`}>{c.request?.status || "open"}</span>
               </Link>
             ))}
             <div ref={sentinelRef} className="py-4 flex justify-center">
