@@ -47,17 +47,19 @@ export async function hasRole(userId: string, role: string) {
   return !!data;
 }
 
-/** Requires a signed-in user. Returns { user } or { response } to return early. */
-export async function requireUser(req: Request): Promise<{ user?: User; response?: Response }> {
+/** Requires a signed-in user. Returns a discriminated success or denial result. */
+export type GuardResult = { user: User; response?: undefined } | { user?: undefined; response: Response };
+
+export async function requireUser(req: Request): Promise<GuardResult> {
   const user = await getUser(req);
   if (!user) return { response: deny(401, "Sign in required") };
   return { user };
 }
 
 /** Requires an admin user. */
-export async function requireAdmin(req: Request): Promise<{ user?: User; response?: Response }> {
+export async function requireAdmin(req: Request): Promise<GuardResult> {
   const result = await requireUser(req);
-  if (!result.user) return { response: result.response ?? deny(401, "Sign in required") };
+  if (!result.user) return { response: result.response };
   if (!(await hasRole(result.user.id, "admin"))) return { response: deny(403, "Admin access required") };
   return { user: result.user };
 }
