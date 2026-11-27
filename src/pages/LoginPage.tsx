@@ -59,17 +59,27 @@ const LoginPage = () => {
   // Route artists straight to /artist-dashboard, everyone else to /dashboard —
   // unless a `next` param is present (e.g. OAuth consent), in which case honor it.
   const routeAfterLogin = async () => {
-    if (nextPath) { window.location.href = nextPath; return; }
     try {
-      const { data: { user: u } } = await supabase.auth.getUser();
-      if (!u) { navigate("/dashboard"); return; }
+      const { data: { user: u }, error: userError } = await supabase.auth.getUser();
+      if (userError || !u) throw userError ?? new Error("Your session could not be verified.");
+
+      // Do not enter the app until any signup consent carried through email verification is recorded.
       await persistSignupConsents(u.id, u.user_metadata ?? {});
-      const { data } = await supabase.from("user_roles").select("role").eq("user_id", u.id);
-      const roles = (data || []).map((r: any) => r.role);
-      if (roles.includes("artist")) { navigate("/artist-dashboard"); return; }
+      if (nextPath) {
+        window.location.href = nextPath;
+        return;
+      }
+
+      const { data, error: rolesError } = await supabase.from("user_roles").select("role").eq("user_id", u.id);
+      if (rolesError) throw rolesError;
+      const roles = (data || []).map((r) => r.role);
+      if (roles.includes("artist")) {
+        navigate("/artist-dashboard");
+        return;
+      }
       navigate("/dashboard");
-    } catch {
-      navigate("/dashboard");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to complete sign-in. Please try again.");
     }
   };
 
