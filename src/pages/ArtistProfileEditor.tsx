@@ -37,6 +37,8 @@ const ArtistProfileEditor = () => {
   });
   const [images, setImages] = useState<string[]>([]);
   const [avatar, setAvatar] = useState<string | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [imagePaths, setImagePaths] = useState<Record<string, string>>({});
   const [available, setAvailable] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -54,11 +56,26 @@ const ArtistProfileEditor = () => {
       experience_years: String(artistProfile.experience_years ?? 0),
     });
     setAvatar(artistProfile.avatar_url || null);
+    if (artistProfile.avatar_url) {
+      supabase.storage.from("portfolio-private").createSignedUrl(artistProfile.avatar_url, 120)
+        .then(({ data }) => setAvatarPreview(data?.signedUrl || null));
+    } else setAvatarPreview(null);
     setAvailable(!!artistProfile.available);
     let cancelled = false;
-    supabase.from("portfolio_items").select("media_url")
-      .eq("artist_id", artistProfile.id).order("created_at", { ascending: false })
-      .then(({ data }) => { if (!cancelled) setImages((data || []).map(item => item.media_url)); });
+    const loadPortfolio = async () => {
+      const { data } = await supabase.from("portfolio_items").select("id,media_url")
+        .eq("artist_id", artistProfile.id).order("created_at", { ascending: false });
+      const { getPortfolioMediaUrl } = await import("@/lib/portfolioMedia");
+      const resolved = await Promise.all((data || []).map(async item => {
+        try { return { path: item.media_url, url: await getPortfolioMediaUrl(item.id) }; }
+        catch { return null; }
+      }));
+      if (cancelled) return;
+      const valid = resolved.filter((item): item is { path: string; url: string } => !!item);
+      setImages(valid.map(item => item.url));
+      setImagePaths(Object.fromEntries(valid.map(item => [item.url, item.path])));
+    };
+    void loadPortfolio();
     setReady(true);
     return () => { cancelled = true; };
   }, [artistProfile]);
@@ -96,43 +113,52 @@ const ArtistProfileEditor = () => {
 
     setUploading(true);
     const { uploadMedia } = await import("@/lib/mediaUpload");
+    const { getPortfolioMediaUrl } = await import("@/lib/portfolioMedia");
     const { moderateImage } = await import("@/lib/moderate");
-    const added: string[] = [];
+    let added = 0;
 
     for (const file of files.slice(0, MAX_PHOTOS)) {
       if (!validateFile(file) || !throttleOk()) continue;
+      let objectPath: string | null = null;
+      let itemId: string | null = null;
       try {
-        const url = await uploadMedia(file, "portfolio", artistProfile.id);
-        if (images.includes(url) || added.includes(url)) continue;
-        const check = await moderateImage(url);
+        objectPath = await uploadMedia(file, "portfolio", artistProfile.id);
+        const { data: inserted, error } = await supabase.from("portfolio_items")
+          .insert({ artist_id: artistProfile.id, media_url: objectPath, media_type: "image" })
+          .select("id").single();
+        if (error || !inserted) throw error || new Error("Could not save portfolio item");
+        itemId = inserted.id;
+        const signedUrl = await getPortfolioMediaUrl(itemId);
+        const check = await moderateImage(signedUrl);
         if (!check.allowed) {
+          await supabase.from("portfolio_items").delete().eq("id", itemId);
+          await supabase.storage.from("portfolio-private").remove([objectPath]);
           toast.error(`Photo rejected: ${check.reason || "must be tattoo or art work"}`);
           continue;
         }
-        added.push(url);
+        setImages(prev => [...prev, signedUrl]);
+        setImagePaths(prev => ({ ...prev, [signedUrl]: objectPath! }));
+        added++;
       } catch {
+        if (itemId) await supabase.from("portfolio_items").delete().eq("id", itemId);
+        if (objectPath) await supabase.storage.from("portfolio-private").remove([objectPath]);
         toast.error("Upload failed. Please try again.");
       }
     }
-
-    if (added.length) {
-      const rows = added.map(media_url => ({ artist_id: artistProfile.id, media_url, media_type: "image" }));
-      const { error } = await supabase.from("portfolio_items").insert(rows);
-      if (error) toast.error("Could not save portfolio items");
-      else {
-        setImages(prev => [...prev, ...added]);
-        toast.success(added.length + " portfolio photo(s) submitted for review");
-      }
-    }
+    if (added) toast.success(added + " portfolio photo(s) submitted for review");
     setUploading(false);
   };
 
   const handleRemove = async (url: string) => {
     if (!artistProfile) return;
-    const { error } = await supabase.from("portfolio_items").delete().eq("artist_id", artistProfile.id).eq("media_url", url);
+    const objectPath = imagePaths[url];
+    if (!objectPath) { toast.error("Could not resolve private portfolio media"); return; }
+    const { error } = await supabase.from("portfolio_items").delete().eq("artist_id", artistProfile.id).eq("media_url", objectPath);
     if (error) { toast.error("Could not remove photo"); return; }
+    await supabase.storage.from("portfolio-private").remove([objectPath]);
     const next = images.filter(i => i !== url);
     setImages(next);
+    setImagePaths(prev => { const nextPaths = { ...prev }; delete nextPaths[url]; return nextPaths; });
     if (next.length < MIN_PHOTOS && available) {
       await supabase.rpc("artist_set_availability", { p_available: false });
       setAvailable(false);
@@ -146,15 +172,22 @@ const ArtistProfileEditor = () => {
     setUploading(true);
     try {
       const { uploadMedia } = await import("@/lib/mediaUpload");
-      const url = await uploadMedia(file, "avatars", artistProfile.id);
+      const objectPath = await uploadMedia(file, "portfolio", artistProfile.id);
+      const { data: signed, error: signError } = await supabase.storage.from("portfolio-private").createSignedUrl(objectPath, 120);
+      if (signError || !signed?.signedUrl) throw signError || new Error("Could not preview private avatar");
       const { moderateImage } = await import("@/lib/moderate");
-      const check = await moderateImage(url);
-      if (!check.allowed) { toast.error("Profile photo rejected by review"); return; }
-      setAvatar(url);
+      const check = await moderateImage(signed.signedUrl);
+      if (!check.allowed) {
+        await supabase.storage.from("portfolio-private").remove([objectPath]);
+        toast.error("Profile photo rejected by review");
+        return;
+      }
+      setAvatar(objectPath);
+      setAvatarPreview(signed.signedUrl);
       const { error } = await supabase.rpc("artist_update_own_profile", {
         p_name: form.name, p_studio_name: form.studio_name, p_specialty: form.specialty,
         p_bio: form.bio, p_hourly_rate: Number(form.hourly_rate),
-        p_experience_years: Number(form.experience_years), p_avatar_url: url,
+        p_experience_years: Number(form.experience_years), p_avatar_url: objectPath,
       });
       if (error) { toast.error("Could not save photo"); return; }
       await refreshProfile();
@@ -259,7 +292,7 @@ const ArtistProfileEditor = () => {
         <div className="flex items-center gap-4 mb-8">
           <div className="relative">
             <img
-              src={avatar || "/placeholder.svg"}
+              src={avatarPreview || "/placeholder.svg"}
               alt={form.name || "Artist profile photo"}
               width={80} height={80} loading="lazy" decoding="async"
               className="w-20 h-20 rounded-full object-cover border border-gold/30"
