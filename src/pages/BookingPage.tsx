@@ -228,12 +228,12 @@ const BookingPage = () => {
               {isMember && (
                 <div className="flex justify-between text-sm mb-1">
                   <span className="text-gold flex items-center gap-1"><Crown className="w-3 h-3" /> Member Discount</span>
-                  <span className="text-gold font-medium">-₹250</span>
+                  <span className="text-gold font-medium">-₹{(baseCover - coverCharge).toFixed(2)}</span>
                 </div>
               )}
               <div className="flex justify-between text-sm mb-1">
                 <span className="text-muted-foreground font-semibold">Total</span>
-                <span className="text-foreground font-bold">₹{coverCharge}</span>
+                <span className="text-foreground font-bold">₹{coverCharge.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm mt-2 pt-2 border-t border-border">
                 <span className="text-muted-foreground">Artist Rate</span>
@@ -244,7 +244,7 @@ const BookingPage = () => {
             </div>
 
             <Button type="submit" variant="gold" size="lg" className="w-full" disabled={paying}>
-              {paying ? "Processing..." : `Pay ₹${coverCharge} & Book`}
+              {paying ? "Processing..." : `Pay ₹${coverCharge.toFixed(2)} & Book`}
             </Button>
           </form>
         </div>
