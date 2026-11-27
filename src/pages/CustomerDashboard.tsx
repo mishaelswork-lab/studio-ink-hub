@@ -1,7 +1,7 @@
 import { QuotesLoader } from "@/components/QuotesLoader";
 import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { CalendarDays, Clock, MapPin, Search, Star, Bell, LogOut, Compass, Heart, Gift, MessageSquare, Copy, Check, Crown } from "lucide-react";
+import { CalendarDays, Clock, MapPin, Search, Star, Bell, LogOut, Compass, Heart, MessageSquare, Check, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/layout/Navbar";
 import { useAuth } from "@/contexts/AuthContext";
@@ -17,8 +17,6 @@ const CustomerDashboard = () => {
   const [bookings, setBookings] = useState<any[]>([]);
   const [artists, setArtists] = useState<any[]>([]);
   const [consultations, setConsultations] = useState<any[]>([]);
-  const [referralCode, setReferralCode] = useState("");
-  const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notifiedBookings, setNotifiedBookings] = useState<Set<string>>(new Set());
   const { isMember, chatsRemaining } = useMembership();
@@ -26,23 +24,23 @@ const CustomerDashboard = () => {
   useEffect(() => {
     if (!user) return;
     const fetchData = async () => {
-      const [bookingsRes, artistsRes, consultationsRes, referralRes] = await Promise.all([
+      const [bookingsRes, artistsRes, conversationsRes] = await Promise.all([
         supabase.from("bookings").select("*, artists(name, avatar_url, studio_name, specialty)").eq("customer_id", user.id).order("created_at", { ascending: false }),
         supabase.from("artists").select("*").eq("available", true).limit(6),
-        supabase.from("consultations").select("*").eq("customer_id", user.id).order("created_at", { ascending: false }).limit(5),
-        supabase.from("referrals").select("*").eq("referrer_id", user.id).limit(1),
+        supabase.from("conversations").select("id,customer_id,artist_id,design_request_id,created_at").eq("customer_id", user.id).order("created_at", { ascending: false }).limit(5),
       ]);
       setBookings(bookingsRes.data || []);
       setArtists(artistsRes.data || []);
-      setConsultations(consultationsRes.data || []);
-
-      if ((referralRes.data || []).length > 0) {
-        setReferralCode(referralRes.data![0].referral_code);
-      } else {
-        const code = `ART${user.id.slice(0, 6).toUpperCase()}`;
-        await supabase.from("referrals").insert({ referrer_id: user.id, referral_code: code });
-        setReferralCode(code);
-      }
+      const requestIds = Array.from(new Set((conversationsRes.data || []).map(c => c.design_request_id))).filter(Boolean);
+      const { data: requests } = requestIds.length
+        ? await supabase.from("design_requests").select("id,brief,status").in("id", requestIds)
+        : { data: [] as { id: string; brief: string; status: string | null }[] };
+      const requestById = new Map((requests || []).map(request => [request.id, request]));
+      setConsultations((conversationsRes.data || []).map(c => ({
+        ...c,
+        design_description: requestById.get(c.design_request_id || "")?.brief || "Design consultation",
+        status: requestById.get(c.design_request_id || "")?.status || "open",
+      })));
       setLoading(false);
     };
     fetchData();
@@ -102,13 +100,6 @@ const CustomerDashboard = () => {
       date.setHours(hours, mins, 0, 0);
       return date;
     } catch { return null; }
-  };
-
-  const copyReferral = () => {
-    navigator.clipboard.writeText(referralCode);
-    setCopied(true);
-    toast.success("Referral code copied!");
-    setTimeout(() => setCopied(false), 2000);
   };
 
   const activeBookings = bookings.filter(b => b.status === "confirmed" || b.status === "pending");
@@ -207,24 +198,6 @@ const CustomerDashboard = () => {
               <p className="text-muted-foreground text-xs mt-0.5">{action.desc}</p>
             </Link>
           ))}
-        </div>
-
-        {/* Referral Card */}
-        <div className="bg-gradient-to-r from-gold/10 to-gold/5 rounded-xl border border-gold/20 p-5 mb-8">
-          <div className="flex items-start gap-3">
-            <Gift className="w-5 h-5 text-gold flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <h3 className="text-foreground font-medium mb-1">Refer & Earn ₹100 Off!</h3>
-              <p className="text-muted-foreground text-sm mb-3">Share your code with friends. They get ₹100 off on their first booking!</p>
-              <div className="flex items-center gap-2">
-                <div className="bg-card rounded-md border border-border px-4 py-2 font-mono text-foreground text-sm tracking-wider">{referralCode}</div>
-                <Button variant="gold" size="sm" onClick={copyReferral} className="gap-1">
-                  {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                  {copied ? "Copied" : "Copy"}
-                </Button>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Active Consultations */}
