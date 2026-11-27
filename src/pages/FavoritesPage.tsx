@@ -36,7 +36,7 @@ const FavoritesPage = () => {
         setReels(data || []);
       }
       if (designIds.length > 0) {
-        const { data } = await supabase.from("daily_designs").select("*").in("id", designIds);
+        const { data } = await supabase.from("designs").select("*").in("id", designIds);
         setDesigns(data || []);
       }
       setLoading(false);
