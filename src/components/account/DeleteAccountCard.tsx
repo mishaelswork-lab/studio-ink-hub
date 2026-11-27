@@ -22,7 +22,8 @@ export const DeleteAccountCard = () => {
       headers: { Authorization: `Bearer ${session.access_token}` },
     });
     setBusy(false);
-    const err = (data as any)?.error;
+    const responseData = data as { error?: unknown } | null;
+    const err = typeof responseData?.error === "string" ? responseData.error : null;
     if (error || err) {
       toast.error(err || "Could not delete your account. Please contact support.");
       return;
