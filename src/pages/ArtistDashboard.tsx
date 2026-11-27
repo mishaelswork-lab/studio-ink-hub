@@ -9,7 +9,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import type { Database } from "@/integrations/supabase/types";
+import type { Database, Json } from "@/integrations/supabase/types";
+
+type ArtistReel = Database["public"]["Tables"]["reels"]["Row"];
+type ArtistPayment = Pick<Database["public"]["Tables"]["payments"]["Row"], "id" | "booking_id" | "amount_minor" | "currency" | "status" | "created_at" | "artist_id" | "payment_type">;
+type ArtistConsultation = Pick<Database["public"]["Tables"]["conversations"]["Row"], "id" | "customer_id" | "artist_id" | "design_request_id" | "created_at"> & { design_description: string; status: string };
+type ArtistCertification = Database["public"]["Tables"]["artist_certifications"]["Row"];
 
 type ArtistBooking = Pick<Database["public"]["Tables"]["bookings"]["Row"], "id" | "customer_id" | "artist_id" | "design_request_id" | "starts_at" | "ends_at" | "status" | "cover_charge_paid" | "hold_expires_at" | "created_at"> & {
   design_requests: Pick<Database["public"]["Tables"]["design_requests"]["Row"], "brief" | "placement" | "size_description"> | null;
@@ -88,10 +93,10 @@ const ArtistDashboard = () => {
   const { user, artistProfile, signOut } = useAuth();
   const navigate = useNavigate();
   const [bookings, setBookings] = useState<ArtistBooking[]>([]);
-  const [reels, setReels] = useState<any[]>([]);
-  const [payments, setPayments] = useState<any[]>([]);
-  const [consultations, setConsultations] = useState<any[]>([]);
-  const [certs, setCerts] = useState<any[]>([]);
+  const [reels, setReels] = useState<ArtistReel[]>([]);
+  const [payments, setPayments] = useState<ArtistPayment[]>([]);
+  const [consultations, setConsultations] = useState<ArtistConsultation[]>([]);
+  const [certs, setCerts] = useState<ArtistCertification[]>([]);
   const [portfolioImages, setPortfolioImages] = useState<string[]>([]);
   const [artistAvatarUrl, setArtistAvatarUrl] = useState<string | null>(null);
   const [instagramConnected, setInstagramConnected] = useState(false);
@@ -325,7 +330,7 @@ const ArtistDashboard = () => {
   const handleSaveAvailability = async () => {
     if (!artistProfile) return;
     setSavingHours(true);
-    const { error } = await supabase.rpc("artist_replace_weekly_availability", { p_schedule: availability as any });
+    const { error } = await supabase.rpc("artist_replace_weekly_availability", { p_schedule: availability as unknown as Json });
     setSavingHours(false);
     if (error) { toast.error("Failed to save"); return; }
     toast.success("Availability updated!");
