@@ -1106,6 +1106,7 @@ export type Database = {
         Returns: number
       }
       artist_resubmit_application: { Args: Record<PropertyKey, never>; Returns: boolean }
+      get_my_artist_profile: { Args: Record<PropertyKey, never>; Returns: Database["public"]["Tables"]["artists"]["Row"][] }
       admin_review_artist: {
         Args: { p_artist_id: string; p_decision: string; p_reason?: string | null }
         Returns: Database["public"]["Tables"]["artists"]["Row"]
