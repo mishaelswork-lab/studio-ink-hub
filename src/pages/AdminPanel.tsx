@@ -466,7 +466,7 @@ const AdminPanel = () => {
                       <div>
                         <div className="flex items-center gap-2">
                           <h3 className="font-heading text-lg font-semibold text-foreground">{artist.name}</h3>
-                          <span className={`text-xs px-2 py-1 rounded-full capitalize ${artist.status === "rejected" ? "bg-destructive/10 text-destructive" : "bg-gold/10 text-gold"}`}>{artist.status}</span>
+                          <span className={`text-xs px-2 py-1 rounded-full capitalize ${artist.status === "suspended" ? "bg-destructive/10 text-destructive" : "bg-gold/10 text-gold"}`}>{artist.status}</span>
                         </div>
                         <p className="text-gold text-sm">{artist.specialty || "Specialty not set"} · ₹{artist.hourly_rate}/hr</p>
                         <p className="text-muted-foreground text-xs mt-1">{artist.studio_name || "Independent artist"} · Submitted {new Date(artist.created_at).toLocaleString()}</p>
