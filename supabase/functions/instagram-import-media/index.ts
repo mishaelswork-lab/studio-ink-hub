@@ -93,14 +93,16 @@ Deno.serve(async (req) => {
 
     let next: string | null = null;
     const candidates: any[] = [];
-    const first = new URL("https://graph.instagram.com/me/media");
+    const graphVersion = Deno.env.get("INSTAGRAM_GRAPH_API_VERSION") || "v27.0";
+    const graphBase = `https://graph.instagram.com/${graphVersion}`;
+    const first = new URL(`${graphBase}/me/media`);
     first.searchParams.set("fields", "id,caption,media_type,media_url,thumbnail_url,permalink,timestamp");
     first.searchParams.set("limit", "100");
     first.searchParams.set("access_token", token);
     next = first.toString();
     for (let page = 0; next && page < 5; page++) {
       const pageUrl = new URL(next);
-      if (pageUrl.hostname !== "graph.instagram.com") throw new Error("Instagram returned an invalid pagination URL");
+      if (pageUrl.hostname !== "graph.instagram.com" || !pageUrl.pathname.startsWith(`/${graphVersion}/`)) throw new Error("Instagram returned an invalid pagination URL");
       const response = await fetch(pageUrl);
       if (!response.ok) throw new Error("Could not read Instagram media. Check account permissions.");
       const result = await response.json();
@@ -116,7 +118,7 @@ Deno.serve(async (req) => {
     });
     if (!media) throw new Error("This post was not found in the connected Instagram account. Only media owned by that account can be imported.");
     if (media.media_type === "CAROUSEL_ALBUM") {
-      const childrenUrl = new URL(`https://graph.instagram.com/${encodeURIComponent(media.id)}/children`);
+      const childrenUrl = new URL(`${graphBase}/${encodeURIComponent(media.id)}/children`);
       childrenUrl.searchParams.set("fields", "id,media_type,media_url");
       childrenUrl.searchParams.set("limit", "50");
       childrenUrl.searchParams.set("access_token", token);
