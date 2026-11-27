@@ -1393,6 +1393,10 @@ export type Database = {
         Args: { p_conversation_id: string }
         Returns: { peer_user_id: string; peer_name: string | null; peer_avatar_url: string | null }[]
       }
+      admin_moderate_design: {
+        Args: { p_design_id: string; p_reason?: string | null }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "customer" | "artist" | "admin"
