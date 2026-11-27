@@ -192,7 +192,7 @@ const ArtistDashboard = () => {
     const ok = await moderate(url);
     if (!ok) return;
     const { error } = await supabase.from("portfolio_items").insert({
-      artist_id: artistProfile.id, media_url: url, media_type: "image", caption, source_url: url, approved: false,
+      artist_id: artistProfile.id, media_url: url, media_type: "image", caption, source_url: url,
     });
     if (error) { toast.error("Failed to import"); return; }
     setPortfolioImages(prev => [url, ...prev]);
@@ -218,7 +218,7 @@ const ArtistDashboard = () => {
     if (!ok) return;
 
     const { error } = await supabase.from("portfolio_items").insert({
-      artist_id: artistProfile.id, media_url: publicUrl, media_type: "image", approved: false,
+      artist_id: artistProfile.id, media_url: publicUrl, media_type: "image",
     });
     if (error) { toast.error("Failed to save"); return; }
     setPortfolioImages(prev => [publicUrl, ...prev]);
