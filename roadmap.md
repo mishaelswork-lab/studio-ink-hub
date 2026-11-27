@@ -10,7 +10,7 @@
 - [ ] A3. Connect real Tart domain (blocked: needs Mishael's domain / DNS)
 
 ## Payments
-- [x] B1. Payment hardening done: server-side pricing verified live (client amount ignored, ₹199 order enforced); test-mode keys present. Remaining: Mishael switches to live Razorpay keys + one real transaction
+- [ ] B1. Payment reconciliation in progress: branch-only Edge Function changes now use canonical `payments` columns and `finalize_razorpay_payment`; live pricing verified as ₹49 booking cover, ₹395 lifetime membership, 10% member cover discount, ₹500/30-day featured boost. Not deployed or sandbox-tested. Owner action: confirm Razorpay test credentials/secrets and run sandbox scenarios before approval. Never run a real transaction without explicit approval.
 - [x] B2. iOS gating re-verified: membership banner + boost card hidden via canSellDigitalGoods()
 - [x] B3. Server-side pricing now authoritative (RBI-friendly: no client-chosen amounts)
 
