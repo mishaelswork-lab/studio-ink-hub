@@ -5,11 +5,12 @@ ArtSpace imports only media returned by Meta's official Instagram API for the ar
 ## Meta developer setup
 
 1. Create or select the ArtSpace Meta developer app.
-2. Add the Instagram API product and configure Instagram Login.
-3. Request the `instagram_business_basic` permission.
-4. Configure the exact OAuth redirect URI:
+2. Add the Instagram API product and configure Instagram Login / Business Login.
+3. Copy the **Instagram App ID and Instagram App Secret from the Instagram API setup** (do not substitute the general Meta App ID/Secret from App Settings → Basic).
+4. Request the `instagram_business_basic` permission.
+5. Configure the exact OAuth redirect URI:
    `https://ufvabnxcpxhusbdgunmb.supabase.co/functions/v1/instagram-connect-callback`
-5. Ensure the Instagram account is a supported professional (Business or Creator) account and is added as a tester while the Meta app is in development mode. Complete Meta app review / required access before opening the integration to all artists.
+6. Ensure the Instagram account is a supported professional (Business or Creator) account and is added as a tester while the Meta app is in development mode. Complete Meta app review / required access before opening the integration to all artists.
 
 ## Supabase Edge Function secrets
 
@@ -19,6 +20,7 @@ Set these in the Supabase project's Edge Function secrets. Never put them in Vit
 - `INSTAGRAM_APP_SECRET`
 - `INSTAGRAM_REDIRECT_URI` — the exact callback URI above
 - `INSTAGRAM_TOKEN_ENCRYPTION_KEY` — base64-encoded 32 cryptographically random bytes for AES-256-GCM token encryption
+- `INSTAGRAM_GRAPH_API_VERSION` — optional; defaults to `v27.0` and should be updated with Meta's supported version schedule
 - `ARTSPACE_APP_URL` — the canonical ArtSpace web origin, with no path
 
 Supabase provides `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` to Edge Functions.
