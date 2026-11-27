@@ -85,6 +85,44 @@ export type Database = {
           },
         ]
       }
+      artist_certifications: {
+        Row: {
+          artist_id: string
+          certificate_url: string | null
+          certification_name: string
+          created_at: string
+          id: string
+          issuing_body: string | null
+          verified: boolean
+        }
+        Insert: {
+          artist_id: string
+          certificate_url?: string | null
+          certification_name: string
+          created_at?: string
+          id?: string
+          issuing_body?: string | null
+          verified?: boolean
+        }
+        Update: {
+          artist_id?: string
+          certificate_url?: string | null
+          certification_name?: string
+          created_at?: string
+          id?: string
+          issuing_body?: string | null
+          verified?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artist_certifications_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       artist_leads: {
         Row: {
           artist_name: string
@@ -314,6 +352,81 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      consent_records: {
+        Row: {
+          anon_id: string | null
+          created_at: string
+          granted: boolean
+          id: string
+          policy_version: string
+          purpose: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          anon_id?: string | null
+          created_at?: string
+          granted: boolean
+          id?: string
+          policy_version: string
+          purpose: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          anon_id?: string | null
+          created_at?: string
+          granted?: boolean
+          id?: string
+          policy_version?: string
+          purpose?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      content_reports: {
+        Row: {
+          admin_notes: string | null
+          content_id: string
+          content_type: string
+          created_at: string
+          details: string | null
+          id: string
+          reason: string
+          reporter_id: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          content_id: string
+          content_type: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          reason: string
+          reporter_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          content_id?: string
+          content_type?: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          reason?: string
+          reporter_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Relationships: []
       }
       conversations: {
         Row: {
@@ -763,6 +876,33 @@ export type Database = {
           },
         ]
       }
+      perf_metrics: {
+        Row: {
+          created_at: string
+          event: string
+          id: string
+          meta: Json
+          url: string | null
+          value: number | null
+        }
+        Insert: {
+          created_at?: string
+          event: string
+          id?: string
+          meta?: Json
+          url?: string | null
+          value?: number | null
+        }
+        Update: {
+          created_at?: string
+          event?: string
+          id?: string
+          meta?: Json
+          url?: string | null
+          value?: number | null
+        }
+        Relationships: []
+      }
       platform_settings: {
         Row: {
           key: string
@@ -864,6 +1004,39 @@ export type Database = {
         }
         Relationships: []
       }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          updated_at: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       reels: {
         Row: {
           artist_id: string
@@ -923,6 +1096,57 @@ export type Database = {
           },
         ]
       }
+      reviews: {
+        Row: {
+          artist_id: string
+          booking_id: string
+          comment: string | null
+          created_at: string
+          customer_id: string | null
+          id: string
+          rating: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          artist_id: string
+          booking_id: string
+          comment?: string | null
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          rating: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          artist_id?: string
+          booking_id?: string
+          comment?: string | null
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          rating?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: true
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       saved_designs: {
         Row: {
           created_at: string | null
@@ -955,6 +1179,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_blocks: {
+        Row: {
+          blocked_id: string
+          blocker_id: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          blocked_id: string
+          blocker_id: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          blocked_id?: string
+          blocker_id?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
