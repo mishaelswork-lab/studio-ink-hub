@@ -116,7 +116,7 @@ const ArtistProfileEditor = () => {
     }
 
     if (added.length) {
-      const rows = added.map(media_url => ({ artist_id: artistProfile.id, media_url, media_type: "image", approved: false }));
+      const rows = added.map(media_url => ({ artist_id: artistProfile.id, media_url, media_type: "image" }));
       const { error } = await supabase.from("portfolio_items").insert(rows);
       if (error) toast.error("Could not save portfolio items");
       else {
