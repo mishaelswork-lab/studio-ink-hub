@@ -139,6 +139,26 @@ const LoginPage = () => {
     }
   };
 
+  const handlePasswordReset = async () => {
+    const address = email.trim();
+    if (!address) {
+      toast.error("Enter your email address first.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(address, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      toast.success("If an account exists for that address, password reset instructions have been sent.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not request a password reset.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handlePhoneOtp = async () => {
     if (!phone || phone.length < 10) { toast.error("Enter a valid phone number"); return; }
     setLoading(true);
@@ -230,7 +250,14 @@ const LoginPage = () => {
                 <input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-gold placeholder:text-muted-foreground" />
               </div>
               <div>
-                <label className="text-sm text-muted-foreground mb-1.5 block">Password</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-sm text-muted-foreground">Password</label>
+                  {!isSignUp && (
+                    <button type="button" onClick={handlePasswordReset} disabled={loading} className="text-xs text-gold hover:underline disabled:opacity-50">
+                      Forgot password?
+                    </button>
+                  )}
+                </div>
                 <input type="password" required value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-gold placeholder:text-muted-foreground" />
               </div>
               {isSignUp && (
