@@ -44,7 +44,8 @@ Deno.serve(async (req) => {
     if (!longResponse.ok) throw new Error("Instagram long-lived token exchange failed");
     const longToken = await longResponse.json();
     if (typeof longToken.access_token !== "string") throw new Error("Instagram returned no long-lived token");
-    const profileUrl = new URL("https://graph.instagram.com/me");
+    const graphVersion = Deno.env.get("INSTAGRAM_GRAPH_API_VERSION") || "v27.0";
+    const profileUrl = new URL(`https://graph.instagram.com/${graphVersion}/me`);
     profileUrl.searchParams.set("fields", "id,username");
     profileUrl.searchParams.set("access_token", longToken.access_token);
     const profileResponse = await fetch(profileUrl);
