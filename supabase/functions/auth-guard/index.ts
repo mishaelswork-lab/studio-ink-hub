@@ -145,7 +145,7 @@ Deno.serve(async (req) => {
     }
 
     if (action === "otp_send") {
-      const { error } = await anon.auth.signInWithOtp({ phone: identifier });
+      const { error } = await anon.auth.signInWithOtp({ phone: identifier, options: { shouldCreateUser: false } });
       // Record every send (success or not) so the throttle counts them.
       await record(identifier, ip, action, !error);
       if (error) return json({ error: "Could not send code. Please try again later." }, 400);
