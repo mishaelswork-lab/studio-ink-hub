@@ -1,6 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
+type InstagramMediaItem = { id: string; caption?: string; media_type: string; media_url?: string; thumbnail_url?: string; permalink?: string };
+type InstagramMediaPage = { data?: InstagramMediaItem[]; paging?: { next?: string } };
 const decode = (s: string) => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 const encode = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
 async function cryptToken(token: string, secret: string, iv?: string) {
@@ -92,7 +94,7 @@ Deno.serve(async (req) => {
     }
 
     let next: string | null = null;
-    const candidates: any[] = [];
+    const candidates: InstagramMediaItem[] = [];
     const graphVersion = Deno.env.get("INSTAGRAM_GRAPH_API_VERSION") || "v27.0";
     const graphBase = `https://graph.instagram.com/${graphVersion}`;
     const first = new URL(`${graphBase}/me/media`);
@@ -101,11 +103,11 @@ Deno.serve(async (req) => {
     first.searchParams.set("access_token", token);
     next = first.toString();
     for (let page = 0; next && page < 5; page++) {
-      const pageUrl = new URL(next);
+      const pageUrl: URL = new URL(next as string);
       if (pageUrl.hostname !== "graph.instagram.com" || !pageUrl.pathname.startsWith(`/${graphVersion}/`)) throw new Error("Instagram returned an invalid pagination URL");
-      const response = await fetch(pageUrl);
+      const response: Response = await fetch(pageUrl);
       if (!response.ok) throw new Error("Could not read Instagram media. Check account permissions.");
-      const result = await response.json();
+      const result: InstagramMediaPage = await response.json();
       if (Array.isArray(result.data)) candidates.push(...result.data);
       next = typeof result.paging?.next === "string" ? result.paging.next : null;
       const match = candidates.find(item => {
@@ -113,7 +115,7 @@ Deno.serve(async (req) => {
       });
       if (match) break;
     }
-    const media = candidates.find(item => {
+    const media: InstagramMediaItem | undefined = candidates.find(item => {
       try { return normalizePermalink(item.permalink) === permalink; } catch { return false; }
     });
     if (!media) throw new Error("This post was not found in the connected Instagram account. Only media owned by that account can be imported.");
@@ -125,7 +127,7 @@ Deno.serve(async (req) => {
       const childrenResponse = await fetch(childrenUrl);
       if (!childrenResponse.ok) throw new Error("Could not read photos in this Instagram carousel");
       const children = await childrenResponse.json();
-      const photos = (Array.isArray(children.data) ? children.data : []).filter((item: any) => item.media_type === "IMAGE" && typeof item.media_url === "string");
+      const photos = (Array.isArray(children.data) ? children.data as InstagramMediaItem[] : []).filter(item => item.media_type === "IMAGE" && typeof item.media_url === "string");
       if (!photos.length) throw new Error("This carousel has no importable photos");
       const imported: { item_id: string; media_type: "photo" }[] = [];
       for (const photo of photos) {
