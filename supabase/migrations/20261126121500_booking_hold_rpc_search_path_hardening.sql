@@ -1,0 +1,1 @@
+alter function public.create_booking_hold(uuid,timestamptz,timestamptz,text,text,text,text,text) set search_path = pg_catalog, public;

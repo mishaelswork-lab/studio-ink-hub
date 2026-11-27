@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, Upload, Send, Loader2, Crown } from "lucide-react";
+import { ArrowLeft, Send, Loader2, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Navbar } from "@/components/layout/Navbar";
@@ -9,39 +9,22 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useMembership } from "@/hooks/useMembership";
 import { MembershipBanner } from "@/components/MembershipBanner";
+import type { Database } from "@/integrations/supabase/types";
+
+type ArtistSummary = Pick<Database["public"]["Tables"]["artists"]["Row"], "id" | "name" | "avatar_url" | "specialty" | "studio_name" | "status">;
 
 const StartConsultation = () => {
   const { artistId } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [artist, setArtist] = useState<any>(null);
+  const [artist, setArtist] = useState<ArtistSummary | null>(null);
   const [description, setDescription] = useState("");
-  const [images, setImages] = useState<string[]>([]);
-  const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const { canChat, chatsRemaining, incrementChatCount, isMember } = useMembership();
+  const { canChat, chatsRemaining, isMember } = useMembership();
 
   useEffect(() => {
-    supabase.from("artists").select("*").eq("id", artistId!).maybeSingle().then(({ data }) => setArtist(data));
+    supabase.from("artists").select("id,name,avatar_url,specialty,studio_name,status").eq("id", artistId!).eq("status", "active").maybeSingle().then(({ data }) => setArtist(data));
   }, [artistId]);
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || !user) return;
-    setUploading(true);
-    const newUrls: string[] = [];
-    for (const file of Array.from(files).slice(0, 3)) {
-      if (file.size > 5 * 1024 * 1024) continue;
-      const path = `ref-${user.id}-${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "")}`;
-      const { error } = await supabase.storage.from("consultation-media").upload(path, file);
-      if (!error) {
-        const { data } = await supabase.storage.from("consultation-media").createSignedUrl(path, 60 * 60 * 24 * 7);
-        if (data?.signedUrl) newUrls.push(data.signedUrl);
-      }
-    }
-    setImages(prev => [...prev, ...newUrls]);
-    setUploading(false);
-  };
 
   const handleSubmit = async () => {
     if (!user || !artistId || !description.trim()) {
@@ -54,21 +37,20 @@ const StartConsultation = () => {
     }
     setSubmitting(true);
 
-    const artistUserId = artist?.user_id;
-    if (!artistUserId) { toast.error("Artist not found"); setSubmitting(false); return; }
+    const { data, error } = await supabase.rpc("start_consultation", {
+      p_artist_id: artistId,
+      p_brief: description.trim(),
+      p_reference_images: [],
+    });
 
-    const { data, error } = await supabase.from("consultations").insert({
-      customer_id: user.id,
-      artist_id: artistUserId,
-      design_description: description.trim(),
-      reference_images: images,
-    }).select().single();
+    if (error || !data) {
+      toast.error(error?.message || "Failed to start consultation");
+      setSubmitting(false);
+      return;
+    }
 
-    if (error) { toast.error("Failed to start consultation"); setSubmitting(false); return; }
-
-    await incrementChatCount();
     toast.success("Consultation started!");
-    navigate(`/consultation/${data.id}`);
+    navigate(`/consultation/${data}`);
   };
 
   if (!artist) {
@@ -125,21 +107,6 @@ const StartConsultation = () => {
                   rows={4}
                   className="bg-secondary border-border text-foreground resize-none"
                 />
-              </div>
-
-              <div>
-                <label className="text-sm text-muted-foreground mb-1.5 block">Reference images (optional, max 3)</label>
-                <div className="flex gap-2 flex-wrap">
-                  {images.map((img, i) => (
-                    <img key={i} src={img} alt="ref" className="w-20 h-20 rounded-lg object-cover border border-border" />
-                  ))}
-                  {images.length < 3 && (
-                    <label className="w-20 h-20 rounded-lg border-2 border-dashed border-border flex items-center justify-center cursor-pointer hover:border-gold/30 transition-colors">
-                      {uploading ? <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /> : <Upload className="w-5 h-5 text-muted-foreground" />}
-                      <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageUpload} disabled={uploading} />
-                    </label>
-                  )}
-                </div>
               </div>
 
               <Button variant="gold" className="w-full gap-2" onClick={handleSubmit} disabled={submitting || !description.trim()}>

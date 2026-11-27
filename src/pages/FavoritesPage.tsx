@@ -1,45 +1,84 @@
 import { QuotesLoader } from "@/components/QuotesLoader";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Heart, Star, Trash2, ArrowLeft } from "lucide-react";
+import { Heart, Trash2, ArrowLeft } from "lucide-react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import type { Database } from "@/integrations/supabase/types";
+import { getArtistAvatarUrl, getReelMediaUrl } from "@/lib/portfolioMedia";
+
+type FavoriteRow = Database["public"]["Tables"]["favorites"]["Row"];
+type FavoriteArtist = Pick<Database["public"]["Tables"]["artists"]["Row"], "id" | "name" | "avatar_url" | "specialty" | "studio_name" | "hourly_rate">;
+type FavoriteReel = Pick<Database["public"]["Tables"]["reels"]["Row"], "id" | "artist_id" | "caption" | "video_url" | "thumbnail_url" | "created_at"> & {
+  artists: Pick<Database["public"]["Tables"]["artists"]["Row"], "name" | "avatar_url"> | null;
+};
+type FavoriteDesign = Pick<Database["public"]["Tables"]["designs"]["Row"], "id" | "title" | "description" | "image_url" | "placement" | "style">;
 
 const FavoritesPage = () => {
   const { user } = useAuth();
-  const [favorites, setFavorites] = useState<any[]>([]);
-  const [artists, setArtists] = useState<any[]>([]);
-  const [reels, setReels] = useState<any[]>([]);
-  const [designs, setDesigns] = useState<any[]>([]);
+  const [favorites, setFavorites] = useState<FavoriteRow[]>([]);
+  const [artists, setArtists] = useState<FavoriteArtist[]>([]);
+  const [reels, setReels] = useState<FavoriteReel[]>([]);
+  const [designs, setDesigns] = useState<FavoriteDesign[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"artists" | "reels" | "designs">("artists");
 
   useEffect(() => {
     if (!user) return;
     const fetchFavorites = async () => {
-      const { data: favs } = await supabase.from("favorites").select("*").eq("user_id", user.id);
-      setFavorites(favs || []);
+      try {
+        const { data: favs, error: favoritesError } = await supabase.from("favorites").select("id,user_id,item_type,item_id,created_at").eq("user_id", user.id);
+        if (favoritesError) throw favoritesError;
+        const favoriteRows = favs ?? [];
+        setFavorites(favoriteRows);
 
-      const artistIds = (favs || []).filter(f => f.item_type === "artist").map(f => f.item_id);
-      const reelIds = (favs || []).filter(f => f.item_type === "reel").map(f => f.item_id);
-      const designIds = (favs || []).filter(f => f.item_type === "design").map(f => f.item_id);
+        const artistIds = favoriteRows.filter(f => f.item_type === "artist").map(f => f.item_id);
+        const reelIds = favoriteRows.filter(f => f.item_type === "reel").map(f => f.item_id);
+        const designIds = favoriteRows.filter(f => f.item_type === "design").map(f => f.item_id);
 
-      if (artistIds.length > 0) {
-        const { data } = await supabase.from("artists").select("*").in("id", artistIds);
-        setArtists(data || []);
+        let artistRows: FavoriteArtist[] = [];
+        let reelRows: FavoriteReel[] = [];
+        let designRows: FavoriteDesign[] = [];
+        if (artistIds.length) {
+          const { data, error } = await supabase.from("artists")
+            .select("id,name,avatar_url,specialty,studio_name,hourly_rate").in("id", artistIds);
+          if (error) throw error;
+          artistRows = data ?? [];
+        }
+        if (reelIds.length) {
+          const { data, error } = await supabase.from("reels")
+            .select("id,artist_id,caption,video_url,thumbnail_url,created_at,artists(name,avatar_url)").in("id", reelIds);
+          if (error) throw error;
+          reelRows = data ?? [];
+        }
+        if (designIds.length) {
+          const { data, error } = await supabase.from("designs")
+            .select("id,title,description,image_url,placement,style").in("id", designIds);
+          if (error) throw error;
+          designRows = data ?? [];
+        }
+        const signedArtists = await Promise.all(artistRows.map(async artist => {
+          if (!artist.avatar_url) return artist;
+          try { return { ...artist, avatar_url: await getArtistAvatarUrl(artist.id) }; }
+          catch { return { ...artist, avatar_url: null }; }
+        }));
+        const signedReels = await Promise.all(reelRows.map(async reel => {
+          try {
+            const media = await getReelMediaUrl(reel.id);
+            return { ...reel, video_url: media.videoUrl, thumbnail_url: media.thumbnailUrl };
+          } catch { return null; }
+        }));
+        setArtists(signedArtists);
+        setReels(signedReels.filter((reel): reel is FavoriteReel => reel !== null));
+        setDesigns(designRows);
+      } catch (error: unknown) {
+        toast.error(error instanceof Error ? error.message : "Could not load favorites");
+      } finally {
+        setLoading(false);
       }
-      if (reelIds.length > 0) {
-        const { data } = await supabase.from("reels").select("*, artists(name, avatar_url)").in("id", reelIds);
-        setReels(data || []);
-      }
-      if (designIds.length > 0) {
-        const { data } = await supabase.from("daily_designs").select("*").in("id", designIds);
-        setDesigns(data || []);
-      }
-      setLoading(false);
     };
     fetchFavorites();
   }, [user]);
@@ -93,9 +132,7 @@ const FavoritesPage = () => {
                   <Link to={`/artist/${artist.id}`} className="text-foreground font-medium hover:text-gold transition-colors">{artist.name}</Link>
                   <p className="text-muted-foreground text-xs">{artist.specialty} · {artist.studio_name}</p>
                   <div className="flex items-center gap-1 mt-1">
-                    <Star className="w-3 h-3 fill-gold text-gold" />
-                    <span className="text-xs text-foreground">{artist.rating}</span>
-                    <span className="text-xs text-muted-foreground ml-2">₹{artist.hourly_rate}/hr</span>
+                    <span className="text-xs text-muted-foreground">₹{artist.hourly_rate}/hr</span>
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -133,7 +170,7 @@ const FavoritesPage = () => {
             {designs.length === 0 && <p className="text-muted-foreground text-sm">No saved designs. Browse Discover → Designs to save inspiration!</p>}
             {designs.map(d => (
               <div key={d.id} className="break-inside-avoid mb-3 relative group rounded-lg overflow-hidden border border-border">
-                <img src={d.thumb_url || d.image_url} alt={d.description || "Tattoo design"} loading="lazy" className="w-full" />
+                <img src={d.image_url} alt={d.description || d.title || "Tattoo design"} loading="lazy" className="w-full" />
                 <button onClick={() => removeFavorite("design", d.id)} className="absolute top-2 right-2 bg-black/50 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                   <Trash2 className="w-3.5 h-3.5 text-white" />
                 </button>

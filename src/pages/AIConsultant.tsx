@@ -52,18 +52,23 @@ const AIConsultant = () => {
       const invokePromise = supabase.functions.invoke("generate-tattoo-designs", {
         body: { imageBase64, notes, count: 6 },
       });
-      const timeoutPromise = new Promise<any>((_, reject) =>
+      const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error("Taking too long — please retry.")), 90000)
       );
-      const { data, error: fnErr } = (await Promise.race([invokePromise, timeoutPromise])) as any;
+      const { data, error: fnErr } = await Promise.race([invokePromise, timeoutPromise]);
       if (fnErr) throw fnErr;
       if (data?.error) throw new Error(data.error);
-      const list: Design[] = (data?.designs || []).filter((d: any) => d?.image);
+      const list: Design[] = Array.isArray(data?.designs)
+        ? data.designs.filter((d: unknown): d is Design => typeof d === "object" && d !== null
+          && "title" in d && typeof d.title === "string"
+          && "style" in d && typeof d.style === "string"
+          && "image" in d && typeof d.image === "string")
+        : [];
       setDesigns(list);
       logUsage("ai", "generate-tattoo-designs-done", { count: list.length, ms: Math.round(performance.now() - t0) });
       if (!list.length) setError("No designs generated. Try a different reference.");
-    } catch (e: any) {
-      const msg = e?.message || "Failed to generate designs";
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Failed to generate designs";
       setError(msg);
       toast.error(msg);
     } finally {

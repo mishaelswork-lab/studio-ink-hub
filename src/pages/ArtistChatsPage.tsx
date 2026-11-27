@@ -7,12 +7,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { SEO } from "@/lib/seo";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import type { Database } from "@/integrations/supabase/types";
+
+type ConversationRow = Pick<Database["public"]["Tables"]["conversations"]["Row"], "id" | "customer_id" | "artist_id" | "design_request_id" | "created_at">;
+type ProfileSummary = Pick<Database["public"]["Tables"]["profiles"]["Row"], "id" | "display_name" | "avatar_url">;
+type RequestSummary = Pick<Database["public"]["Tables"]["design_requests"]["Row"], "id" | "brief" | "status">;
+type ChatRow = ConversationRow & { customer?: ProfileSummary; request?: RequestSummary };
 
 const PAGE = 15;
 
 const ArtistChatsPage = () => {
   const { user } = useAuth();
-  const [chats, setChats] = useState<any[]>([]);
+  const [chats, setChats] = useState<ChatRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,25 +34,44 @@ const ArtistChatsPage = () => {
     else setLoadingMore(true);
 
     try {
+      const { data: artistRows, error: artistError } = await supabase.rpc("get_my_artist_profile");
+      if (artistError) throw artistError;
+      const artistId = artistRows?.[0]?.id;
+      if (!artistId) { setChats([]); setHasMore(false); return; }
       const { data: cs, error: e1 } = await supabase
-        .from("consultations")
-        .select("*")
-        .eq("artist_id", user.id)
-        .order("updated_at", { ascending: false })
+        .from("conversations")
+        .select("id,customer_id,artist_id,design_request_id,created_at")
+        .eq("artist_id", artistId)
+        .order("created_at", { ascending: false })
         .range(from, to);
       if (e1) throw e1;
-      const list = cs || [];
-      const customerIds = Array.from(new Set(list.map((c: any) => c.customer_id))).filter(Boolean);
-      const { data: profiles } = customerIds.length
-        ? await supabase.from("profiles").select("user_id,display_name,avatar_url").in("user_id", customerIds)
-        : { data: [] as any[] };
-      const byUser = new Map((profiles || []).map((p: any) => [p.user_id, p]));
-      const hydrated = list.map((c: any) => ({ ...c, customer: byUser.get(c.customer_id) }));
+      const list: ConversationRow[] = cs || [];
+      const customerIds = Array.from(new Set(list.map(c => c.customer_id))).filter((id): id is string => Boolean(id));
+      const requestIds = Array.from(new Set(list.map(c => c.design_request_id))).filter((id): id is string => Boolean(id));
+      let profiles: ProfileSummary[] = [];
+      let requests: RequestSummary[] = [];
+      if (customerIds.length) {
+        const { data, error } = await supabase.from("profiles").select("id,display_name,avatar_url").in("id", customerIds);
+        if (error) throw error;
+        profiles = data ?? [];
+      }
+      if (requestIds.length) {
+        const { data, error } = await supabase.from("design_requests").select("id,brief,status").in("id", requestIds);
+        if (error) throw error;
+        requests = data ?? [];
+      }
+      const byCustomer = new Map(profiles.map(profile => [profile.id, profile]));
+      const byRequest = new Map(requests.map(request => [request.id, request]));
+      const hydrated: ChatRow[] = list.map(conversation => ({
+        ...conversation,
+        customer: byCustomer.get(conversation.customer_id),
+        request: conversation.design_request_id ? byRequest.get(conversation.design_request_id) : undefined,
+      }));
       setChats(prev => reset ? hydrated : [...prev, ...hydrated]);
       setHasMore(list.length === PAGE);
       pageRef.current += 1;
-    } catch (err: any) {
-      setError(err?.message || "Could not load chats");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Could not load chats");
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -107,9 +132,9 @@ const ArtistChatsPage = () => {
                 <img src={c.customer?.avatar_url || "https://via.placeholder.com/44"} alt={c.customer?.display_name || "Customer"} className="w-11 h-11 rounded-full object-cover border border-gold/20" />
                 <div className="flex-1 min-w-0">
                   <p className="text-foreground text-sm font-medium truncate">{c.customer?.display_name || "Customer"}</p>
-                  <p className="text-muted-foreground text-xs truncate">{c.design_description || "Design consultation"}</p>
+                  <p className="text-muted-foreground text-xs truncate">{c.request?.brief || "Design consultation"}</p>
                 </div>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full ${c.status === "active" ? "bg-emerald-500/10 text-emerald-400" : c.status === "pending" ? "bg-gold/10 text-gold" : "bg-primary/10 text-primary"}`}>{c.status}</span>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full ${c.request?.status === "active" ? "bg-emerald-500/10 text-emerald-400" : c.request?.status === "pending" ? "bg-gold/10 text-gold" : "bg-primary/10 text-primary"}`}>{c.request?.status || "open"}</span>
               </Link>
             ))}
             <div ref={sentinelRef} className="py-4 flex justify-center">

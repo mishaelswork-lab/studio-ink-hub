@@ -15,6 +15,7 @@ const BookingPage = lazy(() => import("./pages/BookingPage"));
 const AIConsultant = lazy(() => import("./pages/AIConsultant"));
 const DiscoverPage = lazy(() => import("./pages/DiscoverPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
+const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 const ArtistLogin = lazy(() => import("./pages/ArtistLogin"));
 const ArtistDashboard = lazy(() => import("./pages/ArtistDashboard"));
 const ArtistProfileEditor = lazy(() => import("./pages/ArtistProfileEditor"));
@@ -67,6 +68,7 @@ const App = () => (
               <Route path="/ai-consultant" element={<AIConsultant />} />
               <Route path="/discover" element={<DiscoverPage />} />
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/dashboard" element={<ProtectedRoute redirectTo="/login"><CustomerDashboard /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute redirectTo="/login"><ProfilePage /></ProtectedRoute>} />
               <Route path="/favorites" element={<ProtectedRoute redirectTo="/login"><FavoritesPage /></ProtectedRoute>} />

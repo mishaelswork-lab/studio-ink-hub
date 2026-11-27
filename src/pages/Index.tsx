@@ -1,8 +1,7 @@
 import { memo, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { MapPin, Star, Users, Play, Sparkles } from "lucide-react";
+import { MapPin, Star, Users, Sparkles } from "lucide-react";
 import { usePublicArtists, artistStudios } from "@/hooks/usePublicArtists";
-import { reels } from "@/data/mockReels";
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/tart-logo-clean.png";
 import { SUPPORT_EMAIL, SUPPORT_DRIVE_URL, mailto } from "@/lib/contact";
@@ -220,58 +219,6 @@ const FeaturedArtists = () => {
 );
 };
 
-const Stats = () => (
-  <section className="py-16 border-y border-border">
-    <div className="max-w-5xl mx-auto px-4 grid grid-cols-1 gap-8 text-center">
-      {[
-        { value: "₹100 Off", label: "Refer & Earn" },
-      ].map((stat) => (
-        <div key={stat.label}>
-          <p className="text-gradient-gold font-heading text-3xl md:text-4xl font-bold">{stat.value}</p>
-          <p className="text-muted-foreground text-sm mt-1">{stat.label}</p>
-        </div>
-      ))}
-    </div>
-  </section>
-);
-
-const DiscoverReels = () => (
-  <section className="py-20 px-4 bg-card/30">
-    <div className="max-w-7xl mx-auto">
-      <div className="text-center mb-12">
-        <p className="text-gold text-sm tracking-[0.2em] uppercase mb-2">Watch & Discover</p>
-        <h2 className="font-heading text-3xl md:text-4xl font-bold text-foreground">Artist Reels</h2>
-        <p className="text-muted-foreground text-sm mt-2">See artists in action — swipe through short videos of incredible work</p>
-      </div>
-      <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide">
-        {reels.slice(0, 5).map(reel => (
-          <Link key={reel.id} to="/discover" className="flex-shrink-0 w-48 md:w-56 snap-start group">
-            <div className="relative aspect-[9/16] rounded-xl overflow-hidden border border-border hover:border-gold/30 transition-all">
-              <img src={reel.thumbnail} alt={reel.caption} loading="lazy" decoding="async" width={400} height={600} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <Play className="w-12 h-12 text-white/90 fill-white/90" />
-              </div>
-              <div className="absolute bottom-3 left-3 right-3">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <img src={reel.artistAvatar} alt={reel.artistName} className="w-6 h-6 rounded-full border border-gold/30" />
-                  <span className="text-white text-xs font-medium">{reel.artistName}</span>
-                </div>
-                <p className="text-white/70 text-xs line-clamp-2">{reel.caption}</p>
-              </div>
-            </div>
-          </Link>
-        ))}
-      </div>
-      <div className="text-center mt-8">
-        <Link to="/discover">
-          <Button variant="gold-outline" size="lg">View All Reels</Button>
-        </Link>
-      </div>
-    </div>
-  </section>
-);
-
 const Index = () => {
   const { roles, loading } = useAuth();
   const navigate = useNavigate();
@@ -283,7 +230,7 @@ const Index = () => {
 
     <SEO
       title="Tart — Premium Art & Tattoo Experiences in India"
-      description="Discover India's finest tattoo and body-art artists. Browse portfolios, watch reels, get design ideas and book your next masterpiece on Tart."
+      description="Discover tattoo and piercing artists, explore approved portfolios, request consultations and book your next masterpiece with ArtSpace Connect."
       jsonLd={{
         "@context": "https://schema.org",
         "@type": "WebSite",
@@ -293,8 +240,6 @@ const Index = () => {
     />
     <Navbar />
     <Hero />
-    <Stats />
-    <DiscoverReels />
     <FeaturedArtists />
     <StudiosSection />
     <footer className="py-10 border-t border-border text-center space-y-2">

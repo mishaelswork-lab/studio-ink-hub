@@ -14,6 +14,35 @@ const safeNext = (raw: string | null): string | null => {
   return raw;
 };
 
+const persistSignupConsents = async (userId: string, metadata: Record<string, unknown>) => {
+  if (metadata.age_confirmed !== true || metadata.privacy_consent !== true || metadata.terms_accepted !== true) {
+    throw new Error("This account has no recorded age and privacy consent. Please create your account through ArtSpace email sign-up.");
+  }
+
+  const consentRows = [
+    { purpose: "personal_data_processing", granted: true, policy_version: "privacy-2026-08-03" },
+    { purpose: "terms_of_service", granted: true, policy_version: "terms-2026-11-26" },
+    { purpose: "age_attestation", granted: true, policy_version: "age-18-attestation-2026-11-27" },
+  ];
+  const purposes = consentRows.map((row) => row.purpose);
+  const { data: existing, error: readError } = await supabase
+    .from("consent_records")
+    .select("purpose, policy_version")
+    .eq("user_id", userId)
+    .in("purpose", purposes);
+  if (readError) throw readError;
+
+  const missing = consentRows.filter(
+    (row) => !existing?.some((record) => record.purpose === row.purpose && record.policy_version === row.policy_version),
+  );
+  if (missing.length) {
+    const { error } = await supabase.from("consent_records").insert(
+      missing.map((row) => ({ ...row, user_id: userId, user_agent: navigator.userAgent })),
+    );
+    if (error) throw error;
+  }
+};
+
 const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,16 +62,28 @@ const LoginPage = () => {
   // Route artists straight to /artist-dashboard, everyone else to /dashboard —
   // unless a `next` param is present (e.g. OAuth consent), in which case honor it.
   const routeAfterLogin = async () => {
-    if (nextPath) { window.location.href = nextPath; return; }
     try {
-      const { data: { user: u } } = await supabase.auth.getUser();
-      if (!u) { navigate("/dashboard"); return; }
-      const { data } = await supabase.from("user_roles").select("role").eq("user_id", u.id);
-      const roles = (data || []).map((r: any) => r.role);
-      if (roles.includes("artist")) { navigate("/artist-dashboard"); return; }
+      const { data: { user: u }, error: userError } = await supabase.auth.getUser();
+      if (userError || !u) throw userError ?? new Error("Your session could not be verified.");
+
+      // Do not enter the app until any signup consent carried through email verification is recorded.
+      await persistSignupConsents(u.id, u.user_metadata ?? {});
+      if (nextPath) {
+        window.location.href = nextPath;
+        return;
+      }
+
+      const { data, error: rolesError } = await supabase.from("user_roles").select("role").eq("user_id", u.id);
+      if (rolesError) throw rolesError;
+      const roles = (data || []).map((r) => r.role);
+      if (roles.includes("artist")) {
+        navigate("/artist-dashboard");
+        return;
+      }
       navigate("/dashboard");
-    } catch {
-      navigate("/dashboard");
+    } catch (error) {
+      await supabase.auth.signOut();
+      toast.error(error instanceof Error ? error.message : "Unable to complete sign-in. Please try again.");
     }
   };
 
@@ -65,23 +106,54 @@ const LoginPage = () => {
     setLoading(true);
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email, password,
           options: {
-            data: { display_name: displayName || email },
+            data: {
+              display_name: displayName || email,
+              age_confirmed: true,
+              privacy_consent: true,
+              terms_accepted: true,
+            },
             emailRedirectTo: window.location.origin + (nextPath ?? ""),
           },
         });
         if (error) throw error;
-        toast.success("Account created! You're now signed in.");
-        await routeAfterLogin();
+        if (data.session && data.user) {
+          await persistSignupConsents(data.user.id, data.user.user_metadata ?? {});
+          toast.success("Account created. Welcome to ArtSpace!");
+          await routeAfterLogin();
+        } else {
+          toast.success("Account created. Check your email to verify your address before signing in.");
+        }
       } else {
         await guardedSignIn(email, password);
         toast.success("Welcome back!");
         await routeAfterLogin();
       }
-    } catch (error: any) {
-      toast.error(error.message || "Authentication failed");
+    } catch (error: unknown) {
+      if (isSignUp) await supabase.auth.signOut();
+      toast.error(error instanceof Error ? error.message : "Authentication failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    const address = email.trim();
+    if (!address) {
+      toast.error("Enter your email address first.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(address, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      toast.success("If an account exists for that address, password reset instructions have been sent.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not request a password reset.");
     } finally {
       setLoading(false);
     }
@@ -95,8 +167,8 @@ const LoginPage = () => {
       await guardedSendOtp(fullPhone);
       setOtpSent(true);
       toast.success("OTP sent to your phone!");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to send OTP");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Failed to send OTP");
     } finally {
       setLoading(false);
     }
@@ -110,8 +182,8 @@ const LoginPage = () => {
       await guardedVerifyOtp(fullPhone, otp);
       toast.success("Phone verified! Welcome!");
       await routeAfterLogin();
-    } catch (error: any) {
-      toast.error(error.message || "OTP verification failed");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "OTP verification failed");
     } finally {
       setLoading(false);
     }
@@ -131,8 +203,8 @@ const LoginPage = () => {
       if (result.redirected) return;
       toast.success("Welcome!");
       await routeAfterLogin();
-    } catch (error: any) {
-      toast.error(error.message || "Sign-in failed");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Sign-in failed");
       setLoading(false);
     }
   };
@@ -178,7 +250,14 @@ const LoginPage = () => {
                 <input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-gold placeholder:text-muted-foreground" />
               </div>
               <div>
-                <label className="text-sm text-muted-foreground mb-1.5 block">Password</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-sm text-muted-foreground">Password</label>
+                  {!isSignUp && (
+                    <button type="button" onClick={handlePasswordReset} disabled={loading} className="text-xs text-gold hover:underline disabled:opacity-50">
+                      Forgot password?
+                    </button>
+                  )}
+                </div>
                 <input type="password" required value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-gold placeholder:text-muted-foreground" />
               </div>
               {isSignUp && (
@@ -226,6 +305,7 @@ const LoginPage = () => {
             <div className="space-y-4">
               <div>
                 <label className="text-sm text-muted-foreground mb-1.5 block">Phone Number</label>
+                <p className="text-xs text-muted-foreground mb-2">Phone sign-in is for existing accounts. Create new accounts with email so age and privacy consent can be recorded.</p>
                 <div className="flex gap-2">
                   <span className="flex items-center h-10 px-3 rounded-md bg-secondary border border-border text-foreground text-sm">+91</span>
                   <input type="tel" required value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, ""))} placeholder="9876543210" maxLength={10} className="flex-1 h-10 px-3 rounded-md bg-secondary border border-border text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-gold placeholder:text-muted-foreground" />

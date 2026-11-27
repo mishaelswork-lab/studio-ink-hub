@@ -1,0 +1,71 @@
+name: ArtSpace CI # typecheck after production type regeneration
+
+on:
+  push:
+    branches:
+      - artspace/security-audit-fixes
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: artspace-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Reconcile npm lockfile metadata
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Install dependencies from lockfile
+        run: npm ci
+      - name: Audit production dependencies
+        run: |
+          npm audit --omit=dev --json > "$RUNNER_TEMP/artspace-npm-audit.json" || true
+          node -e 'const a = require(process.env.RUNNER_TEMP + "/artspace-npm-audit.json"); const m = a.metadata?.vulnerabilities ?? {}; console.log("Production dependency advisories:", JSON.stringify(m)); for (const [name, v] of Object.entries(a.vulnerabilities ?? {})) console.log(name + ": " + v.severity + ", direct=" + v.isDirect + ", fix=" + JSON.stringify(v.fixAvailable));'
+      - name: TypeScript
+        run: npx tsc -b
+      - name: Production build
+        run: npm run build
+      - name: Unit tests
+        run: npm run test -- --passWithNoTests
+      - name: ESLint
+        run: npm run lint
+
+  edge-function-typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check Edge Functions
+        run: |
+          deno check supabase/functions/get-portfolio-media/index.ts
+          deno check supabase/functions/get-artist-avatar/index.ts
+          deno check supabase/functions/get-reel-media/index.ts
+          deno check supabase/functions/instagram-connect-start/index.ts
+          deno check supabase/functions/instagram-connect-callback/index.ts
+          deno check supabase/functions/instagram-connection-status/index.ts
+          deno check supabase/functions/instagram-import-media/index.ts
+          deno check supabase/functions/get-public-settings/index.ts
+          deno check supabase/functions/update-platform-settings/index.ts
+          deno check supabase/functions/create-booking-hold/index.ts
+          deno check supabase/functions/create-razorpay-order/index.ts
+          deno check supabase/functions/verify-razorpay-payment/index.ts
+          deno check supabase/functions/delete-account/index.ts
+          deno check supabase/functions/ai-chat/index.ts
+          deno check supabase/functions/auth-guard/index.ts

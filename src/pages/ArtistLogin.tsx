@@ -14,6 +14,9 @@ const ArtistLogin = () => {
   const [loading, setLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [authMode, setAuthMode] = useState<"email" | "phone">("email");
+  const [needsConsent, setNeedsConsent] = useState(false);
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const navigate = useNavigate();
 
   // Ensure the signed-in account is actually an artist; sign everyone else out.
@@ -30,6 +33,17 @@ const ArtistLogin = () => {
       if (!role) {
         await supabase.auth.signOut();
         toast.error("This account is not registered as an artist.");
+        return false;
+      }
+      const { data: consents, error: consentError } = await supabase
+        .from("consent_records")
+        .select("purpose")
+        .eq("user_id", user.id)
+        .in("purpose", ["personal_data_processing", "terms_of_service", "age_attestation"]);
+      if (consentError) throw consentError;
+      const recordedPurposes = new Set((consents ?? []).map((record) => record.purpose));
+      if (!recordedPurposes.has("personal_data_processing") || !recordedPurposes.has("terms_of_service") || !recordedPurposes.has("age_attestation")) {
+        setNeedsConsent(true);
         return false;
       }
       return true;
@@ -53,6 +67,47 @@ const ArtistLogin = () => {
     return () => { cancelled = true; };
   }, []);
 
+  const acceptArtistConsent = async () => {
+    if (!ageConfirmed || !privacyAccepted) {
+      toast.error("Confirm you are 18 or older and accept the Privacy Policy and Terms.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) throw userError ?? new Error("Please sign in again.");
+      const { data: existing, error: readError } = await supabase
+        .from("consent_records")
+        .select("purpose")
+        .eq("user_id", user.id)
+        .in("purpose", ["personal_data_processing", "terms_of_service"]);
+      if (readError) throw readError;
+      const recorded = new Set((existing ?? []).map((record) => record.purpose));
+      const rows = [
+        { purpose: "personal_data_processing", granted: true, policy_version: "privacy-2026-08-03" },
+        { purpose: "terms_of_service", granted: true, policy_version: "terms-2026-11-26" },
+        { purpose: "age_attestation", granted: true, policy_version: "age-18-attestation-2026-11-27" },
+      ].filter((row) => !recorded.has(row.purpose));
+      if (rows.length) {
+        const { error } = await supabase.from("consent_records").insert(
+          rows.map((row) => ({ ...row, user_id: user.id, user_agent: navigator.userAgent })),
+        );
+        if (error) throw error;
+      }
+      const { error: metadataError } = await supabase.auth.updateUser({
+        data: { age_confirmed: true, privacy_consent: true, terms_accepted: true },
+      });
+      if (metadataError) throw metadataError;
+      setNeedsConsent(false);
+      toast.success("Consent recorded. Welcome to the artist portal.");
+      navigate("/artist-dashboard", { replace: true });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not record consent. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleOAuth = async (provider: "google" | "apple") => {
     setLoading(true);
     try {
@@ -70,8 +125,8 @@ const ArtistLogin = () => {
         toast.success("Welcome back, artist!");
         navigate("/artist-dashboard");
       }
-    } catch (error: any) {
-      toast.error(error.message || "Sign-in failed");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Sign-in failed");
     } finally {
       setLoading(false);
     }
@@ -90,8 +145,8 @@ const ArtistLogin = () => {
       }
       toast.success("Welcome back, artist!");
       navigate("/artist-dashboard");
-    } catch (error: any) {
-      toast.error(error.message || "Login failed");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Login failed");
     } finally {
       setLoading(false);
     }
@@ -105,8 +160,8 @@ const ArtistLogin = () => {
       await guardedSendOtp(fullPhone);
       setOtpSent(true);
       toast.success("OTP sent to your phone!");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to send OTP");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Failed to send OTP");
     } finally {
       setLoading(false);
     }
@@ -125,8 +180,8 @@ const ArtistLogin = () => {
       }
       toast.success("Phone verified! Welcome back, artist!");
       navigate("/artist-dashboard");
-    } catch (error: any) {
-      toast.error(error.message || "OTP verification failed");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "OTP verification failed");
     } finally {
       setLoading(false);
     }
@@ -134,7 +189,27 @@ const ArtistLogin = () => {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
-      <div className="w-full max-w-md bg-card rounded-lg border border-border p-8">
+      {needsConsent ? (
+        <div className="w-full max-w-md bg-card rounded-lg border border-border p-8">
+          <h1 className="font-heading text-2xl font-bold text-foreground mb-2">Before you continue</h1>
+          <p className="text-sm text-muted-foreground mb-6">Please review and accept the following to activate your artist portal.</p>
+          <div className="space-y-4">
+            <label className="flex items-start gap-3 text-sm text-muted-foreground">
+              <input type="checkbox" checked={ageConfirmed} onChange={(e) => setAgeConfirmed(e.target.checked)} className="mt-1" />
+              <span>I confirm I am 18 years of age or older.</span>
+            </label>
+            <label className="flex items-start gap-3 text-sm text-muted-foreground">
+              <input type="checkbox" checked={privacyAccepted} onChange={(e) => setPrivacyAccepted(e.target.checked)} className="mt-1" />
+              <span>I have read and accept the <Link to="/privacy" className="text-gold underline">Privacy Policy</Link> and <Link to="/terms" className="text-gold underline">Terms of Service</Link>.</span>
+            </label>
+            <Button variant="gold" className="w-full" onClick={acceptArtistConsent} disabled={loading || !ageConfirmed || !privacyAccepted}>
+              {loading ? "Saving..." : "Accept and continue"}
+            </Button>
+            <Button variant="outline" className="w-full" onClick={async () => { await supabase.auth.signOut(); setNeedsConsent(false); }} disabled={loading}>Sign out</Button>
+          </div>
+        </div>
+      ) : (
+        <div className="w-full max-w-md bg-card rounded-lg border border-border p-8">
         <div className="text-center mb-6">
           <h1 className="font-heading text-2xl font-bold text-foreground mb-1">
             Artist <span className="text-gradient-gold">Portal</span>
@@ -216,7 +291,8 @@ const ArtistLogin = () => {
         <div className="mt-6 pt-6 border-t border-border text-center">
           <Link to="/login" className="text-sm text-muted-foreground hover:text-gold transition-colors">← Customer Login</Link>
         </div>
-      </div>
+        </div>
+      )}
     </div>
   );
 };

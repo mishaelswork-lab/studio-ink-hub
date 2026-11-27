@@ -18,18 +18,28 @@ const AdminLogin = () => {
     try {
       const user = await guardedSignIn(email, password);
 
-      // Navigate immediately for snappy UX; verify role in parallel.
-      const rolePromise = supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle();
-      toast.success("Welcome, Admin!");
-      navigate("/admin/dashboard");
-      const { data: role } = await rolePromise;
-      if (!role) {
+      const [{ data: role, error: roleError }, { data: consents, error: consentError }] = await Promise.all([
+        supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle(),
+        supabase.from("consent_records").select("purpose").eq("user_id", user.id)
+          .in("purpose", ["personal_data_processing", "terms_of_service", "age_attestation"]),
+      ]);
+      const recordedPurposes = new Set((consents ?? []).map((record) => record.purpose));
+      if (roleError || !role) {
         await supabase.auth.signOut();
         toast.error("This account does not have admin access.");
-        navigate("/admin/login");
+        navigate("/admin");
+        return;
       }
-    } catch (error: any) {
-      toast.error(error.message || "Login failed");
+      if (consentError || !recordedPurposes.has("personal_data_processing") || !recordedPurposes.has("terms_of_service") || !recordedPurposes.has("age_attestation")) {
+        await supabase.auth.signOut();
+        toast.error("This account has not completed the required signup consent.");
+        navigate("/admin");
+        return;
+      }
+      toast.success("Welcome, Admin!");
+      navigate("/admin/dashboard");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Login failed");
     } finally {
       setLoading(false);
     }
@@ -57,11 +67,6 @@ const AdminLogin = () => {
             {loading ? "Signing in..." : "Sign In"}
           </Button>
         </form>
-        <div className="mt-4 p-3 rounded-md bg-secondary/50 border border-border">
-          <p className="text-muted-foreground text-xs text-center">
-            Test: <span className="text-gold">admin@artspace.com</span> / <span className="text-gold">admin123</span>
-          </p>
-        </div>
         <div className="mt-6 pt-6 border-t border-border text-center">
           <Link to="/login" className="text-sm text-muted-foreground hover:text-gold transition-colors">← Customer Login</Link>
         </div>

@@ -9,6 +9,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import type { Database, Json } from "@/integrations/supabase/types";
+
+type ArtistReel = Database["public"]["Tables"]["reels"]["Row"];
+type ArtistPayment = Pick<Database["public"]["Tables"]["payments"]["Row"], "id" | "booking_id" | "amount_minor" | "currency" | "status" | "created_at" | "artist_id" | "payment_type">;
+type ArtistConsultation = Pick<Database["public"]["Tables"]["conversations"]["Row"], "id" | "customer_id" | "artist_id" | "design_request_id" | "created_at"> & { design_description: string; status: string; reference_images: Json | null };
+type ArtistCertification = Database["public"]["Tables"]["artist_certifications"]["Row"];
+
+type ArtistBooking = Pick<Database["public"]["Tables"]["bookings"]["Row"], "id" | "customer_id" | "artist_id" | "design_request_id" | "starts_at" | "ends_at" | "status" | "cover_charge_paid" | "hold_expires_at" | "created_at"> & {
+  design_requests: Pick<Database["public"]["Tables"]["design_requests"]["Row"], "brief" | "placement" | "size_description"> | null;
+};
 
 const tabs = [
   { id: "bookings", label: "Bookings", icon: CalendarDays },
@@ -82,11 +92,15 @@ const ArtistDashboard = () => {
   const [activeTab, setActiveTab] = useState<Tab>("bookings");
   const { user, artistProfile, signOut } = useAuth();
   const navigate = useNavigate();
-  const [bookings, setBookings] = useState<any[]>([]);
-  const [reels, setReels] = useState<any[]>([]);
-  const [payments, setPayments] = useState<any[]>([]);
-  const [consultations, setConsultations] = useState<any[]>([]);
-  const [certs, setCerts] = useState<any[]>([]);
+  const [bookings, setBookings] = useState<ArtistBooking[]>([]);
+  const [reels, setReels] = useState<ArtistReel[]>([]);
+  const [payments, setPayments] = useState<ArtistPayment[]>([]);
+  const [consultations, setConsultations] = useState<ArtistConsultation[]>([]);
+  const [certs, setCerts] = useState<ArtistCertification[]>([]);
+  const [portfolioImages, setPortfolioImages] = useState<string[]>([]);
+  const [artistAvatarUrl, setArtistAvatarUrl] = useState<string | null>(null);
+  const [instagramConnected, setInstagramConnected] = useState(false);
+  const [instagramUsername, setInstagramUsername] = useState<string | null>(null);
   const [newCert, setNewCert] = useState({ name: "", issuing_body: "", url: "" });
   const [availability, setAvailability] = useState<AvailabilityHours>(defaultHours);
   const [savingHours, setSavingHours] = useState(false);
@@ -94,20 +108,63 @@ const ArtistDashboard = () => {
   useEffect(() => {
     if (!artistProfile || !user) return;
     const fetchData = async () => {
+      if (artistProfile.avatar_url) {
+        try {
+          const { getArtistAvatarUrl } = await import("@/lib/portfolioMedia");
+          setArtistAvatarUrl(await getArtistAvatarUrl(artistProfile.id));
+        } catch { setArtistAvatarUrl(null); }
+      }
+      const { data: igStatus } = await supabase.functions.invoke("instagram-connection-status", { body: { artist_id: artistProfile.id } });
+      setInstagramConnected(igStatus?.connected === true);
+      setInstagramUsername(typeof igStatus?.username === "string" ? igStatus.username : null);
       const [bookingsRes, reelsRes, paymentsRes, consultationsRes, certsRes] = await Promise.all([
-        supabase.from("bookings").select("*").eq("artist_id", artistProfile.id).order("created_at", { ascending: false }),
+        supabase.from("bookings")
+          .select("id,customer_id,artist_id,design_request_id,starts_at,ends_at,status,cover_charge_paid,hold_expires_at,created_at,design_requests(brief,placement,size_description)")
+          .eq("artist_id", artistProfile.id).order("created_at", { ascending: false }),
         supabase.from("reels").select("*").eq("artist_id", artistProfile.id).order("created_at", { ascending: false }),
-        supabase.from("payments").select("*").eq("artist_id", artistProfile.id).eq("status", "completed"),
-        supabase.from("consultations").select("*").eq("artist_id", user.id).order("created_at", { ascending: false }),
+        supabase.from("payments").select("id,booking_id,amount_minor,currency,status,created_at,artist_id,payment_type").eq("artist_id", artistProfile.id).eq("status", "captured"),
+        supabase.from("conversations").select("id,customer_id,artist_id,design_request_id,created_at").eq("artist_id", artistProfile.id).order("created_at", { ascending: false }),
         supabase.from("artist_certifications").select("*").eq("artist_id", artistProfile.id).order("created_at", { ascending: false }),
       ]);
       setBookings(bookingsRes.data || []);
-      setReels(reelsRes.data || []);
+      const { getReelMediaUrl } = await import("@/lib/portfolioMedia");
+      const signedReels = await Promise.all((reelsRes.data || []).map(async reel => {
+        try {
+          const media = await getReelMediaUrl(reel.id);
+          return { ...reel, video_url: media.videoUrl, thumbnail_url: media.thumbnailUrl };
+        } catch { return null; }
+      }));
+      setReels(signedReels.filter((reel): reel is NonNullable<typeof reel> => !!reel));
       setPayments(paymentsRes.data || []);
-      setConsultations(consultationsRes.data || []);
+      const requestIds = Array.from(new Set((consultationsRes.data || []).map(c => c.design_request_id))).filter(Boolean);
+      const { data: requests } = requestIds.length
+        ? await supabase.from("design_requests").select("id,brief,status,reference_images").in("id", requestIds)
+        : { data: [] as { id: string; brief: string; status: string | null; reference_images: Json | null }[] };
+      const requestById = new Map((requests || []).map(request => [request.id, request]));
+      setConsultations((consultationsRes.data || []).map(c => ({
+        ...c,
+        design_description: requestById.get(c.design_request_id || "")?.brief || "Design consultation",
+        status: requestById.get(c.design_request_id || "")?.status || "open",
+        reference_images: requestById.get(c.design_request_id || "")?.reference_images ?? null,
+      })));
       setCerts(certsRes.data || []);
-      if (artistProfile.availability_hours) {
-        setAvailability(artistProfile.availability_hours as AvailabilityHours);
+      const [{ data: portfolioRows }, { data: hoursRows }] = await Promise.all([
+        supabase.from("portfolio_items").select("id").eq("artist_id", artistProfile.id).order("created_at", { ascending: false }),
+        supabase.from("artist_availability").select("weekday,start_time,end_time,is_active").eq("artist_id", artistProfile.id),
+      ]);
+      const { getPortfolioMediaUrl } = await import("@/lib/portfolioMedia");
+      const signedImages = await Promise.all((portfolioRows || []).map(async item => {
+        try { return await getPortfolioMediaUrl(item.id); } catch { return null; }
+      }));
+      setPortfolioImages(signedImages.filter((url): url is string => !!url));
+      if (hoursRows) {
+        const dayNames = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
+        const next = { ...defaultHours };
+        for (const row of hoursRows) {
+          const day = dayNames[row.weekday];
+          if (day) next[day] = { start: row.start_time.slice(0,5), end: row.end_time.slice(0,5), off: !row.is_active };
+        }
+        setAvailability(next);
       }
     };
     fetchData();
@@ -134,11 +191,15 @@ const ArtistDashboard = () => {
     toast.success("Certification removed");
   };
 
-  const handleUpdateBookingStatus = async (id: string, status: string) => {
-    const { error } = await supabase.from("bookings").update({ status }).eq("id", id);
-    if (error) { toast.error("Failed to update"); return; }
-    toast.success(`Booking ${status}!`);
-    setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b));
+  const handleConfirmBooking = async (id: string) => {
+    const { error } = await supabase.rpc("artist_confirm_booking", { p_booking_id: id });
+    if (error) { toast.error(error.message || "Could not confirm booking"); return; }
+    toast.success("Booking confirmed!");
+    setBookings(prev => prev.map(b => b.id === id ? { ...b, status: "confirmed" } : b));
+  };
+
+  const explainBookingDecline = () => {
+    toast.error("Declining a paid booking is temporarily unavailable until the refund workflow is enabled. Contact support to resolve this booking.");
   };
 
   // Safeguard: only allow tattoo/art uploads (AI moderation + admin override).
@@ -151,71 +212,126 @@ const ArtistDashboard = () => {
     return r.allowed;
   };
 
-  const handleInstagramImport = async (url: string, caption: string) => {
+  const connectInstagram = async () => {
     if (!artistProfile) return;
-    const ok = await moderate(url);
-    if (!ok) return;
-    const { logUsage } = await import("@/lib/usage");
-    logUsage("media", "reel-insert", { source: "instagram" });
-    const { error } = await supabase.from("reels").insert({
-      artist_id: artistProfile.id,
-      video_url: url,
-      instagram_url: url,
-      caption,
-      source: "instagram",
-      moderation_status: "pending",
-    });
-    if (error) { toast.error("Failed to import"); return; }
-    toast.success("Imported — pending admin review before it goes live");
-    const { data } = await supabase.from("reels").select("*").eq("artist_id", artistProfile.id).order("created_at", { ascending: false });
-    setReels(data || []);
+    const { data, error } = await supabase.functions.invoke("instagram-connect-start", { body: { artist_id: artistProfile.id } });
+    if (error || typeof data?.auth_url !== "string") {
+      toast.error(data?.error || "Instagram connection is not configured yet");
+      return;
+    }
+    window.location.assign(data.auth_url);
   };
 
-  const handleInstagramPhotoImport = async (url: string, caption: string) => {
+  const importInstagramMedia = async (url: string, caption: string, expectedType: "photo" | "reel") => {
     if (!artistProfile) return;
-    const ok = await moderate(url);
-    if (!ok) return;
-    const currentImages = artistProfile.portfolio_images || [];
-    const { error } = await supabase.from("artists").update({
-      portfolio_images: [...currentImages, url],
-    }).eq("id", artistProfile.id);
-    if (error) { toast.error("Failed to import"); return; }
-    toast.success("Portfolio photo added from Instagram!");
-    artistProfile.portfolio_images = [...currentImages, url];
+    const { data, error } = await supabase.functions.invoke("instagram-import-media", {
+      body: { artist_id: artistProfile.id, instagram_url: url, caption_override: caption },
+    });
+    if (error || data?.success !== true) {
+      toast.error(data?.error || error?.message || "Instagram import failed");
+      return;
+    }
+    if (data.duplicate || (Array.isArray(data.items) && data.items.length === 0)) {
+      toast.info("This Instagram post is already in your portfolio");
+      return;
+    }
+    const importedItems = Array.isArray(data.items)
+      ? data.items as { item_id: string; media_type: "photo" | "reel" }[]
+      : [{ item_id: data.item_id as string, media_type: data.media_type as "photo" | "reel" }];
+    const { getPortfolioMediaUrl, getReelMediaUrl } = await import("@/lib/portfolioMedia");
+    let importedCount = 0;
+    for (const item of importedItems) {
+      if (!item.item_id || item.media_type !== expectedType) {
+        toast.error("Choose the matching Instagram photo or Reel import option");
+        continue;
+      }
+      if (item.media_type === "photo") {
+        try {
+          const signedUrl = await getPortfolioMediaUrl(item.item_id);
+          const ok = await moderate(signedUrl);
+          if (!ok) {
+            const { data: row } = await supabase.from("portfolio_items").select("media_url").eq("id", item.item_id).maybeSingle();
+            await supabase.from("portfolio_items").delete().eq("id", item.item_id);
+            if (row?.media_url) await supabase.storage.from("portfolio-private").remove([row.media_url]);
+            continue;
+          }
+          setPortfolioImages(prev => [signedUrl, ...prev]);
+          importedCount++;
+        } catch { toast.error("Imported photo could not be resolved privately"); }
+      } else {
+        try {
+          const media = await getReelMediaUrl(item.item_id);
+          if (media.thumbnailUrl && !(await moderate(media.thumbnailUrl))) {
+            const { data: row } = await supabase.from("reels").select("video_url,thumbnail_url").eq("id", item.item_id).maybeSingle();
+            await supabase.from("reels").delete().eq("id", item.item_id);
+            if (row?.video_url) await supabase.storage.from("portfolio-reels").remove([row.video_url]);
+            if (row?.thumbnail_url) await supabase.storage.from("portfolio-private").remove([row.thumbnail_url]);
+            continue;
+          }
+          const { data: reel } = await supabase.from("reels").select("*").eq("id", item.item_id).maybeSingle();
+          if (reel) {
+            setReels(prev => [{ ...reel, video_url: media.videoUrl, thumbnail_url: media.thumbnailUrl }, ...prev]);
+            importedCount++;
+          }
+        } catch { toast.error("Imported Reel could not be resolved privately"); }
+      }
+    }
+    if (importedCount) toast.success(`${importedCount} item(s) imported to your private portfolio — pending admin review`);
   };
+
+  const handleInstagramImport = (url: string, caption: string) => importInstagramMedia(url, caption, "reel");
+  const handleInstagramPhotoImport = (url: string, caption: string) => importInstagramMedia(url, caption, "photo");
 
   const handlePortfolioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !artistProfile) return;
     if (file.size > 5 * 1024 * 1024) { toast.error("Max 5MB"); return; }
 
-    // Upload via S3+CloudFront when configured (falls back to Supabase Storage).
     const { uploadMedia } = await import("@/lib/mediaUpload");
-    let publicUrl: string;
+    const { getPortfolioMediaUrl } = await import("@/lib/portfolioMedia");
+    let objectPath: string;
     try {
-      publicUrl = await uploadMedia(file, "portfolio", artistProfile.id);
-    } catch {
-      toast.error("Upload failed"); return;
+      objectPath = await uploadMedia(file, "portfolio", artistProfile.id);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Upload failed");
+      return;
     }
 
-    // Moderate ONLY the final URL (debounced + cached — no calls on previews).
-    const ok = await moderate(publicUrl);
-    if (!ok) return;
+    const { data: inserted, error: insertError } = await supabase.from("portfolio_items")
+      .insert({ artist_id: artistProfile.id, media_url: objectPath, media_type: "image" })
+      .select("id").single();
+    if (insertError || !inserted) {
+      await supabase.storage.from("portfolio-private").remove([objectPath]);
+      toast.error("Could not save portfolio submission");
+      return;
+    }
 
-    const currentImages = artistProfile.portfolio_images || [];
-    const { error } = await supabase.from("artists").update({
-      portfolio_images: [...currentImages, publicUrl],
-    }).eq("id", artistProfile.id);
-    if (error) { toast.error("Failed to save"); return; }
-    artistProfile.portfolio_images = [...currentImages, publicUrl];
-    toast.success("Photo added to portfolio!");
+    let signedUrl: string;
+    try {
+      signedUrl = await getPortfolioMediaUrl(inserted.id);
+    } catch {
+      await supabase.from("portfolio_items").delete().eq("id", inserted.id);
+      await supabase.storage.from("portfolio-private").remove([objectPath]);
+      toast.error("Private media delivery is not ready yet. Please try again after the media service is enabled.");
+      return;
+    }
+
+    const ok = await moderate(signedUrl);
+    if (!ok) {
+      await supabase.from("portfolio_items").delete().eq("id", inserted.id);
+      await supabase.storage.from("portfolio-private").remove([objectPath]);
+      return;
+    }
+
+    setPortfolioImages(prev => [signedUrl, ...prev]);
+    toast.success("Photo submitted for portfolio review");
   };
 
 
   const handleSaveAvailability = async () => {
     if (!artistProfile) return;
     setSavingHours(true);
-    const { error } = await supabase.from("artists").update({ availability_hours: availability as any }).eq("id", artistProfile.id);
+    const { error } = await supabase.rpc("artist_replace_weekly_availability", { p_schedule: availability as unknown as Json });
     setSavingHours(false);
     if (error) { toast.error("Failed to save"); return; }
     toast.success("Availability updated!");
@@ -228,7 +344,7 @@ const ArtistDashboard = () => {
   const handleLogout = async () => { await signOut(); navigate("/"); };
 
   const coverCharges = payments.filter(p => p.payment_type === "cover_charge");
-  const totalEarnings = payments.reduce((sum, p) => sum + p.amount, 0);
+  const totalEarnings = payments.reduce((sum, p) => sum + Number(p.amount_minor || 0) / 100, 0);
 
   if (!artistProfile) {
     return <div className="min-h-screen bg-background flex items-center justify-center"><p className="text-muted-foreground">Loading artist profile...</p></div>;
@@ -242,7 +358,7 @@ const ArtistDashboard = () => {
           <p className="text-muted-foreground text-xs mt-1">Artist Dashboard</p>
         </div>
         <div className="flex items-center gap-3 mb-8 p-3 rounded-lg bg-secondary/50">
-          <img src={artistProfile.avatar_url || "https://via.placeholder.com/40"} alt={artistProfile.name} className="w-10 h-10 rounded-full object-cover border border-gold/30" />
+          <img src={artistAvatarUrl || "/placeholder.svg"} alt={artistProfile.name} className="w-10 h-10 rounded-full object-cover border border-gold/30" />
           <div>
             <p className="text-foreground text-sm font-medium">{artistProfile.name}</p>
             <p className="text-gold text-xs">{artistProfile.specialty}</p>
@@ -288,11 +404,11 @@ const ArtistDashboard = () => {
                 <div key={booking.id} className="bg-card rounded-lg border border-border p-5">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
                     <div>
-                      <h3 className="text-foreground font-medium">{booking.customer_name}</h3>
-                      <p className="text-muted-foreground text-sm">{booking.date} · {booking.time}</p>
+                      <h3 className="text-foreground font-medium">{booking.customer_id ? `Customer · ${booking.customer_id.slice(0, 8)}` : "Customer"}</h3>
+                      <p className="text-muted-foreground text-sm">{new Date(booking.starts_at).toLocaleDateString()} · {new Date(booking.starts_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      {booking.cover_charge_paid && <span className="text-xs px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-400">₹500 Paid</span>}
+                      {booking.cover_charge_paid && <span className="text-xs px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-400">Cover charge paid</span>}
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
                         booking.status === "confirmed" ? "bg-emerald-500/10 text-emerald-400" :
                         booking.status === "pending" ? "bg-gold/10 text-gold" :
@@ -301,12 +417,11 @@ const ArtistDashboard = () => {
                       }`}>{booking.status}</span>
                     </div>
                   </div>
-                  <p className="text-muted-foreground text-sm mb-1">{booking.style} · {booking.placement} · {booking.size}</p>
-                  {booking.description && <p className="text-muted-foreground text-sm mb-4">{booking.description}</p>}
+                  <p className="text-muted-foreground text-sm mb-1">{booking.design_requests?.brief?.replace(/^\[[^\]]+\]\s*/, "") || "Tattoo consultation"} · {booking.design_requests?.placement || "Placement not provided"} · {booking.design_requests?.size_description || "Size not provided"}</p>
                   {booking.status === "pending" && (
                     <div className="flex gap-2">
-                      <Button size="sm" variant="gold" onClick={() => handleUpdateBookingStatus(booking.id, "confirmed")} className="gap-1"><Check className="w-3.5 h-3.5" /> Accept</Button>
-                      <Button size="sm" variant="outline" onClick={() => handleUpdateBookingStatus(booking.id, "cancelled")} className="gap-1"><X className="w-3.5 h-3.5" /> Reject</Button>
+                      <Button size="sm" variant="gold" onClick={() => handleConfirmBooking(booking.id)} className="gap-1"><Check className="w-3.5 h-3.5" /> Accept</Button>
+                      <Button size="sm" variant="outline" onClick={explainBookingDecline} className="gap-1"><X className="w-3.5 h-3.5" /> Reject</Button>
                     </div>
                   )}
                 </div>
@@ -320,6 +435,9 @@ const ArtistDashboard = () => {
             <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
               <h2 className="font-heading text-2xl font-bold text-foreground">Portfolio</h2>
               <div className="flex gap-2">
+                <Button variant="outline" size="sm" className="gap-1 border-border text-foreground" onClick={connectInstagram}>
+                  <Instagram className="w-4 h-4" /> {instagramConnected ? `@${instagramUsername || "Instagram"}` : "Connect Instagram"}
+                </Button>
                 <InstagramImportDialog onImport={handleInstagramPhotoImport} type="photo" />
                 <label>
                   <Button variant="gold" size="sm" className="gap-1 cursor-pointer" asChild>
@@ -330,7 +448,7 @@ const ArtistDashboard = () => {
               </div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {(artistProfile.portfolio_images || []).map((img: string, i: number) => (
+              {portfolioImages.map((img: string, i: number) => (
                 <div key={i} className="aspect-square rounded-lg overflow-hidden border border-border">
                   <img src={img} alt={`Work ${i + 1}`} loading="lazy" decoding="async" width={600} height={600} className="w-full h-full object-cover" />
                 </div>
@@ -347,7 +465,12 @@ const ArtistDashboard = () => {
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-heading text-2xl font-bold text-foreground">Reels</h2>
-              <InstagramImportDialog onImport={handleInstagramImport} type="reel" />
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" className="gap-1 border-border text-foreground" onClick={connectInstagram}>
+                  <Instagram className="w-4 h-4" /> {instagramConnected ? `@${instagramUsername || "Instagram"}` : "Connect Instagram"}
+                </Button>
+                <InstagramImportDialog onImport={handleInstagramImport} type="reel" />
+              </div>
             </div>
             <p className="text-muted-foreground text-sm mb-6">Upload short videos or import from Instagram to showcase your work.</p>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -385,11 +508,11 @@ const ArtistDashboard = () => {
                     <span className={`px-2.5 py-1 rounded-full text-xs ${c.status === "active" ? "bg-emerald-500/10 text-emerald-400" : c.status === "pending" ? "bg-gold/10 text-gold" : "bg-primary/10 text-primary"}`}>{c.status}</span>
                   </div>
                   <p className="text-muted-foreground text-xs">{new Date(c.created_at).toLocaleDateString()}</p>
-                  {c.reference_images?.length > 0 && (
+                  {Array.isArray(c.reference_images) && c.reference_images.length > 0 && (
                     <div className="flex gap-2 mt-2">
-                      {c.reference_images.slice(0, 3).map((img: string, i: number) => (
-                        <img key={i} src={img} alt="ref" className="w-12 h-12 rounded object-cover border border-border" />
-                      ))}
+                      {c.reference_images.slice(0, 3).map((img, i) => typeof img === "string" ? (
+                        <img key={i} src={img} alt="Reference" className="w-12 h-12 rounded object-cover border border-border" />
+                      ) : null)}
                     </div>
                   )}
                 </Link>
@@ -480,7 +603,7 @@ const ArtistDashboard = () => {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
               {[
                 { label: "Total Earnings", value: `₹${totalEarnings.toLocaleString()}` },
-                { label: "Cover Charges Received", value: `₹${(coverCharges.length * 500).toLocaleString()}` },
+                { label: "Cover Charges Received", value: `₹${coverCharges.reduce((sum, p) => sum + Number(p.amount_minor || 0) / 100, 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}` },
                 { label: "Total Bookings", value: bookings.length.toString() },
               ].map(stat => (
                 <div key={stat.label} className="bg-card rounded-lg border border-border p-5">
@@ -498,7 +621,7 @@ const ArtistDashboard = () => {
                       <p className="text-foreground text-sm">Cover Charge Payment</p>
                       <p className="text-muted-foreground text-xs">{new Date(p.created_at).toLocaleDateString()}</p>
                     </div>
-                    <span className="text-gold font-medium">₹{p.amount}</span>
+                    <span className="text-gold font-medium">₹{(Number(p.amount_minor || 0) / 100).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
                   </div>
                 ))}
               </div>
@@ -512,7 +635,7 @@ const ArtistDashboard = () => {
                     <p className="text-foreground text-sm capitalize">{p.payment_type.replace("_", " ")}</p>
                     <p className="text-muted-foreground text-xs">{new Date(p.created_at).toLocaleDateString()}</p>
                   </div>
-                  <span className="text-gold font-medium">₹{p.amount}</span>
+                  <span className="text-gold font-medium">₹{(Number(p.amount_minor || 0) / 100).toFixed(2)}</span>
                 </div>
               ))}
             </div>

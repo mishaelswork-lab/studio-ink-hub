@@ -7,12 +7,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { SEO } from "@/lib/seo";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import type { Database } from "@/integrations/supabase/types";
+
+type ConversationRow = Pick<Database["public"]["Tables"]["conversations"]["Row"], "id" | "customer_id" | "artist_id" | "design_request_id" | "created_at">;
+type ArtistSummary = Pick<Database["public"]["Tables"]["artists"]["Row"], "id" | "name" | "avatar_url" | "specialty">;
+type RequestSummary = Pick<Database["public"]["Tables"]["design_requests"]["Row"], "id" | "brief" | "status">;
+type ChatRow = ConversationRow & { artist?: ArtistSummary; request?: RequestSummary };
 
 const PAGE = 15;
 
 const ChatsPage = () => {
   const { user } = useAuth();
-  const [chats, setChats] = useState<any[]>([]);
+  const [chats, setChats] = useState<ChatRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,24 +35,39 @@ const ChatsPage = () => {
 
     try {
       const { data: cs, error: e1 } = await supabase
-        .from("consultations")
-        .select("*")
+        .from("conversations")
+        .select("id,customer_id,artist_id,design_request_id,created_at")
         .eq("customer_id", user.id)
-        .order("updated_at", { ascending: false })
+        .order("created_at", { ascending: false })
         .range(from, to);
       if (e1) throw e1;
-      const list = cs || [];
-      const artistUserIds = Array.from(new Set(list.map((c: any) => c.artist_id))).filter(Boolean);
-      const { data: artists } = artistUserIds.length
-        ? await supabase.from("artists").select("user_id,name,avatar_url,specialty").in("user_id", artistUserIds)
-        : { data: [] as any[] };
-      const byUser = new Map((artists || []).map((a: any) => [a.user_id, a]));
-      const hydrated = list.map((c: any) => ({ ...c, artist: byUser.get(c.artist_id) }));
+      const list: ConversationRow[] = cs || [];
+      const artistIds = Array.from(new Set(list.map(conversation => conversation.artist_id)));
+      const requestIds = Array.from(new Set(list.map(conversation => conversation.design_request_id))).filter((id): id is string => Boolean(id));
+      let artists: ArtistSummary[] = [];
+      let requests: RequestSummary[] = [];
+      if (artistIds.length) {
+        const { data, error } = await supabase.from("artists").select("id,name,avatar_url,specialty").in("id", artistIds);
+        if (error) throw error;
+        artists = data ?? [];
+      }
+      if (requestIds.length) {
+        const { data, error } = await supabase.from("design_requests").select("id,brief,status").in("id", requestIds);
+        if (error) throw error;
+        requests = data ?? [];
+      }
+      const byArtist = new Map(artists.map(artist => [artist.id, artist]));
+      const byRequest = new Map(requests.map(request => [request.id, request]));
+      const hydrated: ChatRow[] = list.map(conversation => ({
+        ...conversation,
+        artist: byArtist.get(conversation.artist_id),
+        request: conversation.design_request_id ? byRequest.get(conversation.design_request_id) : undefined,
+      }));
       setChats(prev => reset ? hydrated : [...prev, ...hydrated]);
       setHasMore(list.length === PAGE);
       pageRef.current += 1;
-    } catch (err: any) {
-      setError(err?.message || "Could not load chats");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Could not load chats");
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -125,9 +146,9 @@ const ChatsPage = () => {
                 <img src={c.artist?.avatar_url || "https://via.placeholder.com/44"} alt={c.artist?.name || "Artist"} className="w-11 h-11 rounded-full object-cover border border-gold/20" />
                 <div className="flex-1 min-w-0">
                   <p className="text-foreground text-sm font-medium truncate">{c.artist?.name || "Artist"}</p>
-                  <p className="text-muted-foreground text-xs truncate">{c.design_description || "Design consultation"}</p>
+                  <p className="text-muted-foreground text-xs truncate">{c.request?.brief || "Design consultation"}</p>
                 </div>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full ${c.status === "active" ? "bg-emerald-500/10 text-emerald-400" : c.status === "pending" ? "bg-gold/10 text-gold" : "bg-primary/10 text-primary"}`}>{c.status}</span>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full ${c.request?.status === "active" ? "bg-emerald-500/10 text-emerald-400" : c.request?.status === "pending" ? "bg-gold/10 text-gold" : "bg-primary/10 text-primary"}`}>{c.request?.status || "open"}</span>
               </Link>
             ))}
             <div ref={sentinelRef} className="py-4 flex justify-center">

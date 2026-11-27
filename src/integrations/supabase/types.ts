@@ -10,42 +10,80 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "17.1"
   }
   public: {
     Tables: {
       admin_audit_log: {
         Row: {
           action: string
-          admin_id: string
+          admin_id: string | null
           created_at: string
           id: string
-          metadata: Json | null
+          metadata: Json
           reason: string | null
-          target_id: string | null
+          target_id: string
           target_type: string
         }
         Insert: {
           action: string
-          admin_id: string
+          admin_id?: string | null
           created_at?: string
           id?: string
-          metadata?: Json | null
+          metadata?: Json
           reason?: string | null
-          target_id?: string | null
+          target_id: string
           target_type: string
         }
         Update: {
           action?: string
-          admin_id?: string
+          admin_id?: string | null
           created_at?: string
           id?: string
-          metadata?: Json | null
+          metadata?: Json
           reason?: string | null
-          target_id?: string | null
+          target_id?: string
           target_type?: string
         }
         Relationships: []
+      }
+      artist_availability: {
+        Row: {
+          artist_id: string
+          end_time: string
+          id: string
+          is_active: boolean | null
+          start_time: string
+          timezone: string | null
+          weekday: number
+        }
+        Insert: {
+          artist_id: string
+          end_time: string
+          id?: string
+          is_active?: boolean | null
+          start_time: string
+          timezone?: string | null
+          weekday: number
+        }
+        Update: {
+          artist_id?: string
+          end_time?: string
+          id?: string
+          is_active?: boolean | null
+          start_time?: string
+          timezone?: string | null
+          weekday?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artist_availability_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       artist_certifications: {
         Row: {
@@ -75,199 +113,221 @@ export type Database = {
           issuing_body?: string | null
           verified?: boolean
         }
+        Relationships: [
+          {
+            foreignKeyName: "artist_certifications_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      artist_leads: {
+        Row: {
+          artist_name: string
+          city: string | null
+          contact_permission: string | null
+          country: string | null
+          created_at: string | null
+          id: string
+          instagram_url: string | null
+          lead_status: string | null
+          notes: string | null
+          qualification_score: number | null
+          source: string | null
+          studio_name: string | null
+          styles: string[] | null
+          website: string | null
+        }
+        Insert: {
+          artist_name: string
+          city?: string | null
+          contact_permission?: string | null
+          country?: string | null
+          created_at?: string | null
+          id?: string
+          instagram_url?: string | null
+          lead_status?: string | null
+          notes?: string | null
+          qualification_score?: number | null
+          source?: string | null
+          studio_name?: string | null
+          styles?: string[] | null
+          website?: string | null
+        }
+        Update: {
+          artist_name?: string
+          city?: string | null
+          contact_permission?: string | null
+          country?: string | null
+          created_at?: string | null
+          id?: string
+          instagram_url?: string | null
+          lead_status?: string | null
+          notes?: string | null
+          qualification_score?: number | null
+          source?: string | null
+          studio_name?: string | null
+          styles?: string[] | null
+          website?: string | null
+        }
         Relationships: []
       }
       artists: {
         Row: {
-          application_status: string
-          availability_hours: Json | null
-          available: boolean | null
+          available: boolean
           avatar_url: string | null
           bio: string | null
-          created_at: string
-          experience_years: number | null
+          city: string | null
+          country: string | null
+          created_at: string | null
+          currency: string | null
+          experience_years: number
           hourly_rate: number
           id: string
-          instagram_url: string | null
-          name: string
-          portfolio_images: string[] | null
-          rating: number | null
+          name: string | null
           rejection_reason: string | null
-          reviewed_at: string | null
-          reviewed_by: string | null
+          slug: string
           specialty: string | null
+          status: string | null
           studio_name: string | null
-          submitted_at: string
-          updated_at: string
-          user_id: string
+          styles: string[] | null
+          user_id: string | null
+          verified_at: string | null
         }
         Insert: {
-          application_status?: string
-          availability_hours?: Json | null
-          available?: boolean | null
+          available?: boolean
           avatar_url?: string | null
           bio?: string | null
-          created_at?: string
-          experience_years?: number | null
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          currency?: string | null
+          experience_years?: number
           hourly_rate?: number
           id?: string
-          instagram_url?: string | null
-          name: string
-          portfolio_images?: string[] | null
-          rating?: number | null
+          name?: string | null
           rejection_reason?: string | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
+          slug: string
           specialty?: string | null
+          status?: string | null
           studio_name?: string | null
-          submitted_at?: string
-          updated_at?: string
-          user_id: string
+          styles?: string[] | null
+          user_id?: string | null
+          verified_at?: string | null
         }
         Update: {
-          application_status?: string
-          availability_hours?: Json | null
-          available?: boolean | null
+          available?: boolean
           avatar_url?: string | null
           bio?: string | null
-          created_at?: string
-          experience_years?: number | null
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          currency?: string | null
+          experience_years?: number
           hourly_rate?: number
           id?: string
-          instagram_url?: string | null
-          name?: string
-          portfolio_images?: string[] | null
-          rating?: number | null
+          name?: string | null
           rejection_reason?: string | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
+          slug?: string
           specialty?: string | null
+          status?: string | null
           studio_name?: string | null
-          submitted_at?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      auth_attempts: {
-        Row: {
-          created_at: string
-          id: string
-          identifier: string
-          ip: string | null
-          kind: string
-          success: boolean
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          identifier: string
-          ip?: string | null
-          kind: string
-          success?: boolean
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          identifier?: string
-          ip?: string | null
-          kind?: string
-          success?: boolean
-        }
-        Relationships: []
-      }
-      booking_notifications: {
-        Row: {
-          booking_id: string
-          created_at: string
-          event: string
-          id: string
-          message: string | null
-          read_at: string | null
-          user_id: string
-        }
-        Insert: {
-          booking_id: string
-          created_at?: string
-          event: string
-          id?: string
-          message?: string | null
-          read_at?: string | null
-          user_id: string
-        }
-        Update: {
-          booking_id?: string
-          created_at?: string
-          event?: string
-          id?: string
-          message?: string | null
-          read_at?: string | null
-          user_id?: string
+          styles?: string[] | null
+          user_id?: string | null
+          verified_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "booking_notifications_booking_id_fkey"
-            columns: ["booking_id"]
+            foreignKeyName: "artists_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      availability_exceptions: {
+        Row: {
+          artist_id: string
+          ends_at: string
+          id: string
+          is_available: boolean | null
+          reason: string | null
+          starts_at: string
+        }
+        Insert: {
+          artist_id: string
+          ends_at: string
+          id?: string
+          is_available?: boolean | null
+          reason?: string | null
+          starts_at: string
+        }
+        Update: {
+          artist_id?: string
+          ends_at?: string
+          id?: string
+          is_available?: boolean | null
+          reason?: string | null
+          starts_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "availability_exceptions_artist_id_fkey"
+            columns: ["artist_id"]
             isOneToOne: false
-            referencedRelation: "bookings"
+            referencedRelation: "artists"
             referencedColumns: ["id"]
           },
         ]
       }
       bookings: {
         Row: {
+          amount_minor: number | null
           artist_id: string
-          cover_charge_paid: boolean | null
-          created_at: string
+          cover_charge_paid: boolean
+          created_at: string | null
+          currency: string | null
           customer_id: string | null
-          customer_name: string
-          customer_phone: string | null
-          date: string
-          description: string | null
+          design_request_id: string | null
+          ends_at: string
+          hold_expires_at: string | null
           id: string
-          placement: string
-          size: string | null
-          status: string
-          style: string
-          time: string
-          total_estimate: number | null
-          updated_at: string
+          idempotency_key: string | null
+          starts_at: string
+          status: string | null
         }
         Insert: {
+          amount_minor?: number | null
           artist_id: string
-          cover_charge_paid?: boolean | null
-          created_at?: string
+          cover_charge_paid?: boolean
+          created_at?: string | null
+          currency?: string | null
           customer_id?: string | null
-          customer_name: string
-          customer_phone?: string | null
-          date: string
-          description?: string | null
+          design_request_id?: string | null
+          ends_at: string
+          hold_expires_at?: string | null
           id?: string
-          placement: string
-          size?: string | null
-          status?: string
-          style: string
-          time: string
-          total_estimate?: number | null
-          updated_at?: string
+          idempotency_key?: string | null
+          starts_at: string
+          status?: string | null
         }
         Update: {
+          amount_minor?: number | null
           artist_id?: string
-          cover_charge_paid?: boolean | null
-          created_at?: string
+          cover_charge_paid?: boolean
+          created_at?: string | null
+          currency?: string | null
           customer_id?: string | null
-          customer_name?: string
-          customer_phone?: string | null
-          date?: string
-          description?: string | null
+          design_request_id?: string | null
+          ends_at?: string
+          hold_expires_at?: string | null
           id?: string
-          placement?: string
-          size?: string | null
-          status?: string
-          style?: string
-          time?: string
-          total_estimate?: number | null
-          updated_at?: string
+          idempotency_key?: string | null
+          starts_at?: string
+          status?: string | null
         }
         Relationships: [
           {
@@ -277,43 +337,21 @@ export type Database = {
             referencedRelation: "artists"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "bookings_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_design_request_id_fkey"
+            columns: ["design_request_id"]
+            isOneToOne: false
+            referencedRelation: "design_requests"
+            referencedColumns: ["id"]
+          },
         ]
-      }
-      change_audit_log: {
-        Row: {
-          changed_by: string | null
-          changed_fields: Json | null
-          created_at: string
-          id: string
-          new_values: Json | null
-          old_values: Json | null
-          operation: string
-          record_id: string
-          table_name: string
-        }
-        Insert: {
-          changed_by?: string | null
-          changed_fields?: Json | null
-          created_at?: string
-          id?: string
-          new_values?: Json | null
-          old_values?: Json | null
-          operation: string
-          record_id: string
-          table_name: string
-        }
-        Update: {
-          changed_by?: string | null
-          changed_fields?: Json | null
-          created_at?: string
-          id?: string
-          new_values?: Json | null
-          old_values?: Json | null
-          operation?: string
-          record_id?: string
-          table_name?: string
-        }
-        Relationships: []
       }
       consent_records: {
         Row: {
@@ -331,7 +369,7 @@ export type Database = {
           created_at?: string
           granted: boolean
           id?: string
-          policy_version?: string
+          policy_version: string
           purpose: string
           user_agent?: string | null
           user_id?: string | null
@@ -348,77 +386,6 @@ export type Database = {
         }
         Relationships: []
       }
-      consultation_messages: {
-        Row: {
-          consultation_id: string
-          created_at: string
-          id: string
-          image_url: string | null
-          message: string | null
-          read_at: string | null
-          sender_id: string
-        }
-        Insert: {
-          consultation_id: string
-          created_at?: string
-          id?: string
-          image_url?: string | null
-          message?: string | null
-          read_at?: string | null
-          sender_id: string
-        }
-        Update: {
-          consultation_id?: string
-          created_at?: string
-          id?: string
-          image_url?: string | null
-          message?: string | null
-          read_at?: string | null
-          sender_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "consultation_messages_consultation_id_fkey"
-            columns: ["consultation_id"]
-            isOneToOne: false
-            referencedRelation: "consultations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      consultations: {
-        Row: {
-          artist_id: string
-          created_at: string
-          customer_id: string
-          design_description: string | null
-          id: string
-          reference_images: string[] | null
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          artist_id: string
-          created_at?: string
-          customer_id: string
-          design_description?: string | null
-          id?: string
-          reference_images?: string[] | null
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          artist_id?: string
-          created_at?: string
-          customer_id?: string
-          design_description?: string | null
-          id?: string
-          reference_images?: string[] | null
-          status?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       content_reports: {
         Row: {
           admin_notes: string | null
@@ -428,11 +395,10 @@ export type Database = {
           details: string | null
           id: string
           reason: string
-          reporter_id: string
+          reporter_id: string | null
           reviewed_at: string | null
           reviewed_by: string | null
           status: string
-          updated_at: string
         }
         Insert: {
           admin_notes?: string | null
@@ -442,11 +408,10 @@ export type Database = {
           details?: string | null
           id?: string
           reason: string
-          reporter_id: string
+          reporter_id?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string
-          updated_at?: string
         }
         Update: {
           admin_notes?: string | null
@@ -456,116 +421,169 @@ export type Database = {
           details?: string | null
           id?: string
           reason?: string
-          reporter_id?: string
+          reporter_id?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string
-          updated_at?: string
         }
         Relationships: []
       }
-      daily_designs: {
+      conversations: {
         Row: {
-          description: string | null
-          external_id: string
-          fetched_at: string
+          artist_id: string
+          created_at: string | null
+          customer_id: string | null
+          design_request_id: string | null
           id: string
-          image_url: string
-          photographer: string | null
-          source_url: string | null
-          thumb_url: string | null
         }
         Insert: {
-          description?: string | null
-          external_id: string
-          fetched_at?: string
+          artist_id: string
+          created_at?: string | null
+          customer_id?: string | null
+          design_request_id?: string | null
           id?: string
-          image_url: string
-          photographer?: string | null
-          source_url?: string | null
-          thumb_url?: string | null
         }
         Update: {
-          description?: string | null
-          external_id?: string
-          fetched_at?: string
+          artist_id?: string
+          created_at?: string | null
+          customer_id?: string | null
+          design_request_id?: string | null
           id?: string
-          image_url?: string
-          photographer?: string | null
-          source_url?: string | null
-          thumb_url?: string | null
-        }
-        Relationships: []
-      }
-      design_reports: {
-        Row: {
-          admin_notes: string | null
-          created_at: string
-          design_id: string
-          id: string
-          reason: string
-          reporter_id: string
-          reviewed_at: string | null
-          reviewed_by: string | null
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          admin_notes?: string | null
-          created_at?: string
-          design_id: string
-          id?: string
-          reason: string
-          reporter_id: string
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          admin_notes?: string | null
-          created_at?: string
-          design_id?: string
-          id?: string
-          reason?: string
-          reporter_id?: string
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          status?: string
-          updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "design_reports_design_id_fkey"
-            columns: ["design_id"]
+            foreignKeyName: "conversations_artist_id_fkey"
+            columns: ["artist_id"]
             isOneToOne: false
-            referencedRelation: "daily_designs"
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_design_request_id_fkey"
+            columns: ["design_request_id"]
+            isOneToOne: false
+            referencedRelation: "design_requests"
             referencedColumns: ["id"]
           },
         ]
       }
-      design_views: {
+      design_requests: {
         Row: {
-          design_id: string
-          user_id: string
-          viewed_at: string
+          artist_id: string
+          brief: string
+          created_at: string | null
+          currency: string | null
+          customer_id: string | null
+          design_id: string | null
+          id: string
+          placement: string | null
+          quoted_amount_minor: number | null
+          reel_url: string | null
+          reference_images: Json | null
+          size_description: string | null
+          status: string | null
         }
         Insert: {
-          design_id: string
-          user_id: string
-          viewed_at?: string
+          artist_id: string
+          brief: string
+          created_at?: string | null
+          currency?: string | null
+          customer_id?: string | null
+          design_id?: string | null
+          id?: string
+          placement?: string | null
+          quoted_amount_minor?: number | null
+          reel_url?: string | null
+          reference_images?: Json | null
+          size_description?: string | null
+          status?: string | null
         }
         Update: {
-          design_id?: string
-          user_id?: string
-          viewed_at?: string
+          artist_id?: string
+          brief?: string
+          created_at?: string | null
+          currency?: string | null
+          customer_id?: string | null
+          design_id?: string | null
+          id?: string
+          placement?: string | null
+          quoted_amount_minor?: number | null
+          reel_url?: string | null
+          reference_images?: Json | null
+          size_description?: string | null
+          status?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "design_views_design_id_fkey"
+            foreignKeyName: "design_requests_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "design_requests_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "design_requests_design_id_fkey"
             columns: ["design_id"]
             isOneToOne: false
-            referencedRelation: "daily_designs"
+            referencedRelation: "designs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      designs: {
+        Row: {
+          artist_id: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          image_url: string
+          is_public: boolean | null
+          placement: string | null
+          style: string | null
+          title: string
+        }
+        Insert: {
+          artist_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          image_url: string
+          is_public?: boolean | null
+          placement?: string | null
+          style?: string | null
+          title: string
+        }
+        Update: {
+          artist_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string
+          is_public?: boolean | null
+          placement?: string | null
+          style?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "designs_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
             referencedColumns: ["id"]
           },
         ]
@@ -599,72 +617,124 @@ export type Database = {
           active: boolean
           artist_id: string
           created_at: string
-          expires_at: string | null
+          expires_at: string
           id: string
           priority: number
-          updated_at: string
         }
         Insert: {
           active?: boolean
           artist_id: string
           created_at?: string
-          expires_at?: string | null
+          expires_at: string
           id?: string
           priority?: number
-          updated_at?: string
         }
         Update: {
           active?: boolean
           artist_id?: string
           created_at?: string
-          expires_at?: string | null
+          expires_at?: string
           id?: string
           priority?: number
-          updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "featured_artists_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: true
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      featured_requests: {
+      instagram_connections: {
         Row: {
-          admin_notes: string | null
+          access_token_ciphertext: string
+          access_token_iv: string
           artist_id: string
-          contact_email: string | null
-          contact_phone: string | null
           created_at: string
           id: string
-          message: string | null
-          status: string
+          instagram_user_id: string
+          instagram_username: string
+          token_expires_at: string
           updated_at: string
+          user_id: string
         }
         Insert: {
-          admin_notes?: string | null
+          access_token_ciphertext: string
+          access_token_iv: string
           artist_id: string
-          contact_email?: string | null
-          contact_phone?: string | null
           created_at?: string
           id?: string
-          message?: string | null
-          status?: string
+          instagram_user_id: string
+          instagram_username: string
+          token_expires_at: string
           updated_at?: string
+          user_id: string
         }
         Update: {
-          admin_notes?: string | null
+          access_token_ciphertext?: string
+          access_token_iv?: string
           artist_id?: string
-          contact_email?: string | null
-          contact_phone?: string | null
           created_at?: string
           id?: string
-          message?: string | null
-          status?: string
+          instagram_user_id?: string
+          instagram_username?: string
+          token_expires_at?: string
           updated_at?: string
+          user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "instagram_connections_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: true
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      instagram_oauth_states: {
+        Row: {
+          artist_id: string
+          consumed_at: string | null
+          created_at: string
+          expires_at: string
+          state: string
+          user_id: string
+        }
+        Insert: {
+          artist_id: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at: string
+          state: string
+          user_id: string
+        }
+        Update: {
+          artist_id?: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          state?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instagram_oauth_states_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       memberships: {
         Row: {
           amount: number
           created_at: string
-          expires_at: string
+          currency: string
+          expires_at: string | null
           id: string
           plan: string
           started_at: string
@@ -675,7 +745,8 @@ export type Database = {
         Insert: {
           amount?: number
           created_at?: string
-          expires_at?: string
+          currency?: string
+          expires_at?: string | null
           id?: string
           plan?: string
           started_at?: string
@@ -686,7 +757,8 @@ export type Database = {
         Update: {
           amount?: number
           created_at?: string
-          expires_at?: string
+          currency?: string
+          expires_at?: string | null
           id?: string
           plan?: string
           started_at?: string
@@ -696,87 +768,99 @@ export type Database = {
         }
         Relationships: []
       }
-      outreach_leads: {
+      messages: {
         Row: {
-          city: string | null
-          contacted: boolean
-          contacted_at: string | null
-          created_at: string
-          email: string | null
+          attachments: Json | null
+          body: string | null
+          conversation_id: string
+          created_at: string | null
           id: string
-          instagram_url: string | null
-          name: string | null
-          source_url: string | null
+          read_at: string | null
+          sender_id: string | null
         }
         Insert: {
-          city?: string | null
-          contacted?: boolean
-          contacted_at?: string | null
-          created_at?: string
-          email?: string | null
+          attachments?: Json | null
+          body?: string | null
+          conversation_id: string
+          created_at?: string | null
           id?: string
-          instagram_url?: string | null
-          name?: string | null
-          source_url?: string | null
+          read_at?: string | null
+          sender_id?: string | null
         }
         Update: {
-          city?: string | null
-          contacted?: boolean
-          contacted_at?: string | null
-          created_at?: string
-          email?: string | null
+          attachments?: Json | null
+          body?: string | null
+          conversation_id?: string
+          created_at?: string | null
           id?: string
-          instagram_url?: string | null
-          name?: string | null
-          source_url?: string | null
+          read_at?: string | null
+          sender_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payments: {
         Row: {
-          amount: number
+          amount_minor: number
           artist_id: string | null
           booking_id: string | null
-          created_at: string
-          currency: string | null
+          created_at: string | null
+          currency: string
           customer_id: string | null
           id: string
-          payment_type: string
-          razorpay_order_id: string | null
-          razorpay_payment_id: string | null
-          razorpay_signature: string | null
-          status: string
-          updated_at: string
+          metadata: Json
+          payment_type: string | null
+          provider: string
+          provider_order_id: string | null
+          provider_payment_id: string | null
+          provider_signature: string | null
+          status: string | null
         }
         Insert: {
-          amount: number
+          amount_minor: number
           artist_id?: string | null
           booking_id?: string | null
-          created_at?: string
-          currency?: string | null
+          created_at?: string | null
+          currency: string
           customer_id?: string | null
           id?: string
-          payment_type?: string
-          razorpay_order_id?: string | null
-          razorpay_payment_id?: string | null
-          razorpay_signature?: string | null
-          status?: string
-          updated_at?: string
+          metadata?: Json
+          payment_type?: string | null
+          provider: string
+          provider_order_id?: string | null
+          provider_payment_id?: string | null
+          provider_signature?: string | null
+          status?: string | null
         }
         Update: {
-          amount?: number
+          amount_minor?: number
           artist_id?: string | null
           booking_id?: string | null
-          created_at?: string
-          currency?: string | null
+          created_at?: string | null
+          currency?: string
           customer_id?: string | null
           id?: string
-          payment_type?: string
-          razorpay_order_id?: string | null
-          razorpay_payment_id?: string | null
-          razorpay_signature?: string | null
-          status?: string
-          updated_at?: string
+          metadata?: Json
+          payment_type?: string | null
+          provider?: string
+          provider_order_id?: string | null
+          provider_payment_id?: string | null
+          provider_signature?: string | null
+          status?: string | null
         }
         Relationships: [
           {
@@ -800,27 +884,24 @@ export type Database = {
           created_at: string
           event: string
           id: string
-          meta: Json | null
+          meta: Json
           url: string | null
-          user_id: string | null
           value: number | null
         }
         Insert: {
           created_at?: string
           event: string
           id?: string
-          meta?: Json | null
+          meta?: Json
           url?: string | null
-          user_id?: string | null
           value?: number | null
         }
         Update: {
           created_at?: string
           event?: string
           id?: string
-          meta?: Json | null
+          meta?: Json
           url?: string | null
-          user_id?: string | null
           value?: number | null
         }
         Relationships: []
@@ -829,56 +910,100 @@ export type Database = {
         Row: {
           key: string
           updated_at: string
-          updated_by: string | null
           value: Json
         }
         Insert: {
           key: string
           updated_at?: string
-          updated_by?: string | null
-          value: Json
+          value?: Json
         }
         Update: {
           key?: string
           updated_at?: string
-          updated_by?: string | null
           value?: Json
         }
         Relationships: []
+      }
+      portfolio_items: {
+        Row: {
+          approved: boolean | null
+          artist_id: string
+          caption: string | null
+          created_at: string | null
+          id: string
+          instagram_media_id: string | null
+          media_type: string | null
+          media_url: string
+          source_url: string | null
+        }
+        Insert: {
+          approved?: boolean | null
+          artist_id: string
+          caption?: string | null
+          created_at?: string | null
+          id?: string
+          instagram_media_id?: string | null
+          media_type?: string | null
+          media_url: string
+          source_url?: string | null
+        }
+        Update: {
+          approved?: boolean | null
+          artist_id?: string
+          caption?: string | null
+          created_at?: string | null
+          id?: string
+          instagram_media_id?: string | null
+          media_type?: string | null
+          media_url?: string
+          source_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portfolio_items_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
           avatar_url: string | null
           chat_count: number
-          created_at: string
-          display_name: string | null
+          city: string | null
+          country: string | null
+          created_at: string | null
+          deletion_pending_at: string | null
+          display_name: string
           id: string
-          last_active_at: string | null
-          phone: string | null
           updated_at: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           avatar_url?: string | null
           chat_count?: number
-          created_at?: string
-          display_name?: string | null
-          id?: string
-          last_active_at?: string | null
-          phone?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          deletion_pending_at?: string | null
+          display_name: string
+          id: string
           updated_at?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           avatar_url?: string | null
           chat_count?: number
-          created_at?: string
-          display_name?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          deletion_pending_at?: string | null
+          display_name?: string
           id?: string
-          last_active_at?: string | null
-          phone?: string | null
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -889,6 +1014,7 @@ export type Database = {
           endpoint: string
           id: string
           p256dh: string
+          updated_at: string
           user_agent: string | null
           user_id: string
         }
@@ -898,6 +1024,7 @@ export type Database = {
           endpoint: string
           id?: string
           p256dh: string
+          updated_at?: string
           user_agent?: string | null
           user_id: string
         }
@@ -907,6 +1034,7 @@ export type Database = {
           endpoint?: string
           id?: string
           p256dh?: string
+          updated_at?: string
           user_agent?: string | null
           user_id?: string
         }
@@ -918,8 +1046,10 @@ export type Database = {
           caption: string | null
           created_at: string
           id: string
+          instagram_media_id: string | null
           instagram_url: string | null
           likes: number
+          moderation_reason: string | null
           moderation_status: string
           source: string
           thumbnail_url: string | null
@@ -932,8 +1062,10 @@ export type Database = {
           caption?: string | null
           created_at?: string
           id?: string
+          instagram_media_id?: string | null
           instagram_url?: string | null
           likes?: number
+          moderation_reason?: string | null
           moderation_status?: string
           source?: string
           thumbnail_url?: string | null
@@ -946,8 +1078,10 @@ export type Database = {
           caption?: string | null
           created_at?: string
           id?: string
+          instagram_media_id?: string | null
           instagram_url?: string | null
           likes?: number
+          moderation_reason?: string | null
           moderation_status?: string
           source?: string
           thumbnail_url?: string | null
@@ -957,7 +1091,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "reels_artist_fk"
+            foreignKeyName: "reels_artist_id_fkey"
             columns: ["artist_id"]
             isOneToOne: false
             referencedRelation: "artists"
@@ -965,89 +1099,89 @@ export type Database = {
           },
         ]
       }
-      referrals: {
-        Row: {
-          created_at: string
-          discount_amount: number
-          id: string
-          referral_code: string
-          referred_id: string | null
-          referrer_id: string
-          used: boolean
-        }
-        Insert: {
-          created_at?: string
-          discount_amount?: number
-          id?: string
-          referral_code: string
-          referred_id?: string | null
-          referrer_id: string
-          used?: boolean
-        }
-        Update: {
-          created_at?: string
-          discount_amount?: number
-          id?: string
-          referral_code?: string
-          referred_id?: string | null
-          referrer_id?: string
-          used?: boolean
-        }
-        Relationships: []
-      }
       reviews: {
         Row: {
           artist_id: string
           booking_id: string
           comment: string | null
           created_at: string
-          customer_id: string
+          customer_id: string | null
           id: string
           rating: number
+          status: string
+          updated_at: string
         }
         Insert: {
           artist_id: string
           booking_id: string
           comment?: string | null
           created_at?: string
-          customer_id: string
+          customer_id?: string | null
           id?: string
           rating: number
+          status?: string
+          updated_at?: string
         }
         Update: {
           artist_id?: string
           booking_id?: string
           comment?: string | null
           created_at?: string
-          customer_id?: string
+          customer_id?: string | null
           id?: string
           rating?: number
+          status?: string
+          updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "reviews_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: true
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      usage_events: {
+      saved_designs: {
         Row: {
-          category: string
-          created_at: string
-          event: string
-          id: string
-          meta: Json
+          created_at: string | null
+          design_id: string
+          user_id: string
         }
         Insert: {
-          category: string
-          created_at?: string
-          event: string
-          id?: string
-          meta?: Json
+          created_at?: string | null
+          design_id: string
+          user_id: string
         }
         Update: {
-          category?: string
-          created_at?: string
-          event?: string
-          id?: string
-          meta?: Json
+          created_at?: string | null
+          design_id?: string
+          user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "saved_designs_design_id_fkey"
+            columns: ["design_id"]
+            isOneToOne: false
+            referencedRelation: "designs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saved_designs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_blocks: {
         Row: {
@@ -1093,18 +1227,182 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      can_write_media: { Args: { _name: string }; Returns: boolean }
-      has_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
+      is_artist_blocked: {
+        Args: { p_artist_id: string }
         Returns: boolean
       }
-      in_consultation_path: { Args: { _name: string }; Returns: boolean }
-      is_blocked_pair: { Args: { _a: string; _b: string }; Returns: boolean }
-      shares_consultation: {
-        Args: { _a: string; _b: string }
+      toggle_artist_block: {
+        Args: { p_artist_id: string }
+        Returns: boolean
+      }
+      admin_review_artist: {
+        Args: { p_artist_id: string; p_decision: string; p_reason?: string }
+        Returns: {
+          available: boolean
+          avatar_url: string | null
+          bio: string | null
+          city: string | null
+          country: string | null
+          created_at: string | null
+          currency: string | null
+          experience_years: number
+          hourly_rate: number
+          id: string
+          name: string | null
+          rejection_reason: string | null
+          slug: string
+          specialty: string | null
+          status: string | null
+          studio_name: string | null
+          styles: string[] | null
+          user_id: string | null
+          verified_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "artists"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      admin_review_reel: {
+        Args: { p_decision: string; p_reason?: string; p_reel_id: string }
+        Returns: {
+          moderation_status: string
+          reel_id: string
+        }[]
+      }
+      admin_write_audit: {
+        Args: {
+          p_action: string
+          p_metadata?: Json
+          p_reason?: string
+          p_target_id: string
+          p_target_type: string
+        }
+        Returns: string
+      }
+      artist_confirm_booking: {
+        Args: { p_booking_id: string }
+        Returns: {
+          booking_id: string
+          booking_status: string
+        }[]
+      }
+      artist_replace_weekly_availability: {
+        Args: { p_schedule: Json }
+        Returns: number
+      }
+      artist_resubmit_application: { Args: never; Returns: boolean }
+      artist_set_availability: {
+        Args: { p_available: boolean }
+        Returns: boolean
+      }
+      artist_update_own_profile: {
+        Args: {
+          p_avatar_url?: string
+          p_bio: string
+          p_experience_years: number
+          p_hourly_rate: number
+          p_name: string
+          p_specialty: string
+          p_studio_name: string
+        }
+        Returns: {
+          available: boolean
+          avatar_url: string | null
+          bio: string | null
+          city: string | null
+          country: string | null
+          created_at: string | null
+          currency: string | null
+          experience_years: number
+          hourly_rate: number
+          id: string
+          name: string | null
+          rejection_reason: string | null
+          slug: string
+          specialty: string | null
+          status: string | null
+          studio_name: string | null
+          styles: string[] | null
+          user_id: string | null
+          verified_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "artists"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      create_booking_hold: {
+        Args: {
+          p_artist_id: string
+          p_brief: string
+          p_ends_at: string
+          p_idempotency_key: string
+          p_placement: string
+          p_service_type: string
+          p_size_description: string
+          p_starts_at: string
+        }
+        Returns: {
+          booking_id: string
+          booking_status: string
+          design_request_id: string
+          hold_expires_at: string
+        }[]
+      }
+      finalize_razorpay_payment: {
+        Args: {
+          p_payment_id: string
+          p_provider_payment_id: string
+          p_provider_signature: string
+        }
+        Returns: Json
+      }
+      get_my_artist_profile: {
+        Args: never
+        Returns: {
+          available: boolean
+          avatar_url: string | null
+          bio: string | null
+          city: string | null
+          country: string | null
+          created_at: string | null
+          currency: string | null
+          experience_years: number
+          hourly_rate: number
+          id: string
+          name: string | null
+          rejection_reason: string | null
+          slug: string
+          specialty: string | null
+          status: string | null
+          studio_name: string | null
+          styles: string[] | null
+          user_id: string | null
+          verified_at: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "artists"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      prepare_account_deletion: { Args: { p_user_id: string }; Returns: Json }
+      start_consultation: {
+        Args: { p_artist_id: string; p_brief: string; p_reference_images?: Json }
+        Returns: string
+      }
+      conversation_peer: {
+        Args: { p_conversation_id: string }
+        Returns: { peer_user_id: string; peer_name: string | null; peer_avatar_url: string | null }[]
+      }
+      admin_moderate_design: {
+        Args: { p_design_id: string; p_reason?: string | null }
         Returns: boolean
       }
     }

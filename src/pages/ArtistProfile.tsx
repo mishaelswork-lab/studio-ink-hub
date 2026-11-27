@@ -7,7 +7,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useFavorite } from "@/hooks/useFavorite";
-import { useBlock } from "@/hooks/useBlock";
+import { useBlockArtist } from "@/hooks/useBlock";
 import { ReportDialog } from "@/components/safety/ReportDialog";
 const CinematicGallery = lazy(() =>
   import("@/components/CinematicGallery").then(m => ({ default: m.CinematicGallery }))
@@ -15,44 +15,66 @@ const CinematicGallery = lazy(() =>
 import { shareLink } from "@/lib/share";
 import { SEO } from "@/lib/seo";
 import { toast } from "sonner";
+import type { Database } from "@/integrations/supabase/types";
+
+type PublicArtist = Pick<Database["public"]["Tables"]["artists"]["Row"], "id" | "slug" | "bio" | "styles" | "studio_name" | "city" | "country" | "currency" | "status" | "verified_at" | "created_at" | "name" | "specialty" | "hourly_rate" | "experience_years" | "avatar_url" | "available">;
+type ArtistReview = Pick<Database["public"]["Tables"]["reviews"]["Row"], "rating" | "comment" | "created_at">;
+type ArtistPortfolioItem = Pick<Database["public"]["Tables"]["portfolio_items"]["Row"], "id" | "media_url" | "caption" | "media_type">;
+type ArtistCertification = Database["public"]["Tables"]["artist_certifications"]["Row"];
 
 const ArtistProfile = () => {
   const { id } = useParams();
-  const { user } = useAuth();
-  const [dbArtist, setDbArtist] = useState<any>(null);
-  const [reviews, setReviews] = useState<any[]>([]);
-  const [certs, setCerts] = useState<any[]>([]);
+  const { user, artistProfile: ownArtistProfile } = useAuth();
+  const [dbArtist, setDbArtist] = useState<PublicArtist | null>(null);
+  const [reviews, setReviews] = useState<ArtistReview[]>([]);
+  const [portfolioItems, setPortfolioItems] = useState<ArtistPortfolioItem[]>([]);
+  const [certs, setCerts] = useState<ArtistCertification[]>([]);
   const [loading, setLoading] = useState(true);
   const { isFavorite, toggle: toggleFav, loading: favLoading } = useFavorite("artist", id);
   const [reportOpen, setReportOpen] = useState(false);
-  const { isBlocked, toggle: toggleBlock, loading: blockLoading } = useBlock(dbArtist?.user_id);
+  const { isBlocked, toggle: toggleBlock, loading: blockLoading } = useBlockArtist(id);
 
   useEffect(() => {
     if (!id) { setLoading(false); return; }
     const fetchAll = async () => {
       const [{ data: art }, { data: revs }, { data: certData }] = await Promise.all([
-        supabase.from("artists").select("*").eq("id", id).eq("application_status", "approved").eq("available", true).maybeSingle(),
+        supabase.from("artists").select("id,slug,bio,styles,studio_name,city,country,currency,status,verified_at,created_at,name,specialty,hourly_rate,experience_years,avatar_url,available").eq("id", id).eq("status", "active").eq("available", true).maybeSingle(),
         supabase.from("reviews").select("rating, comment, created_at").eq("artist_id", id).order("created_at", { ascending: false }).limit(10),
         supabase.from("artist_certifications").select("*").eq("artist_id", id).order("created_at", { ascending: false }),
       ]);
-      setDbArtist(art);
+      let publicArtist = art;
+      if (art?.avatar_url) {
+        try {
+          const { getArtistAvatarUrl } = await import("@/lib/portfolioMedia");
+          publicArtist = { ...art, avatar_url: await getArtistAvatarUrl(art.id) };
+        } catch {
+          publicArtist = { ...art, avatar_url: null };
+        }
+      }
+      setDbArtist(publicArtist);
       setReviews(revs || []);
+      if (art) {
+        const { data: items } = await supabase.from("portfolio_items")
+          .select("id, media_url, caption, media_type")
+          .eq("artist_id", art.id).eq("approved", true).order("created_at", { ascending: false });
+        const { getPortfolioMediaUrl } = await import("@/lib/portfolioMedia");
+        const resolved = await Promise.all((items || []).map(async item => {
+          try { return { ...item, media_url: await getPortfolioMediaUrl(item.id) }; }
+          catch { return null; }
+        }));
+        setPortfolioItems(resolved.filter((item): item is NonNullable<typeof item> => !!item));
+      } else {
+        setPortfolioItems([]);
+      }
       setCerts(certData || []);
       setLoading(false);
     };
     fetchAll();
 
-    const channel = supabase
-      .channel(`artist-${id}`)
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "artists", filter: `id=eq.${id}` }, (payload) => {
-        if ((payload.new as any).application_status !== "approved" || !(payload.new as any).available) setDbArtist(null);
-        else setDbArtist((prev: any) => ({ ...prev, ...(payload.new as object) }));
-        const wasAvail = (payload.old as any)?.available;
-        const isAvail = (payload.new as any)?.available;
-        if (wasAvail !== isAvail) toast.info(isAvail ? "Artist is now available" : "Artist marked unavailable");
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    // Public artist payloads intentionally exclude internal owner IDs.
+    // Realtime row payloads can contain columns not selected by this query, so
+    // avoid subscribing to full-row changes on this public surface.
+
   }, [id]);
 
   const browseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -80,11 +102,11 @@ const ArtistProfile = () => {
   const specialty = artist.specialty;
   const studioName = artist.studio_name;
   const experience = `${artist.experience_years || 0} years`;
-  const rating = artist.rating;
+  const rating = reviews.length ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length : null;
   const bio = artist.bio;
   const hourlyRate = artist.hourly_rate;
   const avatarUrl = artist.avatar_url || "/placeholder.svg";
-  const portfolio: string[] = artist.portfolio_images || [];
+  const portfolio: string[] = portfolioItems.map(item => item.media_url);
   const available = artist.available;
   const artistId = artist.id;
   const hasCerts = certs.length > 0;
@@ -147,7 +169,7 @@ const ArtistProfile = () => {
                     <Flag className="w-5 h-5 text-muted-foreground" />
                   </button>
                 )}
-                {user && dbArtist?.user_id && dbArtist.user_id !== user.id && (
+                {user && ownArtistProfile?.id !== dbArtist.id && (
                   <button onClick={toggleBlock} disabled={blockLoading} className="p-2 rounded-full hover:bg-card transition-colors" aria-label={isBlocked ? "Unblock this artist" : "Block this artist"} title={isBlocked ? "Unblock" : "Block"}>
                     <Ban className={`w-5 h-5 ${isBlocked ? "text-destructive" : "text-muted-foreground"}`} />
                   </button>

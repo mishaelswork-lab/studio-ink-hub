@@ -73,6 +73,17 @@ Deno.serve(async (req) => {
     if (!newUser.user) throw new Error("Account creation failed");
     const userId = newUser.user.id;
 
+    // Production artists.user_id references profiles(id); no auth.users
+    // profile-creation trigger exists in this project, so create it explicitly.
+    const { error: profileError } = await supabaseAdmin.from("profiles").insert({
+      id: userId,
+      display_name: name.trim(),
+    });
+    if (profileError) {
+      await supabaseAdmin.auth.admin.deleteUser(userId);
+      throw new Error("Could not create artist profile");
+    }
+
     // Add artist role
     const { error: roleError } = await supabaseAdmin.from("user_roles").insert({ user_id: userId, role: "artist" });
     if (roleError) {
@@ -81,16 +92,17 @@ Deno.serve(async (req) => {
     }
 
     // Create artist profile
+    const slugBase = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 48) || "artist";
     const { data: artist, error: artistErr } = await supabaseAdmin.from("artists").insert({
       user_id: userId,
+      slug: slugBase + "-" + userId.slice(0, 8),
       name: name.trim(),
       studio_name: studio_name?.trim() || null,
       specialty: specialty?.trim() || null,
       bio: bio?.trim() || null,
       hourly_rate: rate,
       experience_years: years,
-      portfolio_images: [],
-      application_status: "pending",
+      status: "pending",
       available: false,
     }).select().single();
 

@@ -37,9 +37,11 @@ const anon = createClient(
 );
 
 function clientIp(req: Request) {
+  // Prefer the edge provider's client-IP header over caller-supplied forwarding headers.
   return (
+    req.headers.get("cf-connecting-ip")?.trim() ||
+    req.headers.get("x-real-ip")?.trim() ||
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    req.headers.get("cf-connecting-ip") ||
     "unknown"
   );
 }
@@ -145,7 +147,7 @@ Deno.serve(async (req) => {
     }
 
     if (action === "otp_send") {
-      const { error } = await anon.auth.signInWithOtp({ phone: identifier });
+      const { error } = await anon.auth.signInWithOtp({ phone: identifier, options: { shouldCreateUser: false } });
       // Record every send (success or not) so the throttle counts them.
       await record(identifier, ip, action, !error);
       if (error) return json({ error: "Could not send code. Please try again later." }, 400);

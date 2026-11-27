@@ -1,1 +1,20 @@
-project_id = "ccfbfcbgljivdkqsayes"
+project_id = "ufvabnxcpxhusbdgunmb"
+
+[functions.instagram-connect-callback]
+verify_jwt = false
+
+[functions.get-portfolio-media]
+verify_jwt = false
+
+[functions.get-artist-avatar]
+verify_jwt = false
+
+[functions.get-reel-media]
+verify_jwt = false
+
+[functions.get-public-settings]
+verify_jwt = false
+
+[functions.auth-guard]
+# Public entrypoint for password/OTP auth; validates inputs and enforces server-side rate limits.
+verify_jwt = false

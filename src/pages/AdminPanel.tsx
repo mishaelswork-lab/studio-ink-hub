@@ -1,12 +1,26 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
-import { Users, CalendarDays, BarChart3, Settings, LogOut, Star, TrendingUp, IndianRupee, Film, Trash2, Shield, ShieldCheck, Check, X, ScrollText, Sparkles, Activity, Zap, Flag } from "lucide-react";
+import { Users, CalendarDays, BarChart3, Settings, LogOut, TrendingUp, IndianRupee, Film, Trash2, Shield, ShieldCheck, Check, X, ScrollText, Sparkles, Activity, Zap, Flag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import type { Database, Json } from "@/integrations/supabase/types";
+
+type AdminArtist = Pick<Database["public"]["Tables"]["artists"]["Row"], "id" | "name" | "specialty" | "studio_name" | "city" | "country" | "status" | "created_at" | "avatar_url" | "available" | "hourly_rate" | "experience_years" | "bio">;
+type ReelRow = Database["public"]["Tables"]["reels"]["Row"];
+type ReelWithArtist = ReelRow & { artists: Pick<Database["public"]["Tables"]["artists"]["Row"], "name"> | null };
+type ResolvedReel<T extends { id: string }> = T & { video_url: string; thumbnail_url: string };
+type PaymentRow = Pick<Database["public"]["Tables"]["payments"]["Row"], "id" | "booking_id" | "provider" | "provider_order_id" | "provider_payment_id" | "amount_minor" | "currency" | "status" | "created_at" | "customer_id" | "artist_id" | "payment_type">;
+type ContentReportRow = Database["public"]["Tables"]["content_reports"]["Row"];
+type AuditRow = Database["public"]["Tables"]["admin_audit_log"]["Row"];
+type FeaturedArtistRow = Pick<Database["public"]["Tables"]["featured_artists"]["Row"], "id" | "artist_id" | "active" | "priority" | "expires_at" | "created_at"> & {
+  artists: Pick<Database["public"]["Tables"]["artists"]["Row"], "name" | "avatar_url" | "specialty"> | null;
+};
+
+type AdminBooking = Pick<Database["public"]["Tables"]["bookings"]["Row"], "id" | "customer_id" | "artist_id" | "design_request_id" | "starts_at" | "ends_at" | "status" | "cover_charge_paid" | "amount_minor" | "currency" | "created_at">;
 const AddArtistDialog = lazy(() => import("@/components/admin/AddArtistDialog"));
 const PerfMetricsPanel = lazy(() => import("@/components/admin/PerfMetricsPanel"));
 const UsageHotspotsPanel = lazy(() => import("@/components/admin/UsageHotspotsPanel"));
@@ -19,7 +33,6 @@ const adminTabs = [
   { id: "bookings", label: "Bookings", icon: CalendarDays },
   { id: "reels", label: "Reels", icon: Film },
   { id: "moderation", label: "Moderation", icon: Shield },
-  { id: "reports", label: "Design Reports", icon: Flag },
   { id: "ugc", label: "Content Reports", icon: Shield },
   { id: "featured", label: "Featured", icon: Sparkles },
   { id: "audit", label: "Audit Log", icon: ScrollText },
@@ -36,17 +49,15 @@ type AdminTab = typeof adminTabs[number]["id"];
 const AdminPanel = () => {
   const [activeTab, setActiveTab] = useState<AdminTab>("overview");
   const { signOut, user, roles } = useAuth();
-  const [dbArtists, setDbArtists] = useState<any[]>([]);
-  const [dbBookings, setDbBookings] = useState<any[]>([]);
-  const [dbReels, setDbReels] = useState<any[]>([]);
-  const [dbPayments, setDbPayments] = useState<any[]>([]);
-  const [flaggedReels, setFlaggedReels] = useState<any[]>([]);
-  const [designReports, setDesignReports] = useState<any[]>([]);
-  const [contentReports, setContentReports] = useState<any[]>([]);
-  const [auditLog, setAuditLog] = useState<any[]>([]);
-  const [changeLog, setChangeLog] = useState<any[]>([]);
-  const [featuredRequests, setFeaturedRequests] = useState<any[]>([]);
-  const [featuredArtists, setFeaturedArtists] = useState<any[]>([]);
+  const [dbArtists, setDbArtists] = useState<AdminArtist[]>([]);
+  const [artistPortfolios, setArtistPortfolios] = useState<Record<string, string[]>>({});
+  const [dbBookings, setDbBookings] = useState<AdminBooking[]>([]);
+  const [dbReels, setDbReels] = useState<ResolvedReel<ReelRow>[]>([]);
+  const [dbPayments, setDbPayments] = useState<PaymentRow[]>([]);
+  const [flaggedReels, setFlaggedReels] = useState<ResolvedReel<ReelWithArtist>[]>([]);
+  const [contentReports, setContentReports] = useState<ContentReportRow[]>([]);
+  const [auditLog, setAuditLog] = useState<AuditRow[]>([]);
+  const [featuredArtists, setFeaturedArtists] = useState<FeaturedArtistRow[]>([]);
   const [adminNote, setAdminNote] = useState<Record<string, string>>({});
   const [rejectDialog, setRejectDialog] = useState<{ id: string; caption: string } | null>(null);
   const [rejectReason, setRejectReason] = useState("");
@@ -64,7 +75,8 @@ const AdminPanel = () => {
       const { data, error } = await supabase.functions.invoke("verify-admin", {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
-      const ok = !error && (data as any)?.isAdmin === true;
+      const ok = !error && typeof data === "object" && data !== null
+        && "isAdmin" in data && data.isAdmin === true;
       setServerAdmin(ok);
       if (!ok) toast.error("Admin access denied");
     })();
@@ -72,29 +84,51 @@ const AdminPanel = () => {
 
   const fetchData = async () => {
     if (!serverAdmin) return;
-    const [artistsRes, bookingsRes, reelsRes, paymentsRes, flaggedRes, auditRes, fReqRes, fArtRes, reportsRes, changeRes, ugcRes] = await Promise.all([
-      supabase.from("artists").select("*").order("created_at", { ascending: false }),
-      supabase.from("bookings").select("*").order("created_at", { ascending: false }),
+    const [artistsRes, bookingsRes, reelsRes, paymentsRes, flaggedRes, auditRes, fArtRes, ugcRes] = await Promise.all([
+      supabase.from("artists").select("id,name,specialty,studio_name,city,country,status,created_at,avatar_url,available,hourly_rate,experience_years,bio").order("created_at", { ascending: false }),
+      supabase.from("bookings")
+        .select("id,customer_id,artist_id,design_request_id,starts_at,ends_at,status,cover_charge_paid,amount_minor,currency,created_at")
+        .order("created_at", { ascending: false }),
       supabase.from("reels").select("*").order("created_at", { ascending: false }),
-      supabase.from("payments").select("*").eq("status", "completed"),
+      supabase.from("payments").select("id,booking_id,provider,provider_order_id,provider_payment_id,amount_minor,currency,status,created_at,customer_id,artist_id,payment_type").eq("status", "captured"),
       supabase.from("reels").select("*, artists(name)").in("moderation_status", ["flagged", "pending"]).order("created_at", { ascending: false }),
       supabase.from("admin_audit_log").select("*").order("created_at", { ascending: false }).limit(200),
-      supabase.from("featured_requests").select("*, artists(name, avatar_url, specialty)").order("created_at", { ascending: false }),
-      supabase.from("featured_artists").select("*, artists(name, avatar_url, specialty)").order("priority", { ascending: false }),
-      supabase.from("design_reports").select("*, daily_designs(image_url, thumb_url, source_url, description)").order("created_at", { ascending: false }).limit(200),
-      supabase.from("change_audit_log").select("*").order("created_at", { ascending: false }).limit(200),
+      supabase.from("featured_artists").select("id,artist_id,active,priority,expires_at,created_at,artists(name,avatar_url,specialty)").order("priority", { ascending: false }),
       supabase.from("content_reports").select("*").order("created_at", { ascending: false }).limit(200),
     ]);
-    setDbArtists(artistsRes.data || []);
+    const { getArtistAvatarUrl, getPortfolioMediaUrl, getReelMediaUrl } = await import("@/lib/portfolioMedia");
+    const artists = await Promise.all((artistsRes.data || []).map(async artist => {
+      if (!artist.avatar_url) return artist;
+      try { return { ...artist, avatar_url: await getArtistAvatarUrl(artist.id) }; }
+      catch { return { ...artist, avatar_url: null }; }
+    }));
+    setDbArtists(artists);
+    const { data: portfolioRows } = await supabase.from("portfolio_items").select("id,artist_id").order("created_at", { ascending: false });
+    const grouped: Record<string, string[]> = {};
+    await Promise.all((portfolioRows || []).map(async item => {
+      try {
+        const mediaUrl = await getPortfolioMediaUrl(item.id);
+        grouped[item.artist_id] = [...(grouped[item.artist_id] || []), mediaUrl];
+      } catch { /* inaccessible media is omitted */ }
+    }));
+    setArtistPortfolios(grouped);
+    const resolveReels = async <T extends { id: string }>(rows: T[]): Promise<ResolvedReel<T>[]> => {
+      const resolved = await Promise.all(rows.map(async reel => {
+        try {
+          const media = await getReelMediaUrl(reel.id);
+          return { ...reel, video_url: media.videoUrl, thumbnail_url: media.thumbnailUrl };
+        } catch {
+          return null;
+        }
+      }));
+      return resolved.filter((reel): reel is NonNullable<typeof reel> => reel !== null);
+    };
     setDbBookings(bookingsRes.data || []);
-    setDbReels(reelsRes.data || []);
+    setDbReels((await resolveReels(reelsRes.data || [])).filter(Boolean));
     setDbPayments(paymentsRes.data || []);
-    setFlaggedReels(flaggedRes.data || []);
+    setFlaggedReels((await resolveReels(flaggedRes.data || [])).filter(Boolean));
     setAuditLog(auditRes.data || []);
-    setFeaturedRequests(fReqRes.data || []);
     setFeaturedArtists(fArtRes.data || []);
-    setDesignReports(reportsRes.data || []);
-    setChangeLog(changeRes.data || []);
     setContentReports(ugcRes.data || []);
   };
 
@@ -112,40 +146,43 @@ const AdminPanel = () => {
     );
   }
 
-  const totalRevenue = dbPayments.reduce((sum, p) => sum + p.amount, 0);
+  const totalRevenue = dbPayments.reduce((sum, p) => sum + Number(p.amount_minor || 0) / 100, 0);
   const pendingCount = dbBookings.filter(b => b.status === "pending").length;
-  const artistApplications = dbArtists.filter(a => a.application_status !== "approved");
+  const artistApplications = dbArtists.filter(a => a.status !== "active");
 
-  const writeAudit = async (action: string, target_type: string, target_id: string, reason?: string, metadata?: any) => {
+  const writeAudit = async (action: string, target_type: string, target_id: string, reason?: string, metadata?: Json) => {
     if (!user) return;
-    await supabase.from("admin_audit_log").insert({
-      admin_id: user.id, action, target_type, target_id, reason: reason || null, metadata: metadata || {},
+    const { error } = await supabase.rpc("admin_write_audit", {
+      p_action: action, p_target_type: target_type, p_target_id: target_id,
+      p_reason: reason || null, p_metadata: metadata || {},
     });
+    if (error) toast.error("Audit event could not be recorded");
   };
 
   const handleDeleteReel = async (id: string) => {
     if (!isAdmin) { toast.error("Admin access required"); return; }
-    const { error } = await supabase.from("reels").delete().eq("id", id);
-    if (error) { toast.error("Failed to delete reel"); return; }
-    await writeAudit("reel_deleted", "reel", id);
-    toast.success("Reel removed");
+    const { error } = await supabase.rpc("admin_review_reel", { p_reel_id: id, p_decision: "reject", p_reason: "Removed by administrator" });
+    if (error) { toast.error(error.message || "Failed to remove reel"); return; }
+    toast.success("Reel removed from public feed");
     setDbReels(prev => prev.filter(r => r.id !== id));
     fetchData();
   };
 
-  const handleApproveArtist = async (artist: any) => {
+  const handleApproveArtist = async (artist: AdminArtist) => {
     if (!isAdmin) return;
-    if ((artist.portfolio_images || []).length < 2) { toast.error("Two portfolio photos are required before approval"); return; }
-    const { error } = await supabase.from("artists").update({ application_status: "approved", rejection_reason: null }).eq("id", artist.id);
+    if ((artistPortfolios[artist.id] || []).length < 2) { toast.error("Two portfolio photos are required before approval"); return; }
+    const { error } = await supabase.rpc("admin_review_artist", { p_artist_id: artist.id, p_decision: "approve", p_reason: null });
     if (error) { toast.error(error.message || "Could not approve artist"); return; }
-    toast.success(`${artist.name} approved`);
+    toast.success((artist.name || "Artist") + " approved");
     fetchData();
   };
 
   const handleRejectArtist = async () => {
     if (!isAdmin || !artistRejectDialog || artistRejectReason.trim().length < 3) return;
-    const { error } = await supabase.from("artists").update({ application_status: "rejected", rejection_reason: artistRejectReason.trim(), available: false }).eq("id", artistRejectDialog.id);
-    if (error) { toast.error(error.message || "Could not reject application"); return; }
+    const { error } = await supabase.rpc("admin_review_artist", {
+      p_artist_id: artistRejectDialog.id, p_decision: "reject", p_reason: artistRejectReason.trim(),
+    });
+    if (error) { toast.error(error.message || "Could not return application"); return; }
     toast.success("Application returned to the artist");
     setArtistRejectDialog(null);
     setArtistRejectReason("");
@@ -154,9 +191,8 @@ const AdminPanel = () => {
 
   const handleApproveReel = async (id: string) => {
     if (!isAdmin) { toast.error("Admin access required"); return; }
-    const { error } = await supabase.from("reels").update({ moderation_status: "approved" }).eq("id", id);
-    if (error) { toast.error("Failed to approve"); return; }
-    await writeAudit("reel_approved", "reel", id);
+    const { error } = await supabase.rpc("admin_review_reel", { p_reel_id: id, p_decision: "approve", p_reason: null });
+    if (error) { toast.error(error.message || "Failed to approve"); return; }
     toast.success("Reel approved");
     setFlaggedReels(prev => prev.filter(r => r.id !== id));
     fetchData();
@@ -166,9 +202,8 @@ const AdminPanel = () => {
     if (!isAdmin || !rejectDialog) return;
     if (!rejectReason.trim()) { toast.error("Please provide a reason"); return; }
     const { id } = rejectDialog;
-    const { error } = await supabase.from("reels").delete().eq("id", id);
-    if (error) { toast.error("Failed to reject"); return; }
-    await writeAudit("reel_rejected", "reel", id, rejectReason.trim());
+    const { error } = await supabase.rpc("admin_review_reel", { p_reel_id: id, p_decision: "reject", p_reason: rejectReason.trim() });
+    if (error) { toast.error(error.message || "Failed to reject"); return; }
     toast.success("Reel rejected & removed");
     setFlaggedReels(prev => prev.filter(r => r.id !== id));
     setRejectDialog(null);
@@ -176,23 +211,12 @@ const AdminPanel = () => {
     fetchData();
   };
 
-  const handlePromoteToFeatured = async (artistId: string, requestId?: string) => {
+  const handlePromoteToFeatured = async (artistId: string) => {
     if (!isAdmin) { toast.error("Admin only"); return; }
-    const { error } = await supabase.from("featured_artists").insert({ artist_id: artistId, active: true, priority: 10 });
-    if (error) { toast.error("Failed to feature artist"); return; }
-    if (requestId) {
-      await supabase.from("featured_requests").update({ status: "approved", admin_notes: adminNote[requestId] || null }).eq("id", requestId);
-    }
-    await writeAudit("artist_featured", "artist", artistId, adminNote[requestId || ""] || undefined);
+    const { error } = await supabase.from("featured_artists").insert({ artist_id: artistId, active: true, priority: 10, expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() });
+    if (error) { toast.error(error.message || "Failed to feature artist"); return; }
+    await writeAudit("artist_featured", "artist", artistId);
     toast.success("Artist featured!");
-    fetchData();
-  };
-
-  const handleRejectFeatured = async (requestId: string) => {
-    if (!isAdmin) return;
-    await supabase.from("featured_requests").update({ status: "rejected", admin_notes: adminNote[requestId] || null }).eq("id", requestId);
-    await writeAudit("featured_request_rejected", "featured_request", requestId, adminNote[requestId] || undefined);
-    toast.success("Request rejected");
     fetchData();
   };
 
@@ -211,31 +235,17 @@ const AdminPanel = () => {
     fetchData();
   };
 
-  const handleReportAction = async (reportId: string, designId: string, action: "dismiss" | "remove") => {
-    if (!isAdmin) return;
-    if (action === "remove") {
-      const { error } = await supabase.from("daily_designs").delete().eq("id", designId);
-      if (error) { toast.error("Failed to remove design"); return; }
-      await writeAudit("design_removed", "design", designId, adminNote[reportId] || undefined);
-      toast.success("Design removed");
-    } else {
-      await writeAudit("design_report_dismissed", "design", designId, adminNote[reportId] || undefined);
-      toast.success("Report dismissed");
-    }
-    await supabase.from("design_reports").update({
-      status: action === "remove" ? "resolved" : "dismissed",
-      admin_notes: adminNote[reportId] || null,
-      reviewed_by: user!.id,
-      reviewed_at: new Date().toISOString(),
-    }).eq("id", reportId);
-    fetchData();
-  };
-
-  const handleContentReport = async (r: any, action: "remove" | "dismiss") => {
+  const handleContentReport = async (r: ContentReportRow, action: "remove" | "dismiss") => {
     if (!isAdmin) { toast.error("Admin access required"); return; }
     if (action === "remove") {
       if (r.content_type === "reel") {
         await supabase.from("reels").update({ moderation_status: "rejected" }).eq("id", r.content_id);
+      } else if (r.content_type === "design") {
+        const { error } = await supabase.rpc("admin_moderate_design", {
+          p_design_id: r.content_id,
+          p_reason: adminNote[r.id] || null,
+        });
+        if (error) { toast.error(error.message || "Could not remove design"); return; }
       }
       await writeAudit("content_report_actioned", r.content_type, r.content_id, adminNote[r.id] || undefined);
       toast.success("Content actioned");
@@ -272,11 +282,8 @@ const AdminPanel = () => {
               {tab.id === "applications" && artistApplications.length > 0 && (
                 <span className="ml-auto bg-gold text-primary-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">{artistApplications.length}</span>
               )}
-              {tab.id === "reports" && designReports.filter((r: any) => r.status === "pending").length > 0 && (
-                <span className="ml-auto bg-destructive text-destructive-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">{designReports.filter((r: any) => r.status === "pending").length}</span>
-              )}
-              {tab.id === "ugc" && contentReports.filter((r: any) => r.status === "pending").length > 0 && (
-                <span className="ml-auto bg-destructive text-destructive-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">{contentReports.filter((r: any) => r.status === "pending").length}</span>
+              {tab.id === "ugc" && contentReports.filter(r => r.status === "pending").length > 0 && (
+                <span className="ml-auto bg-destructive text-destructive-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">{contentReports.filter(r => r.status === "pending").length}</span>
               )}
             </button>
           ))}
@@ -333,16 +340,16 @@ const AdminPanel = () => {
                 {dbBookings.slice(0, 4).map(b => (
                   <div key={b.id} className="flex items-center justify-between py-3 border-b border-border last:border-0">
                     <div>
-                      <p className="text-foreground text-sm">{b.customer_name}</p>
-                      <p className="text-muted-foreground text-xs">{b.date} · {b.time}</p>
+                      <p className="text-foreground text-sm">{b.customer_id ? `Customer · ${b.customer_id.slice(0, 8)}` : "Customer"}</p>
+                      <p className="text-muted-foreground text-xs">{new Date(b.starts_at).toLocaleDateString()} · {new Date(b.starts_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</p>
                     </div>
                     <span className={`text-xs px-2 py-1 rounded-full ${b.status === "confirmed" ? "bg-emerald-500/10 text-emerald-400" : b.status === "pending" ? "bg-gold/10 text-gold" : b.status === "completed" ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"}`}>{b.status}</span>
                   </div>
                 ))}
               </div>
               <div className="bg-card rounded-lg border border-border p-6">
-                <h3 className="text-foreground font-medium mb-4">Top Artists</h3>
-                {dbArtists.sort((a, b) => (b.rating || 0) - (a.rating || 0)).slice(0, 4).map(a => (
+                <h3 className="text-foreground font-medium mb-4">Recently added artists</h3>
+                {dbArtists.slice(0, 4).map(a => (
                   <div key={a.id} className="flex items-center gap-3 py-3 border-b border-border last:border-0">
                     <img src={a.avatar_url || "https://via.placeholder.com/40"} alt={a.name} className="w-8 h-8 rounded-full object-cover border border-gold/20" />
                     <div className="flex-1">
@@ -350,8 +357,7 @@ const AdminPanel = () => {
                       <p className="text-muted-foreground text-xs">{a.specialty}</p>
                     </div>
                     <div className="flex items-center gap-1">
-                      <Star className="w-3.5 h-3.5 fill-gold text-gold" />
-                      <span className="text-foreground text-sm">{a.rating}</span>
+                      <span className="text-muted-foreground text-xs">{a.status === "active" ? "Approved" : "Pending review"}</span>
                     </div>
                   </div>
                 ))}
@@ -377,7 +383,7 @@ const AdminPanel = () => {
                       <th className="text-left text-muted-foreground text-xs uppercase tracking-wider p-4">Studio</th>
                       <th className="text-left text-muted-foreground text-xs uppercase tracking-wider p-4">Specialty</th>
                       <th className="text-left text-muted-foreground text-xs uppercase tracking-wider p-4">Rate</th>
-                      <th className="text-left text-muted-foreground text-xs uppercase tracking-wider p-4">Rating</th>
+                      <th className="text-left text-muted-foreground text-xs uppercase tracking-wider p-4">Experience</th>
                       <th className="text-left text-muted-foreground text-xs uppercase tracking-wider p-4">Status</th>
                     </tr>
                   </thead>
@@ -393,7 +399,7 @@ const AdminPanel = () => {
                         <td className="p-4 text-muted-foreground text-sm">{a.studio_name || "—"}</td>
                         <td className="p-4 text-gold text-sm">{a.specialty || "—"}</td>
                         <td className="p-4 text-foreground text-sm">₹{a.hourly_rate}/hr</td>
-                        <td className="p-4"><div className="flex items-center gap-1"><Star className="w-3.5 h-3.5 fill-gold text-gold" /><span className="text-foreground text-sm">{a.rating}</span></div></td>
+                        <td className="p-4 text-foreground text-sm">{a.experience_years == null ? "—" : `${a.experience_years} yrs`}</td>
                         <td className="p-4"><span className={`text-xs px-2 py-1 rounded-full ${a.available ? "bg-emerald-500/10 text-emerald-400" : "bg-destructive/10 text-destructive"}`}>{a.available ? "Active" : "Inactive"}</span></td>
                       </tr>
                     ))}
@@ -417,7 +423,7 @@ const AdminPanel = () => {
                     <tr className="border-b border-border">
                       <th className="text-left text-muted-foreground text-xs uppercase tracking-wider p-4">Customer</th>
                       <th className="text-left text-muted-foreground text-xs uppercase tracking-wider p-4">Date</th>
-                      <th className="text-left text-muted-foreground text-xs uppercase tracking-wider p-4">Style</th>
+                      <th className="text-left text-muted-foreground text-xs uppercase tracking-wider p-4">Booking ID</th>
                       <th className="text-left text-muted-foreground text-xs uppercase tracking-wider p-4">Cover Paid</th>
                       <th className="text-left text-muted-foreground text-xs uppercase tracking-wider p-4">Status</th>
                     </tr>
@@ -425,9 +431,9 @@ const AdminPanel = () => {
                   <tbody>
                     {dbBookings.map(b => (
                       <tr key={b.id} className="border-b border-border last:border-0 hover:bg-secondary/30 transition-colors">
-                        <td className="p-4 text-foreground text-sm">{b.customer_name}</td>
-                        <td className="p-4 text-muted-foreground text-sm">{b.date} · {b.time}</td>
-                        <td className="p-4 text-gold text-sm">{b.style}</td>
+                        <td className="p-4 text-foreground text-sm">{b.customer_id ? `Customer · ${b.customer_id.slice(0, 8)}` : "Customer"}</td>
+                        <td className="p-4 text-muted-foreground text-sm">{new Date(b.starts_at).toLocaleDateString()} · {new Date(b.starts_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</td>
+                        <td className="p-4 text-gold text-sm">#{b.id.slice(0, 8)}</td>
                         <td className="p-4"><span className={`text-xs px-2 py-1 rounded-full ${b.cover_charge_paid ? "bg-emerald-500/10 text-emerald-400" : "bg-destructive/10 text-destructive"}`}>{b.cover_charge_paid ? "Paid" : "Unpaid"}</span></td>
                         <td className="p-4"><span className={`text-xs px-2 py-1 rounded-full ${b.status === "confirmed" ? "bg-emerald-500/10 text-emerald-400" : b.status === "pending" ? "bg-gold/10 text-gold" : b.status === "completed" ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"}`}>{b.status}</span></td>
                       </tr>
@@ -453,28 +459,28 @@ const AdminPanel = () => {
               </div>
             ) : (
               <div className="space-y-5">
-                {artistApplications.map((artist: any) => (
+                {artistApplications.map((artist) => (
                   <div key={artist.id} className="bg-card rounded-lg border border-border p-5">
                     <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-4">
                       <div>
                         <div className="flex items-center gap-2">
                           <h3 className="font-heading text-lg font-semibold text-foreground">{artist.name}</h3>
-                          <span className={`text-xs px-2 py-1 rounded-full capitalize ${artist.application_status === "rejected" ? "bg-destructive/10 text-destructive" : "bg-gold/10 text-gold"}`}>{artist.application_status}</span>
+                          <span className={`text-xs px-2 py-1 rounded-full capitalize ${artist.status === "suspended" ? "bg-destructive/10 text-destructive" : "bg-gold/10 text-gold"}`}>{artist.status}</span>
                         </div>
                         <p className="text-gold text-sm">{artist.specialty || "Specialty not set"} · ₹{artist.hourly_rate}/hr</p>
-                        <p className="text-muted-foreground text-xs mt-1">{artist.studio_name || "Independent artist"} · Submitted {new Date(artist.submitted_at).toLocaleString()}</p>
+                        <p className="text-muted-foreground text-xs mt-1">{artist.studio_name || "Independent artist"} · Submitted {new Date(artist.created_at).toLocaleString()}</p>
                         {artist.bio && <p className="text-muted-foreground text-sm mt-3 max-w-2xl">{artist.bio}</p>}
-                        {artist.rejection_reason && <p className="text-destructive text-sm mt-2">Previous feedback: {artist.rejection_reason}</p>}
+                        
                       </div>
                       <div className="flex gap-2 shrink-0">
-                        <Button size="sm" variant="gold" className="gap-1" disabled={(artist.portfolio_images || []).length < 2} onClick={() => handleApproveArtist(artist)}><Check className="w-3.5 h-3.5" /> Approve</Button>
+                        <Button size="sm" variant="gold" className="gap-1" disabled={(artistPortfolios[artist.id] || []).length < 2} onClick={() => handleApproveArtist(artist)}><Check className="w-3.5 h-3.5" /> Approve</Button>
                         <Button size="sm" variant="outline" className="gap-1 border-destructive/50 text-destructive" onClick={() => { setArtistRejectDialog({ id: artist.id, name: artist.name }); setArtistRejectReason(""); }}><X className="w-3.5 h-3.5" /> Reject</Button>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      {(artist.portfolio_images || []).map((url: string, index: number) => <img key={url} src={url} alt={`${artist.name} work ${index + 1}`} width={400} height={400} loading="lazy" decoding="async" className="w-full aspect-square object-cover rounded-md border border-border" />)}
+                      {(artistPortfolios[artist.id] || []).map((url: string, index: number) => <img key={url} src={url} alt={`${artist.name} work ${index + 1}`} width={400} height={400} loading="lazy" decoding="async" className="w-full aspect-square object-cover rounded-md border border-border" />)}
                     </div>
-                    {(artist.portfolio_images || []).length < 2 && <p className="text-gold text-xs mt-3">Waiting for the artist to upload two portfolio photos. Approval is locked.</p>}
+                    {(artistPortfolios[artist.id] || []).length < 2 && <p className="text-gold text-xs mt-3">Waiting for the artist to upload two portfolio photos. Approval is locked.</p>}
                   </div>
                 ))}
               </div>
@@ -523,7 +529,7 @@ const AdminPanel = () => {
                     </div>
                     <div className="p-4">
                       <p className="text-foreground text-sm font-medium mb-1">{reel.caption || "No caption"}</p>
-                      <p className="text-muted-foreground text-xs mb-1">By: {(reel as any).artists?.name || "Unknown"}</p>
+                      <p className="text-muted-foreground text-xs mb-1">By: {reel.artists?.name || "Unknown"}</p>
                       <p className="text-muted-foreground text-xs mb-3">Source: {reel.source} · {new Date(reel.created_at).toLocaleDateString()}</p>
                       <div className="flex gap-2">
                         <Button size="sm" variant="gold" className="flex-1 gap-1" onClick={() => handleApproveReel(reel.id)}>
@@ -533,59 +539,6 @@ const AdminPanel = () => {
                           <X className="w-3.5 h-3.5" /> Reject
                         </Button>
                       </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === "reports" && (
-          <div>
-            <h2 className="font-heading text-2xl font-bold text-foreground mb-2">Design Reports</h2>
-            <p className="text-muted-foreground text-sm mb-6">User-flagged discovery designs awaiting review</p>
-            {designReports.length === 0 ? (
-              <div className="bg-card rounded-lg border border-border p-12 text-center">
-                <Flag className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                <p className="text-muted-foreground text-sm">No design reports yet.</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {designReports.map((r: any) => (
-                  <div key={r.id} className="bg-card rounded-lg border border-border overflow-hidden flex flex-col md:flex-row">
-                    <div className="w-full md:w-48 aspect-square bg-secondary flex-shrink-0">
-                      {r.daily_designs?.image_url ? (
-                        <img src={r.daily_designs.thumb_url || r.daily_designs.image_url} alt="reported" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">Design removed</div>
-                      )}
-                    </div>
-                    <div className="flex-1 p-4">
-                      <div className="flex items-start justify-between mb-2 gap-3">
-                        <div>
-                          <p className="text-foreground font-medium text-sm">{r.reason}</p>
-                          <p className="text-muted-foreground text-xs mt-0.5">Reported {new Date(r.created_at).toLocaleString()} · reporter <span className="font-mono">{String(r.reporter_id).slice(0, 8)}</span></p>
-                        </div>
-                        <span className={`text-xs px-2 py-1 rounded-full capitalize ${r.status === "resolved" ? "bg-emerald-500/10 text-emerald-400" : r.status === "dismissed" ? "bg-muted text-muted-foreground" : "bg-gold/10 text-gold"}`}>{r.status}</span>
-                      </div>
-                      {r.daily_designs?.source_url && (
-                        <a href={r.daily_designs.source_url} target="_blank" rel="noreferrer" className="text-gold text-xs hover:underline">View source ↗</a>
-                      )}
-                      {r.status === "pending" && (
-                        <div className="mt-3 space-y-2">
-                          <Textarea value={adminNote[r.id] || ""} onChange={(e) => setAdminNote(p => ({ ...p, [r.id]: e.target.value }))} placeholder="Internal note (optional)" className="bg-secondary border-border min-h-[50px] text-sm" />
-                          <div className="flex gap-2">
-                            <Button size="sm" variant="outline" className="gap-1 border-destructive/50 text-destructive hover:bg-destructive/10" onClick={() => handleReportAction(r.id, r.design_id, "remove")}>
-                              <Trash2 className="w-3.5 h-3.5" /> Remove design
-                            </Button>
-                            <Button size="sm" variant="outline" className="gap-1" onClick={() => handleReportAction(r.id, r.design_id, "dismiss")}>
-                              <X className="w-3.5 h-3.5" /> Dismiss
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                      {r.admin_notes && <p className="text-muted-foreground text-xs mt-2 italic">Note: {r.admin_notes}</p>}
                     </div>
                   </div>
                 ))}
@@ -605,7 +558,7 @@ const AdminPanel = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                {contentReports.map((r: any) => (
+                {contentReports.map((r) => (
                   <div key={r.id} className="bg-card rounded-lg border border-border p-4">
                     <div className="flex items-start justify-between gap-3 mb-2">
                       <div>
@@ -667,32 +620,7 @@ const AdminPanel = () => {
               )}
             </div>
 
-            <h2 className="font-heading text-2xl font-bold text-foreground mt-10 mb-2">Artist & Booking Change Log</h2>
-            <p className="text-muted-foreground text-sm mb-6">Every create, edit and delete on artists and bookings — recorded automatically.</p>
-            <div className="bg-card rounded-lg border border-border overflow-hidden">
-              {changeLog.length === 0 ? (
-                <p className="text-muted-foreground text-sm text-center py-12">No record changes captured yet.</p>
-              ) : (
-                <div className="divide-y divide-border">
-                  {changeLog.map(entry => (
-                    <div key={entry.id} className="p-4 flex items-start gap-3">
-                      <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${entry.operation === "INSERT" ? "bg-emerald-400" : entry.operation === "DELETE" ? "bg-destructive" : "bg-gold"}`} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-foreground text-sm font-medium">{entry.operation} on {entry.table_name}</p>
-                        <p className="text-muted-foreground text-xs mt-0.5">
-                          record <span className="font-mono">{String(entry.record_id).slice(0, 8)}</span> · by{" "}
-                          <span className="font-mono">{entry.changed_by ? String(entry.changed_by).slice(0, 8) : "system"}</span>
-                        </p>
-                        {Array.isArray(entry.changed_fields) && entry.changed_fields.length > 0 && (
-                          <p className="text-muted-foreground text-xs mt-1">Fields: {entry.changed_fields.join(", ")}</p>
-                        )}
-                      </div>
-                      <span className="text-muted-foreground text-xs whitespace-nowrap">{new Date(entry.created_at).toLocaleString()}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+
           </div>
         )}
 
@@ -700,48 +628,7 @@ const AdminPanel = () => {
         {activeTab === "featured" && (
           <div>
             <h2 className="font-heading text-2xl font-bold text-foreground mb-2">Featured Artists</h2>
-            <p className="text-muted-foreground text-sm mb-6">Boost requests from artists and currently featured slots.</p>
-
-            <div className="bg-card rounded-lg border border-border p-5 mb-8">
-              <h3 className="text-foreground font-medium mb-4 flex items-center gap-2"><Sparkles className="w-4 h-4 text-gold" /> Boost Requests</h3>
-              {featuredRequests.length === 0 ? (
-                <p className="text-muted-foreground text-sm">No requests yet.</p>
-              ) : (
-                <div className="space-y-4">
-                  {featuredRequests.map((r: any) => (
-                    <div key={r.id} className="border border-border rounded-lg p-4">
-                      <div className="flex items-start gap-3 mb-3">
-                        <img src={r.artists?.avatar_url || "https://via.placeholder.com/40"} alt={r.artists?.name} className="w-10 h-10 rounded-full object-cover border border-gold/20" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-foreground text-sm font-medium">{r.artists?.name || "Artist"}</p>
-                          <p className="text-muted-foreground text-xs">{r.artists?.specialty} · {new Date(r.created_at).toLocaleDateString()}</p>
-                        </div>
-                        <span className={`text-xs px-2 py-1 rounded-full capitalize ${r.status === "approved" ? "bg-emerald-500/10 text-emerald-400" : r.status === "rejected" ? "bg-destructive/10 text-destructive" : "bg-gold/10 text-gold"}`}>{r.status}</span>
-                      </div>
-                      {r.message && <p className="text-foreground text-sm mb-2">{r.message}</p>}
-                      <p className="text-muted-foreground text-xs mb-3">
-                        {r.contact_email && <>📧 {r.contact_email}  </>}
-                        {r.contact_phone && <>📞 {r.contact_phone}</>}
-                      </p>
-                      {r.status === "pending" && (
-                        <div className="space-y-2">
-                          <Textarea value={adminNote[r.id] || ""} onChange={(e) => setAdminNote(p => ({ ...p, [r.id]: e.target.value }))} placeholder="Internal note / deal details (optional)" className="bg-secondary border-border min-h-[60px]" />
-                          <div className="flex gap-2">
-                            <Button size="sm" variant="gold" className="gap-1" onClick={() => handlePromoteToFeatured(r.artist_id, r.id)}>
-                              <Check className="w-3.5 h-3.5" /> Approve & Feature
-                            </Button>
-                            <Button size="sm" variant="outline" className="gap-1 border-destructive/50 text-destructive hover:bg-destructive/10" onClick={() => handleRejectFeatured(r.id)}>
-                              <X className="w-3.5 h-3.5" /> Reject
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                      {r.admin_notes && <p className="text-muted-foreground text-xs mt-2 italic">Note: {r.admin_notes}</p>}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <p className="text-muted-foreground text-sm mb-6">Currently active artist boosts and featured placements.</p>
 
             <div className="bg-card rounded-lg border border-border p-5 mb-8">
               <h3 className="text-foreground font-medium mb-4">Currently Featured</h3>
@@ -749,7 +636,7 @@ const AdminPanel = () => {
                 <p className="text-muted-foreground text-sm">No artists featured.</p>
               ) : (
                 <div className="space-y-2">
-                  {featuredArtists.map((f: any) => (
+                  {featuredArtists.map((f) => (
                     <div key={f.id} className="flex items-center gap-3 p-3 rounded-lg border border-border">
                       <img src={f.artists?.avatar_url || "https://via.placeholder.com/40"} alt={f.artists?.name} className="w-9 h-9 rounded-full object-cover border border-gold/30" />
                       <div className="flex-1 min-w-0">

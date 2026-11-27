@@ -4,17 +4,34 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 
 // Typed wrapper for the beta supabase.auth.oauth namespace.
-type OAuthClient = {
-  getAuthorizationDetails: (id: string) => Promise<{ data: any; error: any }>;
-  approveAuthorization: (id: string) => Promise<{ data: any; error: any }>;
-  denyAuthorization: (id: string) => Promise<{ data: any; error: any }>;
+type OAuthAuthorizationDetails = {
+  redirect_url?: string;
+  redirect_to?: string;
+  client?: { name?: string; client_name?: string };
 };
-const oauthClient = (supabase.auth as any).oauth as OAuthClient;
+type OAuthClientResult = { data: unknown; error: { message?: string } | null };
+type OAuthClient = {
+  getAuthorizationDetails: (id: string) => Promise<OAuthClientResult>;
+  approveAuthorization: (id: string) => Promise<OAuthClientResult>;
+  denyAuthorization: (id: string) => Promise<OAuthClientResult>;
+};
+const oauthClient = (supabase.auth as unknown as { oauth?: OAuthClient }).oauth;
+
+const isOAuthAuthorizationDetails = (value: unknown): value is OAuthAuthorizationDetails =>
+  typeof value === "object" && value !== null;
+
+const getRedirectTarget = (value: unknown): string | null => {
+  if (typeof value !== "object" || value === null) return null;
+  const result = value as Record<string, unknown>;
+  if (typeof result.redirect_url === "string") return result.redirect_url;
+  if (typeof result.redirect_to === "string") return result.redirect_to;
+  return null;
+};
 
 export default function OAuthConsent() {
   const [params] = useSearchParams();
   const authorizationId = params.get("authorization_id") ?? "";
-  const [details, setDetails] = useState<any>(null);
+  const [details, setDetails] = useState<OAuthAuthorizationDetails | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -34,8 +51,9 @@ export default function OAuthConsent() {
       const { data, error } = await oauthClient.getAuthorizationDetails(authorizationId);
       if (!active) return;
       if (error) return setError(error.message ?? "Failed to load authorization");
-      const immediate = data?.redirect_url ?? data?.redirect_to;
-      if (immediate && !data?.client) {
+      if (!isOAuthAuthorizationDetails(data)) return setError("Invalid authorization response.");
+      const immediate = getRedirectTarget(data);
+      if (immediate && !data.client) {
         window.location.href = immediate;
         return;
       }
@@ -47,6 +65,7 @@ export default function OAuthConsent() {
   }, [authorizationId]);
 
   async function decide(approve: boolean) {
+    if (!oauthClient) { setError("OAuth client not available. Please update the app."); return; }
     setBusy(true);
     const { data, error } = approve
       ? await oauthClient.approveAuthorization(authorizationId)
@@ -55,7 +74,7 @@ export default function OAuthConsent() {
       setBusy(false);
       return setError(error.message ?? "Authorization failed");
     }
-    const target = data?.redirect_url ?? data?.redirect_to;
+    const target = getRedirectTarget(data);
     if (!target) {
       setBusy(false);
       return setError("No redirect returned by the authorization server.");

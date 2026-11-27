@@ -22,7 +22,8 @@ export const DeleteAccountCard = () => {
       headers: { Authorization: `Bearer ${session.access_token}` },
     });
     setBusy(false);
-    const err = (data as any)?.error;
+    const responseData = data as { error?: unknown } | null;
+    const err = typeof responseData?.error === "string" ? responseData.error : null;
     if (error || err) {
       toast.error(err || "Could not delete your account. Please contact support.");
       return;
@@ -38,9 +39,10 @@ export const DeleteAccountCard = () => {
         <AlertTriangle className="w-4 h-4 text-destructive" /> Delete my account
       </p>
       <p className="text-muted-foreground text-xs mb-3">
-        Permanently deletes your profile, saved ideas, consultations, messages and notification
-        settings. Completed booking and payment records are kept in de-identified form only, because
-        tax and dispute law requires it. This cannot be undone.
+        Permanently deletes your profile, saved ideas, consultations, messages, artist portfolio photos and
+        Reels, and connected Instagram tokens. Completed booking and payment records are retained in
+        de-identified form for financial and dispute records. Active bookings must be resolved first.
+        This cannot be undone.
       </p>
 
       {!open ? (

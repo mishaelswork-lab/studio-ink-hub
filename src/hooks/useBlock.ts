@@ -56,3 +56,42 @@ export const useBlock = (targetUserId?: string | null) => {
 
   return { isBlocked, toggle, loading };
 };
+
+
+/** Block or unblock an artist without exposing the artist's auth user ID. */
+export const useBlockArtist = (artistId?: string | null) => {
+  const { user } = useAuth();
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!user || !artistId) { setIsBlocked(false); return; }
+    let cancelled = false;
+    setLoading(true);
+    supabase.rpc("is_artist_blocked", { p_artist_id: artistId }).then(({ data, error }) => {
+      if (cancelled) return;
+      if (error) toast.error("Could not load block status");
+      else setIsBlocked(data === true);
+      setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [user, artistId]);
+
+  const toggle = useCallback(async () => {
+    if (!user) { toast.error("Please sign in first"); return; }
+    if (!artistId) return;
+    setLoading(true);
+    const { data, error } = await supabase.rpc("toggle_artist_block", { p_artist_id: artistId });
+    if (error) toast.error(error.message || "Could not update block");
+    else {
+      const nextBlocked = data === true;
+      setIsBlocked(nextBlocked);
+      toast.success(nextBlocked
+        ? "Artist blocked. Existing chats and new bookings are restricted."
+        : "Artist unblocked.");
+    }
+    setLoading(false);
+  }, [user, artistId]);
+
+  return { isBlocked, toggle, loading };
+};
