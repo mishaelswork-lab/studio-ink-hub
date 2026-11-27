@@ -10,7 +10,12 @@ import { toast } from "sonner";
 import { enqueueMessage, subscribeQueue, removeFromQueue, type QueuedMessage } from "@/lib/offlineQueue";
 import ReportDialog from "@/components/safety/ReportDialog";
 import { useBlock } from "@/hooks/useBlock";
+import type { Database } from "@/integrations/supabase/types";
 
+type ConversationRow = Pick<Database["public"]["Tables"]["conversations"]["Row"], "id" | "customer_id" | "artist_id" | "design_request_id" | "created_at">;
+type ConsultationDetails = ConversationRow & { peer_user_id: string | null; design_description: string | null; reference_images: string[] };
+type PartySummary = { name: string | null; display_name: string | null; avatar_url: string | null };
+type QueueSentDetail = { tempId: string; message: { id: string; sender_id: string | null; body: string | null; attachments: unknown; created_at: string | null; read_at: string | null } };
 
 type DeliveryStatus = "queued" | "sending" | "sent" | "read" | "failed";
 
@@ -37,8 +42,8 @@ const ConsultationChat = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [messages, setMessages] = useState<Message[]>([]);
-  const [consultation, setConsultation] = useState<any>(null);
-  const [otherParty, setOtherParty] = useState<any>(null);
+  const [consultation, setConsultation] = useState<ConsultationDetails | null>(null);
+  const [otherParty, setOtherParty] = useState<PartySummary | null>(null);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [online, setOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
@@ -72,7 +77,15 @@ const ConsultationChat = () => {
           .eq("conversation_id", consultationId).order("created_at", { ascending: true }),
       ]);
       if (!peer) { navigate("/dashboard"); return; }
-      const hydrated = { ...c, peer_user_id: peer.peer_user_id, design_description: request?.brief || null, reference_images: request?.reference_images || [] };
+      const referenceImages = Array.isArray(request?.reference_images)
+        ? request.reference_images.filter((value): value is string => typeof value === "string")
+        : [];
+      const hydrated: ConsultationDetails = {
+        ...c,
+        peer_user_id: peer.peer_user_id,
+        design_description: request?.brief || null,
+        reference_images: referenceImages,
+      };
       setConsultation(hydrated);
       setOtherParty({ name: peer.peer_name, display_name: peer.peer_name, avatar_url: peer.peer_avatar_url });
       setMessages((msgs || []).map(m => ({
@@ -108,8 +121,8 @@ const ConsultationChat = () => {
       });
     });
 
-    const onSent = (e: any) => {
-      const { tempId, message: rawMessage } = e.detail;
+    const onSent = (event: Event) => {
+      const { tempId, message: rawMessage } = (event as CustomEvent<QueueSentDetail>).detail;
       const message: Message = { id: rawMessage.id, sender_id: rawMessage.sender_id || "", message: rawMessage.body, image_url: attachmentUrl(rawMessage.attachments), created_at: rawMessage.created_at || new Date().toISOString(), read_at: rawMessage.read_at };
       setMessages(prev => {
         const filtered = prev.filter(m => m._tempId !== tempId);
