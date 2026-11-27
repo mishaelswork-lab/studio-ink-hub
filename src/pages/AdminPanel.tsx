@@ -7,7 +7,18 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import type { Database } from "@/integrations/supabase/types";
+import type { Database, Json } from "@/integrations/supabase/types";
+
+type AdminArtist = Pick<Database["public"]["Tables"]["artists"]["Row"], "id" | "name" | "specialty" | "studio_name" | "city" | "country" | "status" | "created_at" | "avatar_url" | "available" | "hourly_rate" | "experience_years" | "bio">;
+type ReelRow = Database["public"]["Tables"]["reels"]["Row"];
+type ReelWithArtist = ReelRow & { artists: Pick<Database["public"]["Tables"]["artists"]["Row"], "name"> | null };
+type ResolvedReel<T extends { id: string }> = T & { video_url: string; thumbnail_url: string };
+type PaymentRow = Pick<Database["public"]["Tables"]["payments"]["Row"], "id" | "booking_id" | "provider" | "provider_order_id" | "provider_payment_id" | "amount_minor" | "currency" | "status" | "created_at" | "customer_id" | "artist_id" | "payment_type">;
+type ContentReportRow = Database["public"]["Tables"]["content_reports"]["Row"];
+type AuditRow = Database["public"]["Tables"]["admin_audit_log"]["Row"];
+type FeaturedArtistRow = Pick<Database["public"]["Tables"]["featured_artists"]["Row"], "id" | "artist_id" | "active" | "priority" | "expires_at" | "created_at"> & {
+  artists: Pick<Database["public"]["Tables"]["artists"]["Row"], "name" | "avatar_url" | "specialty"> | null;
+};
 
 type AdminBooking = Pick<Database["public"]["Tables"]["bookings"]["Row"], "id" | "customer_id" | "artist_id" | "design_request_id" | "starts_at" | "ends_at" | "status" | "cover_charge_paid" | "amount_minor" | "currency" | "created_at">;
 const AddArtistDialog = lazy(() => import("@/components/admin/AddArtistDialog"));
@@ -38,16 +49,15 @@ type AdminTab = typeof adminTabs[number]["id"];
 const AdminPanel = () => {
   const [activeTab, setActiveTab] = useState<AdminTab>("overview");
   const { signOut, user, roles } = useAuth();
-  const [dbArtists, setDbArtists] = useState<any[]>([]);
+  const [dbArtists, setDbArtists] = useState<AdminArtist[]>([]);
   const [artistPortfolios, setArtistPortfolios] = useState<Record<string, string[]>>({});
   const [dbBookings, setDbBookings] = useState<AdminBooking[]>([]);
-  const [dbReels, setDbReels] = useState<any[]>([]);
-  const [dbPayments, setDbPayments] = useState<any[]>([]);
-  const [flaggedReels, setFlaggedReels] = useState<any[]>([]);
-  const [contentReports, setContentReports] = useState<any[]>([]);
-  const [auditLog, setAuditLog] = useState<any[]>([]);
-  const [changeLog, setChangeLog] = useState<any[]>([]);
-  const [featuredArtists, setFeaturedArtists] = useState<any[]>([]);
+  const [dbReels, setDbReels] = useState<ResolvedReel<ReelRow>[]>([]);
+  const [dbPayments, setDbPayments] = useState<PaymentRow[]>([]);
+  const [flaggedReels, setFlaggedReels] = useState<ResolvedReel<ReelWithArtist>[]>([]);
+  const [contentReports, setContentReports] = useState<ContentReportRow[]>([]);
+  const [auditLog, setAuditLog] = useState<AuditRow[]>([]);
+  const [featuredArtists, setFeaturedArtists] = useState<FeaturedArtistRow[]>([]);
   const [adminNote, setAdminNote] = useState<Record<string, string>>({});
   const [rejectDialog, setRejectDialog] = useState<{ id: string; caption: string } | null>(null);
   const [rejectReason, setRejectReason] = useState("");
@@ -65,7 +75,8 @@ const AdminPanel = () => {
       const { data, error } = await supabase.functions.invoke("verify-admin", {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
-      const ok = !error && (data as any)?.isAdmin === true;
+      const ok = !error && typeof data === "object" && data !== null
+        && "isAdmin" in data && data.isAdmin === true;
       setServerAdmin(ok);
       if (!ok) toast.error("Admin access denied");
     })();
@@ -101,12 +112,17 @@ const AdminPanel = () => {
       } catch { /* inaccessible media is omitted */ }
     }));
     setArtistPortfolios(grouped);
-    const resolveReels = async (rows: any[]) => Promise.all(rows.map(async reel => {
-      try {
-        const media = await getReelMediaUrl(reel.id);
-        return { ...reel, video_url: media.videoUrl, thumbnail_url: media.thumbnailUrl };
-      } catch { return null; }
-    }));
+    const resolveReels = async <T extends { id: string }>(rows: T[]): Promise<ResolvedReel<T>[]> => {
+      const resolved = await Promise.all(rows.map(async reel => {
+        try {
+          const media = await getReelMediaUrl(reel.id);
+          return { ...reel, video_url: media.videoUrl, thumbnail_url: media.thumbnailUrl };
+        } catch {
+          return null;
+        }
+      }));
+      return resolved.filter((reel): reel is ResolvedReel<T> => reel !== null);
+    };
     setDbBookings(bookingsRes.data || []);
     setDbReels((await resolveReels(reelsRes.data || [])).filter(Boolean));
     setDbPayments(paymentsRes.data || []);
@@ -134,7 +150,7 @@ const AdminPanel = () => {
   const pendingCount = dbBookings.filter(b => b.status === "pending").length;
   const artistApplications = dbArtists.filter(a => a.status !== "active");
 
-  const writeAudit = async (action: string, target_type: string, target_id: string, reason?: string, metadata?: any) => {
+  const writeAudit = async (action: string, target_type: string, target_id: string, reason?: string, metadata?: Json) => {
     if (!user) return;
     const { error } = await supabase.rpc("admin_write_audit", {
       p_action: action, p_target_type: target_type, p_target_id: target_id,
@@ -152,7 +168,7 @@ const AdminPanel = () => {
     fetchData();
   };
 
-  const handleApproveArtist = async (artist: any) => {
+  const handleApproveArtist = async (artist: AdminArtist) => {
     if (!isAdmin) return;
     if ((artistPortfolios[artist.id] || []).length < 2) { toast.error("Two portfolio photos are required before approval"); return; }
     const { error } = await supabase.rpc("admin_review_artist", { p_artist_id: artist.id, p_decision: "approve", p_reason: null });
@@ -219,7 +235,7 @@ const AdminPanel = () => {
     fetchData();
   };
 
-  const handleContentReport = async (r: any, action: "remove" | "dismiss") => {
+  const handleContentReport = async (r: ContentReportRow, action: "remove" | "dismiss") => {
     if (!isAdmin) { toast.error("Admin access required"); return; }
     if (action === "remove") {
       if (r.content_type === "reel") {
@@ -266,7 +282,7 @@ const AdminPanel = () => {
               {tab.id === "applications" && artistApplications.length > 0 && (
                 <span className="ml-auto bg-gold text-primary-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">{artistApplications.length}</span>
               )}
-              {tab.id === "ugc" && contentReports.filter((r: any) => r.status === "pending").length > 0 && (
+              {tab.id === "ugc" && contentReports.filter(r => r.status === "pending").length > 0 && (
                 <span className="ml-auto bg-destructive text-destructive-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">{contentReports.filter((r: any) => r.status === "pending").length}</span>
               )}
             </button>
@@ -444,7 +460,7 @@ const AdminPanel = () => {
               </div>
             ) : (
               <div className="space-y-5">
-                {artistApplications.map((artist: any) => (
+                {artistApplications.map((artist) => (
                   <div key={artist.id} className="bg-card rounded-lg border border-border p-5">
                     <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-4">
                       <div>
@@ -514,7 +530,7 @@ const AdminPanel = () => {
                     </div>
                     <div className="p-4">
                       <p className="text-foreground text-sm font-medium mb-1">{reel.caption || "No caption"}</p>
-                      <p className="text-muted-foreground text-xs mb-1">By: {(reel as any).artists?.name || "Unknown"}</p>
+                      <p className="text-muted-foreground text-xs mb-1">By: {reel.artists?.name || "Unknown"}</p>
                       <p className="text-muted-foreground text-xs mb-3">Source: {reel.source} · {new Date(reel.created_at).toLocaleDateString()}</p>
                       <div className="flex gap-2">
                         <Button size="sm" variant="gold" className="flex-1 gap-1" onClick={() => handleApproveReel(reel.id)}>
@@ -543,7 +559,7 @@ const AdminPanel = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                {contentReports.map((r: any) => (
+                {contentReports.map((r) => (
                   <div key={r.id} className="bg-card rounded-lg border border-border p-4">
                     <div className="flex items-start justify-between gap-3 mb-2">
                       <div>
@@ -646,7 +662,7 @@ const AdminPanel = () => {
                 <p className="text-muted-foreground text-sm">No artists featured.</p>
               ) : (
                 <div className="space-y-2">
-                  {featuredArtists.map((f: any) => (
+                  {featuredArtists.map((f) => (
                     <div key={f.id} className="flex items-center gap-3 p-3 rounded-lg border border-border">
                       <img src={f.artists?.avatar_url || "https://via.placeholder.com/40"} alt={f.artists?.name} className="w-9 h-9 rounded-full object-cover border border-gold/30" />
                       <div className="flex-1 min-w-0">
