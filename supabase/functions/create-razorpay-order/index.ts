@@ -66,6 +66,12 @@ Deno.serve(async (req) => {
       }
       amountRupees = membership ? base * (100 - discountPercent) / 100 : base;
     } else if (paymentType === "membership") {
+      const { data: activeMembership, error: activeMembershipError } = await admin.from("memberships")
+        .select("id").eq("user_id", user.id).eq("status", "active")
+        .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
+        .limit(1).maybeSingle();
+      if (activeMembershipError) return json({ error: "Could not verify current membership" }, 500);
+      if (activeMembership) return json({ error: "You already have an active lifetime membership" }, 409);
       amountRupees = Number(pricing.membership_price);
       if (!Number.isSafeInteger(amountRupees) || amountRupees <= 0 ||
           pricing.membership_duration !== "lifetime") {
