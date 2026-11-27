@@ -9,7 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { canSellDigitalGoods } from "@/lib/platform";
 import { SUPPORT_EMAIL, mailto } from "@/lib/contact";
 
-const BOOST_PRICE = 999; // ₹999 / 30-day featured slot (starter)
+const BOOST_PRICE = 500; // Live platform pricing: ₹500 / 30-day featured slot
 
 declare global {
   interface Window { Razorpay: any }
@@ -96,13 +96,16 @@ export const FeaturedBoostCard = ({ artistId }: { artistId: string }) => {
           theme: { color: "#c7974a" },
           handler: async (resp: any) => {
             try {
-              await supabase.functions.invoke("verify-razorpay-payment", {
+              const verification = await supabase.functions.invoke("verify-razorpay-payment", {
                 body: {
                   razorpay_order_id: resp.razorpay_order_id,
                   razorpay_payment_id: resp.razorpay_payment_id,
                   razorpay_signature: resp.razorpay_signature,
                 },
               });
+              if (verification.error || !verification.data?.success) {
+                throw new Error(verification.data?.error || verification.error?.message || "Payment activation could not be confirmed");
+              }
               const row = await submitRequestRow(true, resp.razorpay_payment_id);
               setExisting(row);
               toast.success("Payment received — boost request submitted!");
