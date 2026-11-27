@@ -67,6 +67,7 @@ const App = () => (
               <Route path="/ai-consultant" element={<AIConsultant />} />
               <Route path="/discover" element={<DiscoverPage />} />
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/dashboard" element={<ProtectedRoute redirectTo="/login"><CustomerDashboard /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute redirectTo="/login"><ProfilePage /></ProtectedRoute>} />
               <Route path="/favorites" element={<ProtectedRoute redirectTo="/login"><FavoritesPage /></ProtectedRoute>} />
