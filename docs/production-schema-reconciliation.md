@@ -261,3 +261,23 @@ Added the missing product support tables referenced by existing frontend flows: 
 The account-deletion RPC was extended to remove reviews authored by the deleted customer, user-block rows, push subscriptions, and artist certifications while retaining financial booking/payment history and audit records.
 
 **Important remaining source/schema mismatch:** regenerating types from production exposed legacy frontend references to `consultations`, `consultation_messages`, `daily_designs`, `featured_requests`, `change_audit_log`, and `design_reports`, plus legacy column assumptions. After adding the product support tables, the latest completed TypeScript run still reports 83 errors across 11 files. These need a focused reconciliation to canonical `conversations`, `messages`, `designs`, `featured_artists`, and `admin_audit_log`; do not suppress them by weakening generated types or adding duplicate legacy tables.
+
+## Canonical consultation, discovery and admin reconciliation — 27 November 2026
+
+The next frontend/schema reconciliation slice is implemented on the security-audit branch and its additive migrations are applied to the confirmed production project.
+
+- Customer consultation creation now calls `start_consultation`, which locks the customer profile, checks deletion state, active artist status, blocks, active membership and the three-free-chat limit, then creates `design_requests` and `conversations` atomically. Customer identity is derived from `auth.uid()`.
+- `conversation_peer` returns the other participant only after verifying the caller belongs to that conversation.
+- Chat pages, offline message delivery, read receipts, artist/customer chat lists, and dashboard consultation summaries now use `conversations` and `messages`. Participant message INSERT and recipient-only read-receipt UPDATE are enforced by RLS. The `messages` table is added to Realtime when the publication is available.
+- The privileged implementations for consultation creation and peer lookup live in the non-exposed `private` schema. Public RPC wrappers are SECURITY INVOKER and authenticated-only.
+- Discovery, favorites and profile queries now use `designs`; design reports use `content_reports`. Customer/artist dashboards no longer query the missing `consultations` or `referrals` tables. Referral UI is deferred until an actual referral schema and reward policy are designed.
+- Admin screens now use `featured_artists`, `admin_audit_log` and `content_reports`; legacy `featured_requests`, `design_reports`, `change_audit_log` and `daily_designs` references were removed. Admin-created featured placements expire after 30 days.
+- Added `admin_moderate_design`, whose private SECURITY DEFINER implementation checks the admin role and writes an audit record; the exposed wrapper is SECURITY INVOKER. Anonymous execution is denied.
+
+**Production checks:** migrations applied successfully; anonymous execution of consultation/admin RPC wrappers is false; authenticated execution is true; exposed wrappers are not SECURITY DEFINER; messages RLS is enabled and read_at exists. Security advisor no longer flags the new consultation/admin wrappers. It still reports five intentionally closed tables with no policies and ten pre-existing authenticated SECURITY DEFINER RPC warnings requiring separate least-privilege review.
+
+**CI run 236:** TypeScript passed, Vite production build passed, Vitest unit tests passed, and Deno Edge Function type-check passed. ESLint failed with 148 errors and 15 warnings (163 findings total), primarily pre-existing explicit `any` violations across unrelated pages/functions. No new lint-debt suppression was added. Browser/device E2E, authenticated RLS journeys and staging customer/artist/admin flows remain untested.
+
+**Media limitation:** production has no `consultation-media` bucket. The previous reference-image upload path therefore could not work safely; its broken upload control was removed rather than creating a public bucket. Design sharing from discovery now writes a private participant message attachment reference. A dedicated private consultation-media upload/read workflow remains future work.
+
+No production customer data was modified. Edge Functions remain undeployed; no live payments or app publication occurred.
