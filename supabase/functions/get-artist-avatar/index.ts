@@ -16,11 +16,12 @@ Deno.serve(async (req) => {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const authHeader = req.headers.get("Authorization");
   if (!url || !anonKey || !serviceKey) return json({ error: "Media service unavailable" }, 503);
-  if (!authHeader) return json({ error: "Authentication required" }, 401);
-
-  const auth = createClient(url, anonKey, { global: { headers: { Authorization: authHeader } }, auth: { persistSession: false, autoRefreshToken: false } });
-  const { data: authData, error: authError } = await auth.auth.getUser();
-  if (authError || !authData.user) return json({ error: "Authentication required" }, 401);
+  let userId: string | null = null;
+  if (authHeader) {
+    const auth = createClient(url, anonKey, { global: { headers: { Authorization: authHeader } }, auth: { persistSession: false, autoRefreshToken: false } });
+    const { data: authData } = await auth.auth.getUser();
+    userId = authData.user?.id ?? null;
+  }
 
   let artistId = "";
   try {
