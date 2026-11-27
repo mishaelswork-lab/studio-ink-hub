@@ -9,9 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Textarea } from "@/components/ui/textarea";
 import type { Database } from "@/integrations/supabase/types";
 
-type AdminBooking = Pick<Database["public"]["Tables"]["bookings"]["Row"], "id" | "customer_id" | "artist_id" | "design_request_id" | "starts_at" | "ends_at" | "status" | "cover_charge_paid" | "amount_minor" | "currency" | "created_at"> & {
-  design_requests: Pick<Database["public"]["Tables"]["design_requests"]["Row"], "brief" | "placement" | "size_description"> | null;
-};
+type AdminBooking = Pick<Database["public"]["Tables"]["bookings"]["Row"], "id" | "customer_id" | "artist_id" | "design_request_id" | "starts_at" | "ends_at" | "status" | "cover_charge_paid" | "amount_minor" | "currency" | "created_at">;
 const AddArtistDialog = lazy(() => import("@/components/admin/AddArtistDialog"));
 const PerfMetricsPanel = lazy(() => import("@/components/admin/PerfMetricsPanel"));
 const UsageHotspotsPanel = lazy(() => import("@/components/admin/UsageHotspotsPanel"));
@@ -78,7 +76,7 @@ const AdminPanel = () => {
     const [artistsRes, bookingsRes, reelsRes, paymentsRes, flaggedRes, auditRes, fArtRes, ugcRes] = await Promise.all([
       supabase.from("artists").select("id,name,specialty,studio_name,city,country,status,created_at,avatar_url,available,hourly_rate,experience_years,bio").order("created_at", { ascending: false }),
       supabase.from("bookings")
-        .select("id,customer_id,artist_id,design_request_id,starts_at,ends_at,status,cover_charge_paid,amount_minor,currency,created_at,design_requests(brief,placement,size_description)")
+        .select("id,customer_id,artist_id,design_request_id,starts_at,ends_at,status,cover_charge_paid,amount_minor,currency,created_at")
         .order("created_at", { ascending: false }),
       supabase.from("reels").select("*").order("created_at", { ascending: false }),
       supabase.from("payments").select("id,booking_id,provider,provider_order_id,provider_payment_id,amount_minor,currency,status,created_at,customer_id,artist_id,payment_type").eq("status", "captured"),
@@ -410,7 +408,7 @@ const AdminPanel = () => {
                     <tr className="border-b border-border">
                       <th className="text-left text-muted-foreground text-xs uppercase tracking-wider p-4">Customer</th>
                       <th className="text-left text-muted-foreground text-xs uppercase tracking-wider p-4">Date</th>
-                      <th className="text-left text-muted-foreground text-xs uppercase tracking-wider p-4">Style</th>
+                      <th className="text-left text-muted-foreground text-xs uppercase tracking-wider p-4">Booking ID</th>
                       <th className="text-left text-muted-foreground text-xs uppercase tracking-wider p-4">Cover Paid</th>
                       <th className="text-left text-muted-foreground text-xs uppercase tracking-wider p-4">Status</th>
                     </tr>
@@ -420,7 +418,7 @@ const AdminPanel = () => {
                       <tr key={b.id} className="border-b border-border last:border-0 hover:bg-secondary/30 transition-colors">
                         <td className="p-4 text-foreground text-sm">{b.customer_id ? `Customer · ${b.customer_id.slice(0, 8)}` : "Customer"}</td>
                         <td className="p-4 text-muted-foreground text-sm">{new Date(b.starts_at).toLocaleDateString()} · {new Date(b.starts_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</td>
-                        <td className="p-4 text-gold text-sm">{b.design_requests?.brief?.replace(/^\[[^\]]+\]\s*/, "") || "Tattoo consultation"}</td>
+                        <td className="p-4 text-gold text-sm">#{b.id.slice(0, 8)}</td>
                         <td className="p-4"><span className={`text-xs px-2 py-1 rounded-full ${b.cover_charge_paid ? "bg-emerald-500/10 text-emerald-400" : "bg-destructive/10 text-destructive"}`}>{b.cover_charge_paid ? "Paid" : "Unpaid"}</span></td>
                         <td className="p-4"><span className={`text-xs px-2 py-1 rounded-full ${b.status === "confirmed" ? "bg-emerald-500/10 text-emerald-400" : b.status === "pending" ? "bg-gold/10 text-gold" : b.status === "completed" ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"}`}>{b.status}</span></td>
                       </tr>
