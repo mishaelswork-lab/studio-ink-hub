@@ -26,7 +26,9 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      - name: Install locked dependencies
+      - name: Reconcile npm lockfile metadata
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Install dependencies from lockfile
         run: npm ci
       - name: TypeScript
         run: npx tsc -b
