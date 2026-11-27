@@ -7,12 +7,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { SEO } from "@/lib/seo";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import type { Database } from "@/integrations/supabase/types";
+
+type ConversationRow = Pick<Database["public"]["Tables"]["conversations"]["Row"], "id" | "customer_id" | "artist_id" | "design_request_id" | "created_at">;
+type ArtistSummary = Pick<Database["public"]["Tables"]["artists"]["Row"], "id" | "name" | "avatar_url" | "specialty">;
+type RequestSummary = Pick<Database["public"]["Tables"]["design_requests"]["Row"], "id" | "brief" | "status">;
+type ChatRow = ConversationRow & { artist?: ArtistSummary; request?: RequestSummary };
 
 const PAGE = 15;
 
 const ChatsPage = () => {
   const { user } = useAuth();
-  const [chats, setChats] = useState<any[]>([]);
+  const [chats, setChats] = useState<ChatRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,23 +41,33 @@ const ChatsPage = () => {
         .order("created_at", { ascending: false })
         .range(from, to);
       if (e1) throw e1;
-      const list = cs || [];
-      const artistUserIds = Array.from(new Set(list.map((c: any) => c.artist_id))).filter(Boolean);
-      const { data: artists } = artistUserIds.length
-        ? await supabase.from("artists").select("id,name,avatar_url,specialty").in("id", artistUserIds)
-        : { data: [] as any[] };
-      const requestIds = Array.from(new Set(list.map((c: any) => c.design_request_id))).filter(Boolean);
-      const { data: requests } = requestIds.length
-        ? await supabase.from("design_requests").select("id,brief,status").in("id", requestIds)
-        : { data: [] as any[] };
-      const byArtist = new Map((artists || []).map((a: any) => [a.id, a]));
-      const byRequest = new Map((requests || []).map((r: any) => [r.id, r]));
-      const hydrated = list.map((c: any) => ({ ...c, artist: byArtist.get(c.artist_id), request: byRequest.get(c.design_request_id) }));
+      const list: ConversationRow[] = cs || [];
+      const artistIds = Array.from(new Set(list.map(conversation => conversation.artist_id)));
+      const requestIds = Array.from(new Set(list.map(conversation => conversation.design_request_id))).filter((id): id is string => Boolean(id));
+      let artists: ArtistSummary[] = [];
+      let requests: RequestSummary[] = [];
+      if (artistIds.length) {
+        const { data, error } = await supabase.from("artists").select("id,name,avatar_url,specialty").in("id", artistIds);
+        if (error) throw error;
+        artists = data ?? [];
+      }
+      if (requestIds.length) {
+        const { data, error } = await supabase.from("design_requests").select("id,brief,status").in("id", requestIds);
+        if (error) throw error;
+        requests = data ?? [];
+      }
+      const byArtist = new Map(artists.map(artist => [artist.id, artist]));
+      const byRequest = new Map(requests.map(request => [request.id, request]));
+      const hydrated: ChatRow[] = list.map(conversation => ({
+        ...conversation,
+        artist: byArtist.get(conversation.artist_id),
+        request: conversation.design_request_id ? byRequest.get(conversation.design_request_id) : undefined,
+      }));
       setChats(prev => reset ? hydrated : [...prev, ...hydrated]);
       setHasMore(list.length === PAGE);
       pageRef.current += 1;
-    } catch (err: any) {
-      setError(err?.message || "Could not load chats");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Could not load chats");
     } finally {
       setLoading(false);
       setLoadingMore(false);
