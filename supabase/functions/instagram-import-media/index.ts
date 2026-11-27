@@ -54,11 +54,12 @@ Deno.serve(async (req) => {
   const auth = createClient(url, anon, { global: { headers: { Authorization: authHeader } }, auth: { persistSession: false, autoRefreshToken: false } });
   const { data: authData, error: authError } = await auth.auth.getUser();
   if (authError || !authData.user) return json({ error: "Authentication required" }, 401);
-  let artistId = "", submittedUrl = "";
+  let artistId = "", submittedUrl = "", captionOverride: string | null = null;
   try {
     const body = await req.json();
     artistId = typeof body?.artist_id === "string" ? body.artist_id : "";
     submittedUrl = typeof body?.instagram_url === "string" ? body.instagram_url : "";
+    captionOverride = typeof body?.caption_override === "string" ? body.caption_override.slice(0, 2200) : null;
   } catch { return json({ error: "Invalid request" }, 400); }
   if (!/^[0-9a-f-]{36}$/i.test(artistId) || submittedUrl.length > 2048) return json({ error: "Invalid import details" }, 400);
   let permalink: string;
@@ -140,7 +141,7 @@ Deno.serve(async (req) => {
       } catch { thumbnailPath = null; }
     }
 
-    const caption = typeof media.caption === "string" ? media.caption.slice(0, 2200) : null;
+    const caption = captionOverride ?? (typeof media.caption === "string" ? media.caption.slice(0, 2200) : null);
     if (isVideo) {
       const { data: inserted, error } = await admin.from("reels").insert({
         artist_id: artistId, video_url: objectPath, thumbnail_url: thumbnailPath,
