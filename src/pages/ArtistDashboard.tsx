@@ -89,6 +89,8 @@ const ArtistDashboard = () => {
   const [certs, setCerts] = useState<any[]>([]);
   const [portfolioImages, setPortfolioImages] = useState<string[]>([]);
   const [artistAvatarUrl, setArtistAvatarUrl] = useState<string | null>(null);
+  const [instagramConnected, setInstagramConnected] = useState(false);
+  const [instagramUsername, setInstagramUsername] = useState<string | null>(null);
   const [newCert, setNewCert] = useState({ name: "", issuing_body: "", url: "" });
   const [availability, setAvailability] = useState<AvailabilityHours>(defaultHours);
   const [savingHours, setSavingHours] = useState(false);
@@ -102,6 +104,9 @@ const ArtistDashboard = () => {
           setArtistAvatarUrl(await getArtistAvatarUrl(artistProfile.id));
         } catch { setArtistAvatarUrl(null); }
       }
+      const { data: igStatus } = await supabase.functions.invoke("instagram-connection-status", { body: { artist_id: artistProfile.id } });
+      setInstagramConnected(igStatus?.connected === true);
+      setInstagramUsername(typeof igStatus?.username === "string" ? igStatus.username : null);
       const [bookingsRes, reelsRes, paymentsRes, consultationsRes, certsRes] = await Promise.all([
         supabase.from("bookings").select("*").eq("artist_id", artistProfile.id).order("created_at", { ascending: false }),
         supabase.from("reels").select("*").eq("artist_id", artistProfile.id).order("created_at", { ascending: false }),
@@ -110,7 +115,14 @@ const ArtistDashboard = () => {
         supabase.from("artist_certifications").select("*").eq("artist_id", artistProfile.id).order("created_at", { ascending: false }),
       ]);
       setBookings(bookingsRes.data || []);
-      setReels(reelsRes.data || []);
+      const { getReelMediaUrl } = await import("@/lib/portfolioMedia");
+      const signedReels = await Promise.all((reelsRes.data || []).map(async reel => {
+        try {
+          const media = await getReelMediaUrl(reel.id);
+          return { ...reel, video_url: media.videoUrl, thumbnail_url: media.thumbnailUrl };
+        } catch { return null; }
+      }));
+      setReels(signedReels.filter((reel): reel is NonNullable<typeof reel> => !!reel));
       setPayments(paymentsRes.data || []);
       setConsultations(consultationsRes.data || []);
       setCerts(certsRes.data || []);
@@ -178,31 +190,64 @@ const ArtistDashboard = () => {
     return r.allowed;
   };
 
-  const handleInstagramImport = async (url: string, caption: string) => {
+  const connectInstagram = async () => {
     if (!artistProfile) return;
-    const ok = await moderate(url);
-    if (!ok) return;
-    const { logUsage } = await import("@/lib/usage");
-    logUsage("media", "reel-insert", { source: "instagram" });
-    const { error } = await supabase.from("reels").insert({
-      artist_id: artistProfile.id,
-      video_url: url,
-      instagram_url: url,
-      caption,
-      source: "instagram",
-      moderation_status: "pending",
-    });
-    if (error) { toast.error("Failed to import"); return; }
-    toast.success("Imported — pending admin review before it goes live");
-    const { data } = await supabase.from("reels").select("*").eq("artist_id", artistProfile.id).order("created_at", { ascending: false });
-    setReels(data || []);
+    const { data, error } = await supabase.functions.invoke("instagram-connect-start", { body: { artist_id: artistProfile.id } });
+    if (error || typeof data?.auth_url !== "string") {
+      toast.error(data?.error || "Instagram connection is not configured yet");
+      return;
+    }
+    window.location.assign(data.auth_url);
   };
 
-  const handleInstagramPhotoImport = async (url: string, caption: string) => {
+  const importInstagramMedia = async (url: string, caption: string, expectedType: "photo" | "reel") => {
     if (!artistProfile) return;
-    toast.error("Direct Instagram photo imports are temporarily unavailable. Download the image and upload it through the private portfolio uploader.");
-    void url; void caption;
+    const { data, error } = await supabase.functions.invoke("instagram-import-media", {
+      body: { artist_id: artistProfile.id, instagram_url: url, caption_override: caption },
+    });
+    if (error || data?.success !== true || typeof data?.item_id !== "string") {
+      toast.error(data?.error || error?.message || "Instagram import failed");
+      return;
+    }
+    if (data.duplicate) {
+      toast.info("This Instagram post is already in your portfolio");
+      return;
+    }
+
+    const { getPortfolioMediaUrl, getReelMediaUrl } = await import("@/lib/portfolioMedia");
+    if (data.media_type === "photo" && expectedType === "photo") {
+      const signedUrl = await getPortfolioMediaUrl(data.item_id);
+      const ok = await moderate(signedUrl);
+      if (!ok) {
+        const { data: row } = await supabase.from("portfolio_items").select("media_url").eq("id", data.item_id).maybeSingle();
+        await supabase.from("portfolio_items").delete().eq("id", data.item_id);
+        if (row?.media_url) await supabase.storage.from("portfolio-private").remove([row.media_url]);
+        return;
+      }
+      setPortfolioImages(prev => [signedUrl, ...prev]);
+    } else if (data.media_type === "reel" && expectedType === "reel") {
+      const media = await getReelMediaUrl(data.item_id);
+      if (media.thumbnailUrl) {
+        const ok = await moderate(media.thumbnailUrl);
+        if (!ok) {
+          const { data: row } = await supabase.from("reels").select("video_url,thumbnail_url").eq("id", data.item_id).maybeSingle();
+          await supabase.from("reels").delete().eq("id", data.item_id);
+          if (row?.video_url) await supabase.storage.from("portfolio-reels").remove([row.video_url]);
+          if (row?.thumbnail_url) await supabase.storage.from("portfolio-private").remove([row.thumbnail_url]);
+          return;
+        }
+      }
+      const { data: reel } = await supabase.from("reels").select("*").eq("id", data.item_id).maybeSingle();
+      if (reel) setReels(prev => [{ ...reel, video_url: media.videoUrl, thumbnail_url: media.thumbnailUrl }, ...prev]);
+    } else {
+      toast.error("The Instagram link does not match the selected media type");
+      return;
+    }
+    toast.success("Imported to your private portfolio — pending admin review");
   };
+
+  const handleInstagramImport = (url: string, caption: string) => importInstagramMedia(url, caption, "reel");
+  const handleInstagramPhotoImport = (url: string, caption: string) => importInstagramMedia(url, caption, "photo");
 
   const handlePortfolioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -358,6 +403,9 @@ const ArtistDashboard = () => {
             <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
               <h2 className="font-heading text-2xl font-bold text-foreground">Portfolio</h2>
               <div className="flex gap-2">
+                <Button variant="outline" size="sm" className="gap-1 border-border text-foreground" onClick={connectInstagram}>
+                  <Instagram className="w-4 h-4" /> {instagramConnected ? `@${instagramUsername || "Instagram"}` : "Connect Instagram"}
+                </Button>
                 <InstagramImportDialog onImport={handleInstagramPhotoImport} type="photo" />
                 <label>
                   <Button variant="gold" size="sm" className="gap-1 cursor-pointer" asChild>
@@ -385,7 +433,12 @@ const ArtistDashboard = () => {
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-heading text-2xl font-bold text-foreground">Reels</h2>
-              <InstagramImportDialog onImport={handleInstagramImport} type="reel" />
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" className="gap-1 border-border text-foreground" onClick={connectInstagram}>
+                  <Instagram className="w-4 h-4" /> {instagramConnected ? `@${instagramUsername || "Instagram"}` : "Connect Instagram"}
+                </Button>
+                <InstagramImportDialog onImport={handleInstagramImport} type="reel" />
+              </div>
             </div>
             <p className="text-muted-foreground text-sm mb-6">Upload short videos or import from Instagram to showcase your work.</p>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
