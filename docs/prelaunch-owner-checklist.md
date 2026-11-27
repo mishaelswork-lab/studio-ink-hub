@@ -29,7 +29,7 @@ This checklist separates code readiness from external setup. Nothing here author
 - **Edge Functions are not deployed.** Authentication and payment flows that depend on them cannot be considered end-to-end tested.
 - Razorpay sandbox credentials and real Meta professional-account access have not been supplied/tested.
 - No production test users exist, so customer/artist/admin E2E and cross-user authorization journeys remain unverified.
-- The latest production-only npm audit reports 15 advisories (12 high, 2 moderate, 1 low; zero critical). npm reports non-breaking fixes available, but they still need controlled lockfile updates and regression testing.
+- The latest production-only npm audit reports 15 advisories (12 high, 2 moderate, 1 low; zero critical). A one-time branch-only remediation workflow now applies non-breaking npm audit fixes, verifies the audit/build/tests, and commits only the lockfile if successful.
 - ESLint remains a CI blocker with 119 errors and 16 warnings, primarily existing explicit `any` usage; do not suppress the rule globally.
 - Web domain, SSL, production monitoring, Android signing/store listing, and iOS signing/App Store configuration remain owner setup tasks.
 
