@@ -116,23 +116,12 @@ const BookingPage = () => {
       const booking = Array.isArray(holdRows) ? holdRows[0] : holdRows;
       if (!booking?.booking_id) throw new Error("Could not reserve this appointment slot");
 
-      // Referral discounts are validated and consumed server-side when the
-      // payment is settled — the browser only supplies the code the user typed.
-
       const orderRes = await supabase.functions.invoke("create-razorpay-order", {
         body: {
           payment_type: "cover_charge",
           booking_id: booking.booking_id,
         },
       });
-
-      if (orderRes.data?.free) {
-        // Server validated the referral and settled the charge itself.
-        toast.success("Booking confirmed! Referral discount covered the charge.", { description: `Your session with ${artistName} is set.` });
-        sendPushNotification("🎨 Booking Confirmed!", `Great choice! Your session with ${artistName} is booked. You saved ₹${referralDiscount}!`);
-        navigate("/dashboard");
-        return;
-      }
 
       if (orderRes.error || orderRes.data?.error) {
         throw new Error(orderRes.data?.error || orderRes.error?.message || "Could not start secure payment. Your appointment hold has not been paid.");
