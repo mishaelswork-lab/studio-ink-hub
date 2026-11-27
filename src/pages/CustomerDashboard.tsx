@@ -160,7 +160,7 @@ const CustomerDashboard = () => {
                     <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                       {artist?.avatar_url && <img src={artist.avatar_url} alt={artist.name} className="w-14 h-14 rounded-full object-cover border-2 border-gold/30 flex-shrink-0" />}
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-foreground font-medium text-lg">{booking.design_requests?.brief?.replace(/^\\[[^\\]]+\\]\\s*/, "") || "Tattoo appointment"}</h3>
+                        <h3 className="text-foreground font-medium text-lg">{booking.design_requests?.brief?.replace(/^\[[^\]]+\]\s*/, "") || "Tattoo appointment"}</h3>
                         <p className="text-muted-foreground text-sm">{artist?.name} · {artist?.studio_name}</p>
                         <div className="flex flex-wrap gap-3 mt-2 text-sm text-muted-foreground">
                           <span className="flex items-center gap-1"><CalendarDays className="w-3.5 h-3.5" /> {bookingDt.toLocaleDateString()}</span>
@@ -250,7 +250,7 @@ const CustomerDashboard = () => {
               {pastBookings.slice(0, 5).map(booking => (
                 <div key={booking.id} className="bg-card rounded-lg border border-border p-4 flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-foreground text-sm font-medium truncate">{booking.design_requests?.brief?.replace(/^\\[[^\\]]+\\]\\s*/, "") || "Tattoo appointment"}</p>
+                    <p className="text-foreground text-sm font-medium truncate">{booking.design_requests?.brief?.replace(/^\[[^\]]+\]\s*/, "") || "Tattoo appointment"}</p>
                     <p className="text-muted-foreground text-xs">{new Date(booking.starts_at).toLocaleDateString()} · {booking.design_requests?.placement || "Placement not provided"}</p>
                   </div>
                   <div className="flex items-center gap-2">
