@@ -67,4 +67,5 @@ jobs:
           deno check supabase/functions/create-razorpay-order/index.ts
           deno check supabase/functions/verify-razorpay-payment/index.ts
           deno check supabase/functions/delete-account/index.ts
+          deno check supabase/functions/ai-chat/index.ts
           deno check supabase/functions/auth-guard/index.ts
