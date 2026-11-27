@@ -2,7 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 const ENDPOINT = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/auth-guard`;
 
-type GuardResponse = { session?: any; sent?: boolean; error?: string };
+type GuardResponse = { session?: { access_token: string; refresh_token: string; user: { id: string } }; sent?: boolean; error?: string };
 
 async function call(payload: Record<string, unknown>): Promise<GuardResponse> {
   const res = await fetch(ENDPOINT, {
