@@ -9,7 +9,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import type { Database } from "@/integrations/supabase/types";
 import { SEO } from "@/lib/seo";
 
 const MIN_PHOTOS = 2;
@@ -151,9 +150,13 @@ const ArtistProfileEditor = () => {
       const { moderateImage } = await import("@/lib/moderate");
       const check = await moderateImage(url);
       if (!check.allowed) { toast.error("Profile photo rejected by review"); return; }
-      const { error } = await supabase.from("artists").update({ avatar_url: url }).eq("id", artistProfile.id);
-      if (error) { toast.error("Could not save photo"); return; }
       setAvatar(url);
+      const { error } = await supabase.rpc("artist_update_own_profile", {
+        p_name: form.name, p_studio_name: form.studio_name, p_specialty: form.specialty,
+        p_bio: form.bio, p_hourly_rate: Number(form.hourly_rate),
+        p_experience_years: Number(form.experience_years), p_avatar_url: url,
+      });
+      if (error) { toast.error("Could not save photo"); return; }
       await refreshProfile();
       toast.success("Profile photo updated");
     } catch {
