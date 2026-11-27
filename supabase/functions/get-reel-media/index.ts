@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
   const videoPath = reel.video_url;
   if (typeof videoPath !== "string" || videoPath.startsWith("http") ||
       !videoPath.startsWith(`${artist?.user_id}/${reel.artist_id}/`)) return json({ error: "Invalid Reel path" }, 409);
-  const { data: video, error: videoError } = await admin.storage.from("portfolio-reels").createSignedUrl(videoPath, 120);
+  const { data: video, error: videoError } = await admin.storage.from("portfolio-reels").createSignedUrl(videoPath, 900);
   if (videoError || !video?.signedUrl) return json({ error: "Unable to access Reel" }, 500);
 
   let thumbnailUrl: string | null = null;
@@ -53,8 +53,8 @@ Deno.serve(async (req) => {
     const thumbPath = reel.thumbnail_url;
     if (typeof thumbPath !== "string" || thumbPath.startsWith("http") ||
         !thumbPath.startsWith(`${artist?.user_id}/${reel.artist_id}/`)) return json({ error: "Invalid thumbnail path" }, 409);
-    const { data: thumb } = await admin.storage.from("portfolio-private").createSignedUrl(thumbPath, 120);
+    const { data: thumb } = await admin.storage.from("portfolio-private").createSignedUrl(thumbPath, 900);
     thumbnailUrl = thumb?.signedUrl ?? null;
   }
-  return json({ video_url: video.signedUrl, thumbnail_url: thumbnailUrl, expires_in: 120 });
+  return json({ video_url: video.signedUrl, thumbnail_url: thumbnailUrl, expires_in: 900 });
 });
