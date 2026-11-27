@@ -9,12 +9,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useMembership } from "@/hooks/useMembership";
 import { MembershipBanner } from "@/components/MembershipBanner";
+import type { Database } from "@/integrations/supabase/types";
+
+type ArtistSummary = Pick<Database["public"]["Tables"]["artists"]["Row"], "id" | "name" | "avatar_url" | "specialty" | "studio_name" | "status">;
 
 const StartConsultation = () => {
   const { artistId } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [artist, setArtist] = useState<any>(null);
+  const [artist, setArtist] = useState<ArtistSummary | null>(null);
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const { canChat, chatsRemaining, isMember } = useMembership();
