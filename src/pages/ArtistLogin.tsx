@@ -125,8 +125,8 @@ const ArtistLogin = () => {
         toast.success("Welcome back, artist!");
         navigate("/artist-dashboard");
       }
-    } catch (error: any) {
-      toast.error(error.message || "Sign-in failed");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Sign-in failed");
     } finally {
       setLoading(false);
     }
@@ -145,8 +145,8 @@ const ArtistLogin = () => {
       }
       toast.success("Welcome back, artist!");
       navigate("/artist-dashboard");
-    } catch (error: any) {
-      toast.error(error.message || "Login failed");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Login failed");
     } finally {
       setLoading(false);
     }
@@ -160,8 +160,8 @@ const ArtistLogin = () => {
       await guardedSendOtp(fullPhone);
       setOtpSent(true);
       toast.success("OTP sent to your phone!");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to send OTP");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Failed to send OTP");
     } finally {
       setLoading(false);
     }
@@ -180,8 +180,8 @@ const ArtistLogin = () => {
       }
       toast.success("Phone verified! Welcome back, artist!");
       navigate("/artist-dashboard");
-    } catch (error: any) {
-      toast.error(error.message || "OTP verification failed");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "OTP verification failed");
     } finally {
       setLoading(false);
     }
