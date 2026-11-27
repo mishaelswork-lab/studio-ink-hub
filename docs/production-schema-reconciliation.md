@@ -186,3 +186,21 @@ Implement only after app and DB contracts are reconciled:
 7. Replace all `getPublicUrl` and public CloudFront assumptions; test owner upload/read/delete, cross-owner denial, pending-media denial, admin approve/reject, and approved public delivery.
 
 No storage bucket, object, policy, public URL, or production media record was changed in this audit.
+
+
+### Client column privilege correction — 27 November 2026
+
+A production review found the artist compatibility migration had granted SELECT on `artists.user_id` to anon/authenticated and public portfolio SELECT included `source_url`. This exceeded the intended public profile contract.
+
+**Corrective additive migration applied to production:** `tighten_artist_portfolio_client_column_access`.
+- Revoked client SELECT on `artists.user_id` and `artists.rejection_reason`.
+- Revoked broad portfolio SELECT and re-granted only `id, artist_id, media_url, media_type, caption, approved, created_at`.
+- Revoked authenticated INSERT of `source_url`.
+- Kept existing RLS policies and enabled RLS on both tables.
+- Post-migration catalog check returned no client column privileges for `user_id`, `rejection_reason`, or `source_url`; public approved/active and owner/admin policies remain.
+
+This is a security correction; it may reveal frontend assumptions that query owner IDs or source URLs. Reconcile those consumers to use owner-scoped RPCs and private object paths, never re-grant these columns for convenience.
+
+### Storage implementation sequencing
+
+Do not create a private bucket until upload and signed-read flows are implemented together. A private bucket without an approved-media signed-read path would break public portfolio display; a public bucket or public CDN URL is not an acceptable interim workaround.
