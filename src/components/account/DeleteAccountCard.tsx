@@ -38,9 +38,10 @@ export const DeleteAccountCard = () => {
         <AlertTriangle className="w-4 h-4 text-destructive" /> Delete my account
       </p>
       <p className="text-muted-foreground text-xs mb-3">
-        Permanently deletes your profile, saved ideas, consultations, messages and notification
-        settings. Completed booking and payment records are kept in de-identified form only, because
-        tax and dispute law requires it. This cannot be undone.
+        Permanently deletes your profile, saved ideas, consultations, messages, artist portfolio photos and
+        Reels, and connected Instagram tokens. Completed booking and payment records are retained in
+        de-identified form for financial and dispute records. Active bookings must be resolved first.
+        This cannot be undone.
       </p>
 
       {!open ? (
