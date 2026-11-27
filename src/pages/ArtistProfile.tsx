@@ -42,7 +42,12 @@ const ArtistProfile = () => {
         const { data: items } = await supabase.from("portfolio_items")
           .select("id, media_url, caption, media_type")
           .eq("artist_id", art.id).eq("approved", true).order("created_at", { ascending: false });
-        setPortfolioItems(items || []);
+        const { getPortfolioMediaUrl } = await import("@/lib/portfolioMedia");
+        const resolved = await Promise.all((items || []).map(async item => {
+          try { return { ...item, media_url: await getPortfolioMediaUrl(item.id) }; }
+          catch { return null; }
+        }));
+        setPortfolioItems(resolved.filter((item): item is NonNullable<typeof item> => !!item));
       } else {
         setPortfolioItems([]);
       }
