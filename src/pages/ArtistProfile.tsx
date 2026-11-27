@@ -21,6 +21,7 @@ const ArtistProfile = () => {
   const { user } = useAuth();
   const [dbArtist, setDbArtist] = useState<any>(null);
   const [reviews, setReviews] = useState<any[]>([]);
+  const [portfolioItems, setPortfolioItems] = useState<any[]>([]);
   const [certs, setCerts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { isFavorite, toggle: toggleFav, loading: favLoading } = useFavorite("artist", id);
@@ -31,12 +32,20 @@ const ArtistProfile = () => {
     if (!id) { setLoading(false); return; }
     const fetchAll = async () => {
       const [{ data: art }, { data: revs }, { data: certData }] = await Promise.all([
-        supabase.from("artists").select("*").eq("id", id).eq("application_status", "approved").eq("available", true).maybeSingle(),
+        supabase.from("artists").select("*").eq("id", id).eq("status", "active").eq("available", true).maybeSingle(),
         supabase.from("reviews").select("rating, comment, created_at").eq("artist_id", id).order("created_at", { ascending: false }).limit(10),
         supabase.from("artist_certifications").select("*").eq("artist_id", id).order("created_at", { ascending: false }),
       ]);
       setDbArtist(art);
       setReviews(revs || []);
+      if (art) {
+        const { data: items } = await supabase.from("portfolio_items")
+          .select("id, media_url, caption, media_type")
+          .eq("artist_id", art.id).eq("approved", true).order("created_at", { ascending: false });
+        setPortfolioItems(items || []);
+      } else {
+        setPortfolioItems([]);
+      }
       setCerts(certData || []);
       setLoading(false);
     };
@@ -45,7 +54,7 @@ const ArtistProfile = () => {
     const channel = supabase
       .channel(`artist-${id}`)
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "artists", filter: `id=eq.${id}` }, (payload) => {
-        if ((payload.new as any).application_status !== "approved" || !(payload.new as any).available) setDbArtist(null);
+        if ((payload.new as any).status !== "active" || !(payload.new as any).available) setDbArtist(null);
         else setDbArtist((prev: any) => ({ ...prev, ...(payload.new as object) }));
         const wasAvail = (payload.old as any)?.available;
         const isAvail = (payload.new as any)?.available;
@@ -84,7 +93,7 @@ const ArtistProfile = () => {
   const bio = artist.bio;
   const hourlyRate = artist.hourly_rate;
   const avatarUrl = artist.avatar_url || "/placeholder.svg";
-  const portfolio: string[] = artist.portfolio_images || [];
+  const portfolio: string[] = portfolioItems.map(item => item.media_url);
   const available = artist.available;
   const artistId = artist.id;
   const hasCerts = certs.length > 0;
