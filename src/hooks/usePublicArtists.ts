@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getArtistAvatarUrl, getPortfolioMediaUrl } from "@/lib/portfolioMedia";
+import { isPublishedArtist } from "@/lib/artistPublication";
+export { isPublishedArtist } from "@/lib/artistPublication";
 
 type PublicArtist = {
   id: string;
@@ -19,9 +21,6 @@ type PublicArtist = {
   avatar: string;
   hourlyRate: number;
 };
-
-export const isPublishedArtist = (artist: { status: string | null; available: boolean; portfolio: string[] }) =>
-  artist.status === "active" && artist.available === true && new Set(artist.portfolio || []).size >= 2;
 
 export function usePublicArtists() {
   return useQuery({
