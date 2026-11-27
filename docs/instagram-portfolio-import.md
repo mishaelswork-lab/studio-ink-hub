@@ -28,10 +28,10 @@ Supabase provides `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROL
 - Artist-owned OAuth state is random, expires after 10 minutes, and is consumed once.
 - Instagram long-lived access tokens are encrypted before persistence; token rows are service-role-only.
 - Imports match a URL against the connected account's media list, download only Meta-returned CDN URLs, enforce MIME and size limits, and store objects in private buckets.
-- Photos become pending `portfolio_items`; videos become pending `reels`. Neither is public before moderation/approval.
+- Single photos and multi-photo carousel posts become pending `portfolio_items`; Instagram videos/Reels become pending `reels`. Neither is public before moderation/approval.
 - Signed media endpoints issue short-lived URLs and check owner, admin, and approved-public access.
 - Duplicate Instagram media IDs are blocked by database unique indexes.
 
 ## Not yet launch-ready
 
-The functions are branch-only and have not been deployed or tested against a real Meta app/account. After secrets are configured, deploy the Instagram and signed-media functions only with explicit deployment approval, then test OAuth denial/replay/expiry, token refresh, photo import, Reel import, duplicate import, unsupported carousel, oversized media, revoked access, moderation rejection, and anonymous approved-media playback.
+The functions are branch-only and have not been deployed or tested against a real Meta app/account. After secrets are configured, deploy the Instagram and signed-media functions only with explicit deployment approval, then test OAuth denial/replay/expiry, token refresh, photo import, Reel import, duplicate import, unsupported media types, oversized media, revoked access, moderation rejection, and anonymous approved-media playback.
