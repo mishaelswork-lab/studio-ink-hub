@@ -13,7 +13,7 @@ export const useMembership = () => {
     if (!user) { setLoading(false); return; }
     const fetch = async () => {
       const [{ data: mem }, { data: prof }] = await Promise.all([
-        supabase.from("memberships").select("*").eq("user_id", user.id).eq("status", "active").gte("expires_at", new Date().toISOString()).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+        supabase.from("memberships").select("*").eq("user_id", user.id).eq("status", "active").or(`expires_at.is.null,expires_at.gte.${new Date().toISOString()}`).order("created_at", { ascending: false }).limit(1).maybeSingle(),
         supabase.from("profiles").select("chat_count").eq("user_id", user.id).maybeSingle(),
       ]);
       setMembership(mem);
