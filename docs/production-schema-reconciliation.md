@@ -252,3 +252,12 @@ After removing public SELECT access to `artists.user_id`, the public artist prof
 **Verification:** production FK actions/nullability, function grants, and profile-row locks verified. A call with a non-existent UUID correctly failed the profile guard without modifying data. At verification time production had zero Auth users, artists, bookings, payments, admin role assignments and zero objects in the two private portfolio buckets; no customer data was touched.
 
 **Not tested:** authenticated customer/artist/admin deletion journeys, active-booking rejection against a populated staging dataset, recursive Storage deletion with real objects, or actual Auth user deletion. No Edge Function was deployed. A staging test identity is required before treating account deletion as fully end-to-end verified.
+
+
+### Product support tables — 27 November 2026
+
+Added the missing product support tables referenced by existing frontend flows: `reviews`, `content_reports`, `user_blocks`, `consent_records`, `push_subscriptions`, `artist_certifications`, and `perf_metrics`. RLS is enabled on all seven, with owner/admin/public visibility separated by policy. Review insert/update requires a completed booking owned by the reviewer and matching artist; customer updates cannot change a review out of pending moderation. User block rows are private to the blocker. Consent records are immutable to client roles. Push subscriptions are owner-only. Certifications are public only after admin verification. Reports are reporter/admin scoped. Performance metrics allow bounded public insertion and admin-only reads.
+
+The account-deletion RPC was extended to remove reviews authored by the deleted customer, user-block rows, push subscriptions, and artist certifications while retaining financial booking/payment history and audit records.
+
+**Important remaining source/schema mismatch:** regenerating types from production exposed legacy frontend references to `consultations`, `consultation_messages`, `daily_designs`, `featured_requests`, `change_audit_log`, and `design_reports`, plus legacy column assumptions. After adding the product support tables, the latest completed TypeScript run still reports 83 errors across 11 files. These need a focused reconciliation to canonical `conversations`, `messages`, `designs`, `featured_artists`, and `admin_audit_log`; do not suppress them by weakening generated types or adding duplicate legacy tables.
