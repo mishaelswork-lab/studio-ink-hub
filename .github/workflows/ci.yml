@@ -34,7 +34,29 @@ jobs:
         run: npx tsc -b
       - name: Production build
         run: npm run build
-      - name: ESLint
-        run: npm run lint
       - name: Unit tests
         run: npm run test -- --passWithNoTests
+      - name: ESLint
+        run: npm run lint
+
+  edge-function-typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check Edge Functions
+        run: |
+          deno check supabase/functions/get-portfolio-media/index.ts
+          deno check supabase/functions/get-artist-avatar/index.ts
+          deno check supabase/functions/get-reel-media/index.ts
+          deno check supabase/functions/instagram-connect-start/index.ts
+          deno check supabase/functions/instagram-connect-callback/index.ts
+          deno check supabase/functions/instagram-connection-status/index.ts
+          deno check supabase/functions/instagram-import-media/index.ts
+          deno check supabase/functions/create-booking-hold/index.ts
+          deno check supabase/functions/create-razorpay-order/index.ts
+          deno check supabase/functions/verify-razorpay-payment/index.ts
