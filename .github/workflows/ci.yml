@@ -1,4 +1,4 @@
-name: ArtSpace CI # final verification after account deletion and booking-link hardening
+name: ArtSpace CI # typecheck after production type regeneration
 
 on:
   push:
