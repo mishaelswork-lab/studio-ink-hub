@@ -386,7 +386,7 @@ const ArtistDashboard = () => {
                       <p className="text-muted-foreground text-sm">{booking.date} · {booking.time}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      {booking.cover_charge_paid && <span className="text-xs px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-400">₹500 Paid</span>}
+                      {booking.cover_charge_paid && <span className="text-xs px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-400">Cover charge paid</span>}
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
                         booking.status === "confirmed" ? "bg-emerald-500/10 text-emerald-400" :
                         booking.status === "pending" ? "bg-gold/10 text-gold" :
