@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
 
     const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
     const { data: paymentRow, error: lookupError } = await admin.from("payments")
-      .select("id, customer_id, provider, provider_order_id, amount_minor, currency, status")
+      .select("id, customer_id, provider, provider_order_id, provider_payment_id, amount_minor, currency, status")
       .eq("provider_order_id", orderId).eq("provider", "razorpay").maybeSingle();
     if (lookupError || !paymentRow) return json({ error: "Payment order not found" }, 404);
     if (paymentRow.customer_id !== user.id) return json({ error: "Payment order belongs to another account" }, 403);
@@ -57,6 +57,9 @@ Deno.serve(async (req) => {
       return json({ error: "Stored payment attribution is invalid" }, 409);
     }
     if (paymentRow.status === "captured") {
+      if (paymentRow.provider_payment_id !== paymentId) {
+        return json({ error: "This order was already finalized with a different payment attempt" }, 409);
+      }
       return json({ success: true, already_processed: true });
     }
     if (!["created", "pending"].includes(paymentRow.status)) {
