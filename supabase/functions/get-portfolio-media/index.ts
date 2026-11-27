@@ -68,8 +68,8 @@ Deno.serve(async (req) => {
 
   const { data: signed, error: signError } = await admin.storage
     .from("portfolio-private")
-    .createSignedUrl(objectPath, 120);
+    .createSignedUrl(objectPath, 900);
   if (signError || !signed?.signedUrl) return json({ error: "Unable to access media" }, 500);
 
-  return json({ signed_url: signed.signedUrl, expires_in: 120 });
+  return json({ signed_url: signed.signedUrl, expires_in: 900 });
 });
