@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Send, ImagePlus, Check, CheckCheck, AlertCircle, Loader2, WifiOff, Flag, Ban } from "lucide-react";
+import { ArrowLeft, Send, Check, CheckCheck, AlertCircle, Loader2, WifiOff, Flag, Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/layout/Navbar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { enqueueMessage, subscribeQueue, flushQueue, removeFromQueue, type QueuedMessage } from "@/lib/offlineQueue";
+import { enqueueMessage, subscribeQueue, removeFromQueue, type QueuedMessage } from "@/lib/offlineQueue";
 import ReportDialog from "@/components/safety/ReportDialog";
 import { useBlock } from "@/hooks/useBlock";
 
@@ -38,9 +38,7 @@ const ConsultationChat = () => {
   const [queueCount, setQueueCount] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [reportOpen, setReportOpen] = useState(false);
-  const otherUserId = consultation
-    ? (consultation.customer_id === user?.id ? consultation.artist_id : consultation.customer_id)
-    : null;
+  const otherUserId = consultation?.peer_user_id || null;
   const { isBlocked, toggle: toggleBlock, loading: blockLoading } = useBlock(otherUserId);
 
 
@@ -56,30 +54,26 @@ const ConsultationChat = () => {
     if (!user || !consultationId) return;
     const fetchData = async () => {
       const { data: c } = await supabase
-        .from("consultations").select("*").eq("id", consultationId).maybeSingle();
+        .from("conversations").select("id,customer_id,artist_id,design_request_id,created_at").eq("id", consultationId).maybeSingle();
       if (!c) { navigate("/dashboard"); return; }
-      setConsultation(c);
-
-      const otherId = c.customer_id === user.id ? c.artist_id : c.customer_id;
-      const [{ data: artist }, { data: profile }] = await Promise.all([
-        supabase.from("artists").select("name, avatar_url").eq("user_id", otherId).maybeSingle(),
-        supabase.from("profiles").select("display_name, avatar_url").eq("user_id", otherId).maybeSingle(),
+      const [{ data: peer }, { data: request }, { data: msgs }] = await Promise.all([
+        supabase.rpc("conversation_peer", { p_conversation_id: consultationId }).maybeSingle(),
+        c.design_request_id
+          ? supabase.from("design_requests").select("brief,reference_images").eq("id", c.design_request_id).maybeSingle()
+          : Promise.resolve({ data: null }),
+        supabase.from("messages").select("id,sender_id,body,created_at,read_at")
+          .eq("conversation_id", consultationId).order("created_at", { ascending: true }),
       ]);
-      setOtherParty(artist || profile || { display_name: "User", avatar_url: null });
-
-      const { data: msgs } = await supabase
-        .from("consultation_messages").select("*")
-        .eq("consultation_id", consultationId)
-        .order("created_at", { ascending: true });
+      if (!peer) { navigate("/dashboard"); return; }
+      const hydrated = { ...c, peer_user_id: peer.peer_user_id, design_description: request?.brief || null, reference_images: request?.reference_images || [] };
+      setConsultation(hydrated);
+      setOtherParty({ name: peer.peer_name, display_name: peer.peer_name, avatar_url: peer.peer_avatar_url });
       setMessages((msgs || []).map(m => ({
-        ...m,
+        id: m.id, sender_id: m.sender_id || "", message: m.body, image_url: null,
+        created_at: m.created_at || new Date().toISOString(), read_at: m.read_at,
         _status: (m.sender_id === user.id ? (m.read_at ? "read" : "sent") : "sent") as DeliveryStatus,
       })));
       setLoading(false);
-
-      if (c.status === "pending") {
-        await supabase.from("consultations").update({ status: "active" }).eq("id", consultationId);
-      }
     };
     fetchData();
   }, [user, consultationId, navigate]);
@@ -108,7 +102,8 @@ const ConsultationChat = () => {
     });
 
     const onSent = (e: any) => {
-      const { tempId, message } = e.detail;
+      const { tempId, message: rawMessage } = e.detail;
+      const message: Message = { id: rawMessage.id, sender_id: rawMessage.sender_id || "", message: rawMessage.body, image_url: null, created_at: rawMessage.created_at || new Date().toISOString(), read_at: rawMessage.read_at };
       setMessages(prev => {
         const filtered = prev.filter(m => m._tempId !== tempId);
         if (filtered.some(m => m.id === message.id)) return filtered;
@@ -131,17 +126,18 @@ const ConsultationChat = () => {
     const channel = supabase
       .channel(`chat-${consultationId}`)
       .on("postgres_changes", {
-        event: "INSERT", schema: "public", table: "consultation_messages",
-        filter: `consultation_id=eq.${consultationId}`,
+        event: "INSERT", schema: "public", table: "messages",
+        filter: `conversation_id=eq.${consultationId}`,
       }, (payload) => {
-        const incoming = payload.new as Message;
+        const raw = payload.new as { id: string; sender_id: string | null; body: string | null; created_at: string | null; read_at: string | null };
+        const incoming: Message = { id: raw.id, sender_id: raw.sender_id || "", message: raw.body, image_url: null, created_at: raw.created_at || new Date().toISOString(), read_at: raw.read_at };
         setMessages(prev => {
           if (prev.some(m => m.id === incoming.id)) return prev;
           return [...prev, { ...incoming, _status: "sent" }];
         });
         // mark read if from other party and tab visible
         if (incoming.sender_id !== user.id && document.visibilityState === "visible") {
-          supabase.from("consultation_messages")
+          supabase.from("messages")
             .update({ read_at: new Date().toISOString() })
             .eq("id", incoming.id).then(() => {});
         }
@@ -150,7 +146,7 @@ const ConsultationChat = () => {
         event: "UPDATE", schema: "public", table: "consultation_messages",
         filter: `consultation_id=eq.${consultationId}`,
       }, (payload) => {
-        const updated = payload.new as Message;
+        const updated = payload.new as { id: string; read_at: string | null };
         setMessages(prev => prev.map(m =>
           m.id === updated.id
             ? { ...m, read_at: updated.read_at, _status: m.sender_id === user.id ? (updated.read_at ? "read" : "sent") : m._status }
@@ -168,7 +164,7 @@ const ConsultationChat = () => {
       if (document.visibilityState !== "visible") return;
       await supabase.from("consultation_messages")
         .update({ read_at: new Date().toISOString() })
-        .eq("consultation_id", consultationId)
+        .eq("conversation_id", consultationId)
         .neq("sender_id", user.id)
         .is("read_at", null);
     };
@@ -193,28 +189,6 @@ const ConsultationChat = () => {
   const retryNow = (tempId: string) => {
     removeFromQueue(tempId);
     toast.info("Removed from queue");
-  };
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-    if (file.size > 5 * 1024 * 1024) { toast.error("Max 5MB"); return; }
-    const ext = file.name.split(".").pop();
-    const path = `${consultationId}/${Date.now()}.${ext}`;
-    const { error: upErr } = await supabase.storage.from("consultation-media").upload(path, file);
-    if (upErr) { toast.error("Upload failed"); return; }
-    const { data: urlData } = await supabase.storage
-      .from("consultation-media")
-      .createSignedUrl(path, 60 * 60 * 24 * 7);
-    if (!urlData?.signedUrl) { toast.error("Upload failed"); return; }
-    await supabase.from("consultation_messages").insert({
-      consultation_id: consultationId!,
-      sender_id: user.id,
-      image_url: urlData.signedUrl,
-    });
-    supabase.functions.invoke("notify-new-message", {
-      body: { consultationId, senderId: user.id, preview: "📷 Shared an image" },
-    }).catch(() => {});
   };
 
   const otherName = otherParty?.name || otherParty?.display_name || "Artist";
@@ -352,10 +326,6 @@ const ConsultationChat = () => {
         </div>
 
         <div className="flex gap-2">
-          <label className="h-12 w-12 flex items-center justify-center rounded-lg bg-card border border-border cursor-pointer hover:border-gold/30 transition-colors flex-shrink-0">
-            <ImagePlus className="w-5 h-5 text-muted-foreground" />
-            <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-          </label>
           <input
             type="text"
             value={input}
