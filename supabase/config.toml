@@ -1,1 +1,13 @@
 project_id = "ufvabnxcpxhusbdgunmb"
+
+[functions.instagram-connect-callback]
+verify_jwt = false
+
+[functions.get-portfolio-media]
+verify_jwt = false
+
+[functions.get-artist-avatar]
+verify_jwt = false
+
+[functions.get-reel-media]
+verify_jwt = false
