@@ -1105,6 +1105,11 @@ export type Database = {
         Args: { p_schedule: Json }
         Returns: number
       }
+      artist_resubmit_application: { Args: Record<PropertyKey, never>; Returns: boolean }
+      admin_review_artist: {
+        Args: { p_artist_id: string; p_decision: string; p_reason?: string | null }
+        Returns: Database["public"]["Tables"]["artists"]["Row"]
+      }
       artist_confirm_booking: {
         Args: { p_booking_id: string }
         Returns: { booking_id: string; booking_status: string }[]
