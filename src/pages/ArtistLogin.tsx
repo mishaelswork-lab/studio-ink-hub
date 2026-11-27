@@ -39,10 +39,10 @@ const ArtistLogin = () => {
         .from("consent_records")
         .select("purpose")
         .eq("user_id", user.id)
-        .in("purpose", ["personal_data_processing", "terms_of_service"]);
+        .in("purpose", ["personal_data_processing", "terms_of_service", "age_attestation"]);
       if (consentError) throw consentError;
       const recordedPurposes = new Set((consents ?? []).map((record) => record.purpose));
-      if (!recordedPurposes.has("personal_data_processing") || !recordedPurposes.has("terms_of_service")) {
+      if (!recordedPurposes.has("personal_data_processing") || !recordedPurposes.has("terms_of_service") || !recordedPurposes.has("age_attestation")) {
         setNeedsConsent(true);
         return false;
       }
@@ -86,6 +86,7 @@ const ArtistLogin = () => {
       const rows = [
         { purpose: "personal_data_processing", granted: true, policy_version: "privacy-2026-08-03" },
         { purpose: "terms_of_service", granted: true, policy_version: "terms-2026-11-26" },
+        { purpose: "age_attestation", granted: true, policy_version: "age-18-attestation-2026-11-27" },
       ].filter((row) => !recorded.has(row.purpose));
       if (rows.length) {
         const { error } = await supabase.from("consent_records").insert(
