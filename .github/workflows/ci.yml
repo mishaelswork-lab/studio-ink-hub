@@ -1,4 +1,4 @@
-name: ArtSpace CI
+name: ArtSpace CI # includes safe account deletion checks
 
 on:
   push:
