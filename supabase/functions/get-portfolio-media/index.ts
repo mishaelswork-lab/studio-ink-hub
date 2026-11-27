@@ -17,14 +17,17 @@ Deno.serve(async (req) => {
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const authHeader = req.headers.get("Authorization");
-  if (!url || !anonKey || !serviceKey || !authHeader) return json({ error: "Unauthorized" }, 401);
+  if (!url || !anonKey || !serviceKey) return json({ error: "Media service unavailable" }, 503);
 
-  const authClient = createClient(url, anonKey, {
-    global: { headers: { Authorization: authHeader } },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const { data: authData, error: authError } = await authClient.auth.getUser();
-  if (authError || !authData.user) return json({ error: "Unauthorized" }, 401);
+  let currentUser: { id: string } | null = null;
+  if (authHeader) {
+    const authClient = createClient(url, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data: authData, error: authError } = await authClient.auth.getUser();
+    if (!authError && authData.user) currentUser = { id: authData.user.id };
+  }
 
   let itemId: string;
   try {
@@ -46,13 +49,13 @@ Deno.serve(async (req) => {
 
   if (itemError || !item) return json({ error: "Media not found" }, 404);
   const artist = Array.isArray(item.artists) ? item.artists[0] : item.artists;
-  const isOwner = artist?.user_id === authData.user.id;
+  const isOwner = !!currentUser && artist?.user_id === currentUser.id;
   const isPublic = item.approved === true && artist?.status === "active";
 
   let isAdmin = false;
-  if (!isOwner && !isPublic) {
+  if (currentUser && !isOwner && !isPublic) {
     const { data: role } = await admin.from("user_roles")
-      .select("user_id").eq("user_id", authData.user.id).eq("role", "admin").maybeSingle();
+      .select("user_id").eq("user_id", currentUser.id).eq("role", "admin").maybeSingle();
     isAdmin = !!role;
   }
   if (!isOwner && !isPublic && !isAdmin) return json({ error: "Forbidden" }, 403);
