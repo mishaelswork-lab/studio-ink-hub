@@ -56,10 +56,10 @@ export async function requireUser(req: Request): Promise<{ user?: User; response
 
 /** Requires an admin user. */
 export async function requireAdmin(req: Request): Promise<{ user?: User; response?: Response }> {
-  const { user, response } = await requireUser(req);
-  if (response) return { response };
-  if (!(await hasRole(user.id, "admin"))) return { response: deny(403, "Admin access required") };
-  return { user };
+  const result = await requireUser(req);
+  if (!result.user) return { response: result.response ?? deny(401, "Sign in required") };
+  if (!(await hasRole(result.user.id, "admin"))) return { response: deny(403, "Admin access required") };
+  return { user: result.user };
 }
 
 /** Requires either the service-role key (scheduled jobs) or an admin user. */
