@@ -13,21 +13,31 @@ import { toast } from "sonner";
 import { readConsent, recordConsent, resetConsent, type ConsentChoice } from "@/lib/consent";
 import { useDataSaver } from "@/hooks/useDataSaver";
 import DeleteAccountCard from "@/components/account/DeleteAccountCard";
+import type { Database } from "@/integrations/supabase/types";
+import { getArtistAvatarUrl, getReelMediaUrl } from "@/lib/portfolioMedia";
+
+type ProfileRow = Pick<Database["public"]["Tables"]["profiles"]["Row"], "id" | "display_name" | "avatar_url" | "city" | "country" | "created_at">;
+type FavoriteRow = Database["public"]["Tables"]["favorites"]["Row"];
+type FavoriteArtist = Pick<Database["public"]["Tables"]["artists"]["Row"], "id" | "name" | "avatar_url" | "specialty" | "studio_name" | "hourly_rate">;
+type FavoriteReel = Pick<Database["public"]["Tables"]["reels"]["Row"], "id" | "artist_id" | "caption" | "video_url" | "thumbnail_url" | "created_at"> & {
+  artists: Pick<Database["public"]["Tables"]["artists"]["Row"], "name" | "avatar_url"> | null;
+};
+type FavoriteDesign = Pick<Database["public"]["Tables"]["designs"]["Row"], "id" | "title" | "description" | "image_url" | "placement" | "style">;
 
 const ProfilePage = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [dataSaver, setDataSaver] = useDataSaver();
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [consent, setConsent] = useState<ConsentChoice | null>(() => readConsent());
 
   // Favorites state (merged in)
-  const [favorites, setFavorites] = useState<any[]>([]);
-  const [favArtists, setFavArtists] = useState<any[]>([]);
-  const [favReels, setFavReels] = useState<any[]>([]);
-  const [favDesigns, setFavDesigns] = useState<any[]>([]);
+  const [favorites, setFavorites] = useState<FavoriteRow[]>([]);
+  const [favArtists, setFavArtists] = useState<FavoriteArtist[]>([]);
+  const [favReels, setFavReels] = useState<FavoriteReel[]>([]);
+  const [favDesigns, setFavDesigns] = useState<FavoriteDesign[]>([]);
   const [favTab, setFavTab] = useState<"artists" | "reels" | "designs">("artists");
 
   useEffect(() => {
@@ -37,7 +47,12 @@ const ProfilePage = () => {
         supabase.from("profiles").select("id,display_name,avatar_url,city,country,created_at").eq("id", user.id).maybeSingle(),
         supabase.from("favorites").select("*").eq("user_id", user.id),
       ]);
-      setProfile(profRes.data);
+      let profileData = profRes.data;
+      if (profileData?.avatar_url && !/^https?:\/\//i.test(profileData.avatar_url)) {
+        const { data: signedAvatar } = await supabase.storage.from("portfolio-private").createSignedUrl(profileData.avatar_url, 900);
+        profileData = { ...profileData, avatar_url: signedAvatar?.signedUrl ?? null };
+      }
+      setProfile(profileData);
       const favs = favsRes.data || [];
       setFavorites(favs);
 
@@ -45,14 +60,41 @@ const ProfilePage = () => {
       const reelIds = favs.filter(f => f.item_type === "reel").map(f => f.item_id);
       const designIds = favs.filter(f => f.item_type === "design").map(f => f.item_id);
 
-      const [aRes, rRes, dRes] = await Promise.all([
-        artistIds.length ? supabase.from("artists").select("*").in("id", artistIds) : Promise.resolve({ data: [] as any[] }),
-        reelIds.length ? supabase.from("reels").select("*, artists(name, avatar_url)").in("id", reelIds) : Promise.resolve({ data: [] as any[] }),
-        designIds.length ? supabase.from("designs").select("*").in("id", designIds) : Promise.resolve({ data: [] as any[] }),
-      ]);
-      setFavArtists(aRes.data || []);
-      setFavReels(rRes.data || []);
-      setFavDesigns(dRes.data || []);
+      let artists: FavoriteArtist[] = [];
+      let reels: FavoriteReel[] = [];
+      let designs: FavoriteDesign[] = [];
+      if (artistIds.length) {
+        const { data, error } = await supabase.from("artists")
+          .select("id,name,avatar_url,specialty,studio_name,hourly_rate").in("id", artistIds);
+        if (error) throw error;
+        artists = data ?? [];
+      }
+      if (reelIds.length) {
+        const { data, error } = await supabase.from("reels")
+          .select("id,artist_id,caption,video_url,thumbnail_url,created_at,artists(name,avatar_url)").in("id", reelIds);
+        if (error) throw error;
+        reels = data ?? [];
+      }
+      if (designIds.length) {
+        const { data, error } = await supabase.from("designs")
+          .select("id,title,description,image_url,placement,style").in("id", designIds);
+        if (error) throw error;
+        designs = data ?? [];
+      }
+      const signedArtists = await Promise.all(artists.map(async artist => {
+        if (!artist.avatar_url) return artist;
+        try { return { ...artist, avatar_url: await getArtistAvatarUrl(artist.id) }; }
+        catch { return { ...artist, avatar_url: null }; }
+      }));
+      const signedReels = await Promise.all(reels.map(async reel => {
+        try {
+          const media = await getReelMediaUrl(reel.id);
+          return { ...reel, video_url: media.videoUrl, thumbnail_url: media.thumbnailUrl };
+        } catch { return null; }
+      }));
+      setFavArtists(signedArtists);
+      setFavReels(signedReels.filter((reel): reel is FavoriteReel => reel !== null));
+      setFavDesigns(designs);
       setLoading(false);
     })();
   }, [user]);
@@ -73,17 +115,18 @@ const ProfilePage = () => {
     if (file.size > 2 * 1024 * 1024) { toast.error("Image must be under 2MB"); return; }
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop();
-      const path = `${user.id}/avatar.${ext}`;
-      const { error: uploadError } = await supabase.storage.from("reels-videos").upload(path, file, { upsert: true });
+      if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) throw new Error("Use a JPG, PNG, or WebP image");
+      const path = `${user.id}/profile/avatar`;
+      const { error: uploadError } = await supabase.storage.from("portfolio-private").upload(path, file, { upsert: true, contentType: file.type });
       if (uploadError) throw uploadError;
-      const { data: urlData } = supabase.storage.from("reels-videos").getPublicUrl(path);
-      const avatarUrl = `${urlData.publicUrl}?t=${Date.now()}`;
-      await supabase.from("profiles").update({ avatar_url: avatarUrl }).eq("user_id", user.id);
-      setProfile((prev: any) => ({ ...prev, avatar_url: avatarUrl }));
+      const { error: profileError } = await supabase.from("profiles").update({ avatar_url: path }).eq("id", user.id);
+      if (profileError) throw profileError;
+      const { data: signedAvatar, error: signError } = await supabase.storage.from("portfolio-private").createSignedUrl(path, 900);
+      if (signError || !signedAvatar?.signedUrl) throw signError || new Error("Could not load uploaded avatar");
+      setProfile(prev => prev ? { ...prev, avatar_url: signedAvatar.signedUrl } : prev);
       toast.success("Profile picture updated!");
-    } catch (err: any) {
-      toast.error("Upload failed: " + err.message);
+    } catch (err: unknown) {
+      toast.error("Upload failed: " + (err instanceof Error ? err.message : "Please try again"));
     } finally {
       setUploading(false);
     }
@@ -126,7 +169,7 @@ const ProfilePage = () => {
                 </Avatar>
                 <label className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
                   {uploading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Camera className="w-5 h-5 text-white" />}
-                  <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={uploading} />
+                  <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleAvatarUpload} disabled={uploading} />
                 </label>
               </div>
               <p className="text-muted-foreground text-xs mt-2">Tap to change photo</p>
