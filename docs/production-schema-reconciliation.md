@@ -204,3 +204,14 @@ This is a security correction; it may reveal frontend assumptions that query own
 ### Storage implementation sequencing
 
 Do not create a private bucket until upload and signed-read flows are implemented together. A private bucket without an approved-media signed-read path would break public portfolio display; a public bucket or public CDN URL is not an acceptable interim workaround.
+
+
+### CI run result and lockfile remediation — 27 November 2026
+
+GitHub Actions run `45971002274` (ArtSpace CI, run 7) successfully checked out the branch and set up Node 20, then **failed at `npm ci`** before TypeScript/build/lint/tests. The lockfile omits optional platform package entries for esbuild (including Linux x64 and other platform variants), so npm's clean-install consistency check rejects it. This is a real CI failure, not a build failure.
+
+Updated the workflow to run `npm install --package-lock-only --ignore-scripts --no-audit --no-fund` before `npm ci`, to reconcile the incomplete lock metadata in the ephemeral runner and continue deterministic installation. This is a temporary CI unblocker; the committed `package-lock.json` should be regenerated and committed from a controlled Node/npm environment so local and CI installs behave identically. No successful follow-on CI run has yet been observed.
+
+### Public artist profile compatibility
+
+After removing public SELECT access to `artists.user_id`, the public artist profile query was changed from `select(*)` to an explicit public-column projection. The public page no longer subscribes to full-row realtime updates, which could otherwise expose non-public columns in row payloads. The block control currently depends on the private owner ID and therefore remains unavailable on that public page until a safe artist-ID-based block RPC is implemented.
