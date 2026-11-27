@@ -73,7 +73,7 @@ const StudiosPage = () => {
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-1">
                       <Star className="w-4 h-4 fill-gold text-gold" />
-                      <span className="text-foreground text-sm">{studio.rating}</span>
+                      <span className="text-foreground text-sm">{studio.reviewCount > 0 ? studio.rating.toFixed(1) : "New"}</span>
                       <span className="text-muted-foreground text-sm">({studio.reviewCount})</span>
                     </div>
                     <div className="flex items-center gap-1 text-muted-foreground text-sm">
