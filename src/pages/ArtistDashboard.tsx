@@ -213,7 +213,7 @@ const ArtistDashboard = () => {
     }
 
     const { data: inserted, error: insertError } = await supabase.from("portfolio_items")
-      .insert({ artist_id: artistProfile.id, media_url: objectPath, media_type: "image", approved: false })
+      .insert({ artist_id: artistProfile.id, media_url: objectPath, media_type: "image" })
       .select("id").single();
     if (insertError || !inserted) {
       await supabase.storage.from("portfolio-private").remove([objectPath]);
