@@ -24,7 +24,7 @@ const ProtectedRoute = ({ children, requiredRole, redirectTo = "/login" }: Props
         .from("consent_records")
         .select("purpose, policy_version")
         .eq("user_id", user.id)
-        .in("purpose", ["personal_data_processing", "terms_of_service"]);
+        .in("purpose", ["personal_data_processing", "terms_of_service", "age_attestation"]);
       if (error) {
         if (!cancelled) setConsentChecked(false);
         return;
@@ -33,7 +33,8 @@ const ProtectedRoute = ({ children, requiredRole, redirectTo = "/login" }: Props
       const existing = data ?? [];
       const hasPrivacy = existing.some((record) => record.purpose === "personal_data_processing");
       const hasTerms = existing.some((record) => record.purpose === "terms_of_service");
-      if (hasPrivacy && hasTerms) {
+      const hasAgeAttestation = existing.some((record) => record.purpose === "age_attestation");
+      if (hasPrivacy && hasTerms && hasAgeAttestation) {
         if (!cancelled) setConsentChecked(true);
         return;
       }
@@ -48,6 +49,7 @@ const ProtectedRoute = ({ children, requiredRole, redirectTo = "/login" }: Props
       const requiredRows = [
         { purpose: "personal_data_processing", granted: true, policy_version: "privacy-2026-08-03" },
         { purpose: "terms_of_service", granted: true, policy_version: "terms-2026-11-26" },
+        { purpose: "age_attestation", granted: true, policy_version: "age-18-attestation-2026-11-27" },
       ];
       const missing = requiredRows.filter((row) => !existing.some((record) => record.purpose === row.purpose && record.policy_version === row.policy_version));
       if (missing.length) {
