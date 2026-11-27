@@ -99,12 +99,16 @@ const BookingPage = () => {
         throw new Error("Please choose a future appointment time");
       }
       const localEnd = new Date(localStart.getTime() + 2 * 60 * 60 * 1000);
+      const bookingBrief = `${form.style.trim()} — ${form.description.trim()}`;
+      if (bookingBrief.trim().length < 10 || bookingBrief.length > 4000) {
+        throw new Error("Please provide at least 10 characters describing your design");
+      }
       const { data: holdRows, error: bookingErr } = await supabase.rpc("create_booking_hold", {
         p_artist_id: artistDbId,
         p_starts_at: localStart.toISOString(),
         p_ends_at: localEnd.toISOString(),
         p_service_type: form.serviceType,
-        p_brief: `${form.style} — ${form.description}`,
+        p_brief: bookingBrief,
         p_placement: form.placement,
         p_size_description: form.size,
         p_idempotency_key: crypto.randomUUID(),
