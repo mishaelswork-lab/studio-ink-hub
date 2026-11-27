@@ -37,11 +37,11 @@ export type PlatformSettings = {
 
 export const DEFAULT_SETTINGS: PlatformSettings = {
   pricing: {
-    cover_charge: 500,
+    cover_charge: 49,
     commission_percent: 15,
-    membership_price: 199,
-    membership_months: 3,
-    featured_boost_price: 999,
+    membership_price: 395,
+    membership_months: 0,
+    featured_boost_price: 500,
     featured_boost_days: 30,
   },
   limits: { guest_design_limit: 30, ai_design_count: 10, max_upload_mb: 10, booking_window_days: 60 },
