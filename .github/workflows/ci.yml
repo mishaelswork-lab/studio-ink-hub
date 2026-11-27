@@ -57,6 +57,8 @@ jobs:
           deno check supabase/functions/instagram-connect-callback/index.ts
           deno check supabase/functions/instagram-connection-status/index.ts
           deno check supabase/functions/instagram-import-media/index.ts
+          deno check supabase/functions/get-public-settings/index.ts
+          deno check supabase/functions/update-platform-settings/index.ts
           deno check supabase/functions/create-booking-hold/index.ts
           deno check supabase/functions/create-razorpay-order/index.ts
           deno check supabase/functions/verify-razorpay-payment/index.ts
