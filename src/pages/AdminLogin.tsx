@@ -18,16 +18,26 @@ const AdminLogin = () => {
     try {
       const user = await guardedSignIn(email, password);
 
-      // Navigate immediately for snappy UX; verify role in parallel.
-      const rolePromise = supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle();
-      toast.success("Welcome, Admin!");
-      navigate("/admin/dashboard");
-      const { data: role } = await rolePromise;
-      if (!role) {
+      const [{ data: role, error: roleError }, { data: consents, error: consentError }] = await Promise.all([
+        supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle(),
+        supabase.from("consent_records").select("purpose").eq("user_id", user.id)
+          .in("purpose", ["personal_data_processing", "terms_of_service"]),
+      ]);
+      const recordedPurposes = new Set((consents ?? []).map((record) => record.purpose));
+      if (roleError || !role) {
         await supabase.auth.signOut();
         toast.error("This account does not have admin access.");
         navigate("/admin");
+        return;
       }
+      if (consentError || !recordedPurposes.has("personal_data_processing") || !recordedPurposes.has("terms_of_service")) {
+        await supabase.auth.signOut();
+        toast.error("This account has not completed the required signup consent.");
+        navigate("/admin");
+        return;
+      }
+      toast.success("Welcome, Admin!");
+      navigate("/admin/dashboard");
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : "Login failed");
     } finally {
