@@ -131,9 +131,9 @@ const LoginPage = () => {
         toast.success("Welcome back!");
         await routeAfterLogin();
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (isSignUp) await supabase.auth.signOut();
-      toast.error(error.message || "Authentication failed");
+      toast.error(error instanceof Error ? error.message : "Authentication failed");
     } finally {
       setLoading(false);
     }
@@ -147,8 +147,8 @@ const LoginPage = () => {
       await guardedSendOtp(fullPhone);
       setOtpSent(true);
       toast.success("OTP sent to your phone!");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to send OTP");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Failed to send OTP");
     } finally {
       setLoading(false);
     }
@@ -162,8 +162,8 @@ const LoginPage = () => {
       await guardedVerifyOtp(fullPhone, otp);
       toast.success("Phone verified! Welcome!");
       await routeAfterLogin();
-    } catch (error: any) {
-      toast.error(error.message || "OTP verification failed");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "OTP verification failed");
     } finally {
       setLoading(false);
     }
@@ -183,8 +183,8 @@ const LoginPage = () => {
       if (result.redirected) return;
       toast.success("Welcome!");
       await routeAfterLogin();
-    } catch (error: any) {
-      toast.error(error.message || "Sign-in failed");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Sign-in failed");
       setLoading(false);
     }
   };
