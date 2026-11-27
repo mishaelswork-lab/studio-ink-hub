@@ -63,7 +63,7 @@ export const FeaturedBoostCard = ({ artistId }: { artistId: string }) => {
     setSubmitting(true);
     try {
       const data = await submitRequestRow(false);
-      toast.success("Request sent! Our team will reach out for the best deal.");
+      toast.success("Custom deal request sent!");
       setExisting(data);
     } catch {
       toast.error("Could not submit request");
@@ -108,10 +108,10 @@ export const FeaturedBoostCard = ({ artistId }: { artistId: string }) => {
               }
               const row = await submitRequestRow(true, resp.razorpay_payment_id);
               setExisting(row);
-              toast.success("Payment received — boost request submitted!");
+              toast.success("Payment verified — your 30-day featured boost is active!");
               resolve();
             } catch (e) {
-              toast.error("Payment captured, but request failed. Contact support.");
+              toast.error("Payment may be captured. Your boost is activated only after server verification; contact support if it is not visible.");
               reject(e);
             }
           },
@@ -150,16 +150,19 @@ export const FeaturedBoostCard = ({ artistId }: { artistId: string }) => {
         <h3 className="font-heading text-foreground font-semibold">Get Featured</h3>
       </div>
       <p className="text-muted-foreground text-sm mb-4">
-        Appear above regular search results in your area for 30 days. Pay now to instantly submit, or request a custom deal.
+        Appear above regular search results in your area for 30 days. Your boost activates immediately after verified ₹500 payment, or you can request a custom deal.
       </p>
-
 
       {existing && existing.status !== "rejected" ? (
         <div className="bg-card/50 border border-border rounded-lg p-4 flex items-start gap-3">
           <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
           <div className="flex-1">
-            <p className="text-foreground text-sm font-medium">Request received — status: <span className="text-gold capitalize">{existing.status}</span></p>
-            <p className="text-muted-foreground text-xs mt-1">Our team will contact you shortly.</p>
+            <p className="text-foreground text-sm font-medium">
+              {existing.status === "paid" ? "Featured boost activated" : <>Custom deal request received — status: <span className="text-gold capitalize">{existing.status}</span></>}
+            </p>
+            <p className="text-muted-foreground text-xs mt-1">
+              {existing.status === "paid" ? "Your paid featured placement is active for 30 days." : "Our team will contact you about your request."}
+            </p>
             {existing.admin_notes && <p className="text-muted-foreground text-xs mt-2 italic">Note: {existing.admin_notes}</p>}
           </div>
         </div>
@@ -183,7 +186,7 @@ export const FeaturedBoostCard = ({ artistId }: { artistId: string }) => {
           <Button variant="outline" className="w-full" onClick={submitFree} disabled={submitting}>
             Or request a custom deal
           </Button>
-          <p className="text-muted-foreground text-[11px] text-center">Secured by Razorpay. Approval typically within 24h.</p>
+          <p className="text-muted-foreground text-[11px] text-center">Secured by Razorpay. Paid boosts activate immediately after server-side payment verification.</p>
         </div>
       )}
     </div>
