@@ -47,10 +47,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const fetchArtistProfile = async (userId: string) => {
-    const { data } = await supabase.from("artists").select("*").eq("user_id", userId).maybeSingle();
+    const { data } = await supabase.rpc("get_my_artist_profile");
     if (activeUserId.current !== userId) return;
-    setArtistProfile(data);
-    cacheSet(ARTIST_KEY, data);
+    const profile = Array.isArray(data) ? data[0] ?? null : data;
+    setArtistProfile(profile);
+    cacheSet(ARTIST_KEY, profile);
   };
 
   const refreshProfile = async () => {
