@@ -35,7 +35,7 @@ const BookingPage = () => {
   useEffect(() => {
     if (!artistId) { setLoading(false); return; }
     const fetchArtist = async () => {
-      const { data } = await supabase.from("artists").select("*").eq("id", artistId).eq("application_status", "approved").eq("available", true).maybeSingle();
+      const { data } = await supabase.from("artists").select("*").eq("id", artistId).eq("status", "approved").eq("available", true).maybeSingle();
       setDbArtist(data);
       setLoading(false);
     };
