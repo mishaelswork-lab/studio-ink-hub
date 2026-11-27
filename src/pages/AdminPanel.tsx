@@ -74,27 +74,44 @@ const AdminPanel = () => {
   const fetchData = async () => {
     if (!serverAdmin) return;
     const [artistsRes, bookingsRes, reelsRes, paymentsRes, flaggedRes, auditRes, fReqRes, fArtRes, reportsRes, changeRes, ugcRes] = await Promise.all([
-      supabase.from("artists").select("*").order("created_at", { ascending: false }),
+      supabase.from("artists").select("id,name,specialty,studio_name,city,country,status,created_at,avatar_url,available,hourly_rate,experience_years,bio").order("created_at", { ascending: false }),
       supabase.from("bookings").select("*").order("created_at", { ascending: false }),
       supabase.from("reels").select("*").order("created_at", { ascending: false }),
-      supabase.from("payments").select("*").eq("status", "completed"),
+      supabase.from("payments").select("id,booking_id,provider,provider_order_id,provider_payment_id,amount_minor,currency,status,created_at,customer_id,artist_id,payment_type").eq("status", "captured"),
       supabase.from("reels").select("*, artists(name)").in("moderation_status", ["flagged", "pending"]).order("created_at", { ascending: false }),
       supabase.from("admin_audit_log").select("*").order("created_at", { ascending: false }).limit(200),
       supabase.from("featured_requests").select("*, artists(name, avatar_url, specialty)").order("created_at", { ascending: false }),
-      supabase.from("featured_artists").select("*, artists(name, avatar_url, specialty)").order("priority", { ascending: false }),
+      supabase.from("featured_artists").select("id,artist_id,active,priority,expires_at,created_at,artists(name,avatar_url,specialty)").order("priority", { ascending: false }),
       supabase.from("design_reports").select("*, daily_designs(image_url, thumb_url, source_url, description)").order("created_at", { ascending: false }).limit(200),
       supabase.from("change_audit_log").select("*").order("created_at", { ascending: false }).limit(200),
       supabase.from("content_reports").select("*").order("created_at", { ascending: false }).limit(200),
     ]);
-    setDbArtists(artistsRes.data || []);
-    const { data: portfolioRows } = await supabase.from("portfolio_items").select("artist_id,media_url").order("created_at", { ascending: false });
+    const { getArtistAvatarUrl, getPortfolioMediaUrl, getReelMediaUrl } = await import("@/lib/portfolioMedia");
+    const artists = await Promise.all((artistsRes.data || []).map(async artist => {
+      if (!artist.avatar_url) return artist;
+      try { return { ...artist, avatar_url: await getArtistAvatarUrl(artist.id) }; }
+      catch { return { ...artist, avatar_url: null }; }
+    }));
+    setDbArtists(artists);
+    const { data: portfolioRows } = await supabase.from("portfolio_items").select("id,artist_id").order("created_at", { ascending: false });
     const grouped: Record<string, string[]> = {};
-    for (const item of portfolioRows || []) grouped[item.artist_id] = [...(grouped[item.artist_id] || []), item.media_url];
+    await Promise.all((portfolioRows || []).map(async item => {
+      try {
+        const mediaUrl = await getPortfolioMediaUrl(item.id);
+        grouped[item.artist_id] = [...(grouped[item.artist_id] || []), mediaUrl];
+      } catch { /* inaccessible media is omitted */ }
+    }));
     setArtistPortfolios(grouped);
+    const resolveReels = async (rows: any[]) => Promise.all(rows.map(async reel => {
+      try {
+        const media = await getReelMediaUrl(reel.id);
+        return { ...reel, video_url: media.videoUrl, thumbnail_url: media.thumbnailUrl };
+      } catch { return null; }
+    }));
     setDbBookings(bookingsRes.data || []);
-    setDbReels(reelsRes.data || []);
+    setDbReels((await resolveReels(reelsRes.data || [])).filter(Boolean));
     setDbPayments(paymentsRes.data || []);
-    setFlaggedReels(flaggedRes.data || []);
+    setFlaggedReels((await resolveReels(flaggedRes.data || [])).filter(Boolean));
     setAuditLog(auditRes.data || []);
     setFeaturedRequests(fReqRes.data || []);
     setFeaturedArtists(fArtRes.data || []);
@@ -117,23 +134,24 @@ const AdminPanel = () => {
     );
   }
 
-  const totalRevenue = dbPayments.reduce((sum, p) => sum + p.amount, 0);
+  const totalRevenue = dbPayments.reduce((sum, p) => sum + Number(p.amount_minor || 0) / 100, 0);
   const pendingCount = dbBookings.filter(b => b.status === "pending").length;
   const artistApplications = dbArtists.filter(a => a.status !== "active");
 
   const writeAudit = async (action: string, target_type: string, target_id: string, reason?: string, metadata?: any) => {
     if (!user) return;
-    await supabase.from("admin_audit_log").insert({
-      admin_id: user.id, action, target_type, target_id, reason: reason || null, metadata: metadata || {},
+    const { error } = await supabase.rpc("admin_write_audit", {
+      p_action: action, p_target_type: target_type, p_target_id: target_id,
+      p_reason: reason || null, p_metadata: metadata || {},
     });
+    if (error) toast.error("Audit event could not be recorded");
   };
 
   const handleDeleteReel = async (id: string) => {
     if (!isAdmin) { toast.error("Admin access required"); return; }
-    const { error } = await supabase.from("reels").delete().eq("id", id);
-    if (error) { toast.error("Failed to delete reel"); return; }
-    await writeAudit("reel_deleted", "reel", id);
-    toast.success("Reel removed");
+    const { error } = await supabase.rpc("admin_review_reel", { p_reel_id: id, p_decision: "reject", p_reason: "Removed by administrator" });
+    if (error) { toast.error(error.message || "Failed to remove reel"); return; }
+    toast.success("Reel removed from public feed");
     setDbReels(prev => prev.filter(r => r.id !== id));
     fetchData();
   };
@@ -161,9 +179,8 @@ const AdminPanel = () => {
 
   const handleApproveReel = async (id: string) => {
     if (!isAdmin) { toast.error("Admin access required"); return; }
-    const { error } = await supabase.from("reels").update({ moderation_status: "approved" }).eq("id", id);
-    if (error) { toast.error("Failed to approve"); return; }
-    await writeAudit("reel_approved", "reel", id);
+    const { error } = await supabase.rpc("admin_review_reel", { p_reel_id: id, p_decision: "approve", p_reason: null });
+    if (error) { toast.error(error.message || "Failed to approve"); return; }
     toast.success("Reel approved");
     setFlaggedReels(prev => prev.filter(r => r.id !== id));
     fetchData();
@@ -173,9 +190,8 @@ const AdminPanel = () => {
     if (!isAdmin || !rejectDialog) return;
     if (!rejectReason.trim()) { toast.error("Please provide a reason"); return; }
     const { id } = rejectDialog;
-    const { error } = await supabase.from("reels").delete().eq("id", id);
-    if (error) { toast.error("Failed to reject"); return; }
-    await writeAudit("reel_rejected", "reel", id, rejectReason.trim());
+    const { error } = await supabase.rpc("admin_review_reel", { p_reel_id: id, p_decision: "reject", p_reason: rejectReason.trim() });
+    if (error) { toast.error(error.message || "Failed to reject"); return; }
     toast.success("Reel rejected & removed");
     setFlaggedReels(prev => prev.filter(r => r.id !== id));
     setRejectDialog(null);
@@ -471,7 +487,7 @@ const AdminPanel = () => {
                         <p className="text-gold text-sm">{artist.specialty || "Specialty not set"} · ₹{artist.hourly_rate}/hr</p>
                         <p className="text-muted-foreground text-xs mt-1">{artist.studio_name || "Independent artist"} · Submitted {new Date(artist.created_at).toLocaleString()}</p>
                         {artist.bio && <p className="text-muted-foreground text-sm mt-3 max-w-2xl">{artist.bio}</p>}
-                        {artist.rejection_reason && <p className="text-destructive text-sm mt-2">Previous feedback: {artist.rejection_reason}</p>}
+                        
                       </div>
                       <div className="flex gap-2 shrink-0">
                         <Button size="sm" variant="gold" className="gap-1" disabled={(artistPortfolios[artist.id] || []).length < 2} onClick={() => handleApproveArtist(artist)}><Check className="w-3.5 h-3.5" /> Approve</Button>
