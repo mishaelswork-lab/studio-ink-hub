@@ -15,7 +15,9 @@ const safeNext = (raw: string | null): string | null => {
 };
 
 const persistSignupConsents = async (userId: string, metadata: Record<string, unknown>) => {
-  if (metadata.age_confirmed !== true || metadata.privacy_consent !== true || metadata.terms_accepted !== true) return;
+  if (metadata.age_confirmed !== true || metadata.privacy_consent !== true || metadata.terms_accepted !== true) {
+    throw new Error("This account has no recorded age and privacy consent. Please create your account through ArtSpace email sign-up.");
+  }
 
   const consentRows = [
     { purpose: "personal_data_processing", granted: true, policy_version: "privacy-2026-08-03" },
@@ -79,6 +81,7 @@ const LoginPage = () => {
       }
       navigate("/dashboard");
     } catch (error) {
+      await supabase.auth.signOut();
       toast.error(error instanceof Error ? error.message : "Unable to complete sign-in. Please try again.");
     }
   };
@@ -128,6 +131,7 @@ const LoginPage = () => {
         await routeAfterLogin();
       }
     } catch (error: any) {
+      if (isSignUp) await supabase.auth.signOut();
       toast.error(error.message || "Authentication failed");
     } finally {
       setLoading(false);
