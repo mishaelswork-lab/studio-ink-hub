@@ -11,7 +11,7 @@ const json = (body: unknown, status = 200) =>
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const auth = await requireUser(req);
-  if (auth.response) return auth.response;
+  if (!auth.user) return auth.response ?? json({ error: "Sign in required" }, 401);
   const user = auth.user;
 
   try {
