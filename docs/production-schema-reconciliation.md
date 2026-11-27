@@ -151,3 +151,38 @@ Not tested: web build, TypeScript, lint, browser/device journeys, authenticated 
 Production storage currently has zero buckets and zero object policies. The app's Supabase fallback still targets a nonexistent public `reels-videos` bucket. The S3 presign source returns a CloudFront public URL and does not implement private read authorization; its Edge Function is also not deployed. Therefore portfolio upload and private-media access are not launch-ready. No bucket or storage policy was created, and no public-media exception was introduced. Before enabling uploads, implement private object storage with owner-scoped upload, admin moderation, and short-lived signed read URLs (or a verified private CDN signing design); remove public URL assumptions from gallery and media delivery.
 
 Negative SQL checks also confirmed unauthenticated calls to `admin_review_artist` and `artist_update_own_profile` are rejected. The current production role table has zero admin assignments; admin workflows are correctly inaccessible until an owner-authorized admin role is provisioned.
+
+
+## Verification and private-media audit — 27 November 2026
+
+### Build / TypeScript / lint / browser verification
+
+The repository defines these scripts: `build` (Vite), `lint` (ESLint), and `test` (Vitest). TypeScript project references are configured in `tsconfig.json`, `tsconfig.app.json`, and `tsconfig.node.json`; the project does not currently define a dedicated typecheck script. The checked-in Playwright dependency alone does not constitute a browser test suite.
+
+**Execution status:**
+- Local checkout and dependency installation: blocked because this execution environment could not resolve `github.com` (DNS/network failure). No local build, TypeScript, lint, or Vitest result is claimed.
+- GitHub Actions: no workflow runs were associated with the inspected branch head at the time of audit. Added `.github/workflows/ci.yml` to run `npm ci`, `npx tsc -b`, Vite build, ESLint, and Vitest on pushes to this branch and PRs targeting main. The new workflow has not yet run; its result must be checked after GitHub Actions starts it.
+- Browser tests: not run. No runnable Playwright spec/config was confirmed in the inspected source, and no deployed preview URL was supplied.
+- Authenticated end-to-end journeys: not run. Production currently has zero artist records and zero admin role assignments; no dedicated customer/artist/admin test identities were provided. Do not create test users or assign admin privileges in production as a substitute.
+
+### Additional security findings
+
+- The live security advisor reports eight authenticated-executable SECURITY DEFINER functions. Source inspection confirms each inspected function uses a fixed `pg_catalog, public` search path and includes explicit identity/ownership or admin-role checks. The generic advisor warning remains open for code review and least-privilege testing; it is not evidence by itself that these functions are exploitable. Do not revoke authenticated execution blindly because the app's workflows call these RPCs.
+- `portfolio_items` currently contains `media_url` and `source_url`. Its public SELECT grant covers all columns, while the public row policy filters to approved items for active artists. The all-column grant is broader than necessary and may expose a source/original URL. Restrict public column grants to display metadata and the approved delivery field after confirming the app contract; keep source/original paths private.
+- Storage audit: production has zero buckets and zero policies on `storage.objects`. No bucket was created during this review.
+- `src/lib/mediaUpload.ts` currently uploads via the S3 presign function and returns a public CloudFront URL; its fallback uses a nonexistent `reels-videos` bucket and `getPublicUrl`. This violates the private-by-default requirement.
+- `supabase/functions/s3-presign/index.ts` returns a public CDN URL, accepts caller-supplied MIME type without a strict allowlist/size policy, and has no corresponding signed-read authorization flow. It must not be deployed as-is.
+- The artist dashboard reads all portfolio `media_url` values without checking `approved`; the public artist profile does filter approved portfolio rows. Dashboard must distinguish pending moderation items from public approved items.
+
+### Private-media implementation contract
+
+Implement only after app and DB contracts are reconciled:
+1. Private bucket, never public; restrict image MIME types and object size; random immutable object keys.
+2. Object paths bound to the authenticated artist identity and artist record. Upload/delete/list policies must check ownership from database state, not client-supplied owner IDs.
+3. Portfolio row stores a private object path, not a public CDN URL. New uploads are pending by default; artists cannot set approval state.
+4. Admin moderation uses a server-authorized decision path with immutable audit entries. Approval should not expose originals/source URLs.
+5. Approved public portfolio delivery uses a short-lived signed read URL issued only after verifying both `portfolio_items.approved = true` and owning artist `status = 'active'`. Pending/rejected media remains inaccessible to other users.
+6. Enforce upload size, MIME, image decoding/content validation, and safe deletion/orphan cleanup. Avoid accepting arbitrary remote URLs as trusted media.
+7. Replace all `getPublicUrl` and public CloudFront assumptions; test owner upload/read/delete, cross-owner denial, pending-media denial, admin approve/reject, and approved public delivery.
+
+No storage bucket, object, policy, public URL, or production media record was changed in this audit.
