@@ -210,7 +210,7 @@ Do not create a private bucket until upload and signed-read flows are implemente
 
 GitHub Actions run `45971002274` (ArtSpace CI, run 7) successfully checked out the branch and set up Node 20, then **failed at `npm ci`** before TypeScript/build/lint/tests. The lockfile omits optional platform package entries for esbuild (including Linux x64 and other platform variants), so npm's clean-install consistency check rejects it. This is a real CI failure, not a build failure.
 
-Updated the workflow to run `npm install --package-lock-only --ignore-scripts --no-audit --no-fund` before `npm ci`, to reconcile the incomplete lock metadata in the ephemeral runner and continue deterministic installation. This is a temporary CI unblocker; the committed `package-lock.json` should be regenerated and committed from a controlled Node/npm environment so local and CI installs behave identically. No successful follow-on CI run has yet been observed.
+Updated the workflow to run `npm install --package-lock-only --ignore-scripts --no-audit --no-fund` before `npm ci`, to reconcile the incomplete lock metadata in the ephemeral runner and continue deterministic installation. This is a temporary CI unblocker; the committed `package-lock.json` should be regenerated and committed from a controlled Node/npm environment so local and CI installs behave identically. A later CI run passed dependency installation, TypeScript, production build and unit tests; the Deno check was also passing for the functions then included. Full-project ESLint failed on legacy lint debt (163 violations, mostly explicit `any`). The subsequent account-deletion Deno check exposed a `npm:` import resolution issue; the import was switched to the pinned `esm.sh` form used elsewhere, but a fresh CI run for the latest head has not yet been observed.
 
 ### Public artist profile compatibility
 
@@ -225,12 +225,30 @@ After removing public SELECT access to `artists.user_id`, the public artist prof
 
 **Branch implementation:**
 - Replaced the old S3/public CloudFront and public Supabase fallback uploader with a private Supabase Storage uploader that enforces MIME type and 5 MiB size client-side; server bucket limits remain authoritative.
+- The fastest/primary portfolio intake is now the artist's connected professional Instagram account: Meta Instagram Login imports single photos, carousels and Reels into private storage, with moderation before publication. Raw public-URL import is intentionally disabled because it bypasses ownership and storage validation. Manual upload remains the fallback.
 - Added `get-portfolio-media` Edge Function. It verifies JWTs when present, permits anonymous access only to approved media for active artists, permits owners to access their own pending media, permits admins via database role, validates the object path, and issues a 120-second signed URL.
 - Added `src/lib/portfolioMedia.ts` signed URL helper.
 - Updated artist dashboard to create pending portfolio rows, resolve signed media for moderation, and clean up object/row when moderation or media delivery fails.
 - Updated public artist profile to resolve only approved portfolio media through the signed-media function.
-- Direct Instagram photo URL import is temporarily disabled; importing remote URLs directly into a private media table would bypass the storage boundary.
+- Direct, unauthenticated Instagram URL scraping/import is disabled. The supported Instagram path is OAuth-connected import from the artist's own professional account; manual upload is the fallback.
 
 **Not yet complete / important blocker:** the signed-media Edge Function has not been deployed. Until it is deployed and verified, portfolio uploads intentionally fail closed and public portfolio images will not resolve. Do not re-enable public CDN URLs as a fallback. Edge Function deployment requires separate approval and secret/runtime verification. No actual user media has been uploaded or modified.
 
 **Verification:** production bucket configuration and policy catalog reviewed; internal artist owner ID and portfolio source URL grants remain zero for anon/authenticated. No authenticated storage upload/read/delete test has been run yet.
+
+
+### Safe account deletion — 27 November 2026
+
+**Production migrations applied additively** on the confirmed ArtSpace project:
+- Booking, conversation, design-request, message-sender, artist-owner, payment-customer and admin-audit actor references now allow `ON DELETE SET NULL` where historical records must survive Auth deletion.
+- The artist record is retained only as a suspended, anonymised historical FK target when it has booking/payment history. Its user link, public profile data, portfolio items, Reels, designs and availability are removed. Featured placement is deactivated.
+- Customer booking/payment history and admin audit rows are retained with identity references detached. Membership entitlements, favorites, saved designs, chats, customer-owned design requests and artist media are removed.
+- Last-admin deletion and deletion while active bookings exist (customer or artist side) are blocked.
+- The account-deletion preparation RPC is SECURITY INVOKER and executable only by `service_role`; anon/authenticated execution was verified false.
+- Booking creation and deletion take a shared profile-row lock, preventing a new booking from racing with deletion. New payment-order creation is blocked while deletion is pending.
+- The Edge Function recursively removes user-scoped objects from the two private portfolio buckets before calling Auth admin deletion. It is idempotent enough to retry if storage or Auth deletion fails after database preparation.
+- The profile is marked deletion-pending and stripped of profile PII during preparation. App sign-out follows successful deletion.
+
+**Verification:** production FK actions/nullability, function grants, and profile-row locks verified. A call with a non-existent UUID correctly failed the profile guard without modifying data. At verification time production had zero Auth users, artists, bookings, payments, admin role assignments and zero objects in the two private portfolio buckets; no customer data was touched.
+
+**Not tested:** authenticated customer/artist/admin deletion journeys, active-booking rejection against a populated staging dataset, recursive Storage deletion with real objects, or actual Auth user deletion. No Edge Function was deployed. A staging test identity is required before treating account deletion as fully end-to-end verified.
