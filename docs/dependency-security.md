@@ -1,12 +1,14 @@
 # Dependency security
 
-The pre-launch CI audit identified production dependency advisories. A one-time, non-forced npm audit remediation is being run on the dedicated security branch.
+The latest completed dependency audit on 27 November 2026 reported **15 production dependency advisories**:
+- 12 high
+- 2 moderate
+- 1 low
+- 0 critical
 
-Policy:
-- Do not use `npm audit fix --force`.
-- Keep direct dependency ranges and update the lockfile only where npm can resolve a compatible patched release.
-- Require TypeScript, production build, and unit tests to pass before retaining the lockfile update.
-- Require no high or critical production dependency advisories before release.
-- Re-run the full CI workflow after the lockfile update.
+The audit identified compatible fixes for all listed packages. A one-time automated lockfile remediation was attempted but GitHub Actions did not schedule any jobs for the temporary workflow revision. The temporary workflow change has been removed; no dependency versions or lockfile entries were changed by that attempt.
 
-This document will be updated with the verified result.
+Release requirements:
+- Apply compatible fixes with `npm audit fix` (never `--force`) in a local or dedicated maintenance environment.
+- Commit the resulting lockfile and verify `npm ci`, TypeScript, production build, unit tests, and a fresh `npm audit --omit=dev`.
+- Do not publish while high-severity production advisories remain.
