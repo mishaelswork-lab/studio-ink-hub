@@ -1101,6 +1101,10 @@ export type Database = {
         Args: { p_available: boolean }
         Returns: boolean
       }
+      artist_replace_weekly_availability: {
+        Args: { p_schedule: Json }
+        Returns: number
+      }
       artist_confirm_booking: {
         Args: { p_booking_id: string }
         Returns: { booking_id: string; booking_status: string }[]
