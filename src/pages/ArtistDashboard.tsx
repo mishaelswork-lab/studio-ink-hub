@@ -110,7 +110,7 @@ const ArtistDashboard = () => {
       const [bookingsRes, reelsRes, paymentsRes, consultationsRes, certsRes] = await Promise.all([
         supabase.from("bookings").select("*").eq("artist_id", artistProfile.id).order("created_at", { ascending: false }),
         supabase.from("reels").select("*").eq("artist_id", artistProfile.id).order("created_at", { ascending: false }),
-        supabase.from("payments").select("*").eq("artist_id", artistProfile.id).eq("status", "completed"),
+        supabase.from("payments").select("id,booking_id,amount_minor,currency,status,created_at,artist_id,payment_type").eq("artist_id", artistProfile.id).eq("status", "captured"),
         supabase.from("consultations").select("*").eq("artist_id", user.id).order("created_at", { ascending: false }),
         supabase.from("artist_certifications").select("*").eq("artist_id", artistProfile.id).order("created_at", { ascending: false }),
       ]);
@@ -311,7 +311,7 @@ const ArtistDashboard = () => {
   const handleLogout = async () => { await signOut(); navigate("/"); };
 
   const coverCharges = payments.filter(p => p.payment_type === "cover_charge");
-  const totalEarnings = payments.reduce((sum, p) => sum + p.amount, 0);
+  const totalEarnings = payments.reduce((sum, p) => sum + Number(p.amount_minor || 0) / 100, 0);
 
   if (!artistProfile) {
     return <div className="min-h-screen bg-background flex items-center justify-center"><p className="text-muted-foreground">Loading artist profile...</p></div>;
@@ -571,7 +571,7 @@ const ArtistDashboard = () => {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
               {[
                 { label: "Total Earnings", value: `₹${totalEarnings.toLocaleString()}` },
-                { label: "Cover Charges Received", value: `₹${(coverCharges.length * 500).toLocaleString()}` },
+                { label: "Cover Charges Received", value: `₹${coverCharges.reduce((sum, p) => sum + Number(p.amount_minor || 0) / 100, 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}` },
                 { label: "Total Bookings", value: bookings.length.toString() },
               ].map(stat => (
                 <div key={stat.label} className="bg-card rounded-lg border border-border p-5">
@@ -589,7 +589,7 @@ const ArtistDashboard = () => {
                       <p className="text-foreground text-sm">Cover Charge Payment</p>
                       <p className="text-muted-foreground text-xs">{new Date(p.created_at).toLocaleDateString()}</p>
                     </div>
-                    <span className="text-gold font-medium">₹{p.amount}</span>
+                    <span className="text-gold font-medium">₹{(Number(p.amount_minor || 0) / 100).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
                   </div>
                 ))}
               </div>
