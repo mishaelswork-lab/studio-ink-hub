@@ -22,6 +22,7 @@ const persistSignupConsents = async (userId: string, metadata: Record<string, un
   const consentRows = [
     { purpose: "personal_data_processing", granted: true, policy_version: "privacy-2026-08-03" },
     { purpose: "terms_of_service", granted: true, policy_version: "terms-2026-11-26" },
+    { purpose: "age_attestation", granted: true, policy_version: "age-18-attestation-2026-11-27" },
   ];
   const purposes = consentRows.map((row) => row.purpose);
   const { data: existing, error: readError } = await supabase
