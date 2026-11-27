@@ -88,6 +88,7 @@ const ArtistDashboard = () => {
   const [consultations, setConsultations] = useState<any[]>([]);
   const [certs, setCerts] = useState<any[]>([]);
   const [portfolioImages, setPortfolioImages] = useState<string[]>([]);
+  const [artistAvatarUrl, setArtistAvatarUrl] = useState<string | null>(null);
   const [newCert, setNewCert] = useState({ name: "", issuing_body: "", url: "" });
   const [availability, setAvailability] = useState<AvailabilityHours>(defaultHours);
   const [savingHours, setSavingHours] = useState(false);
@@ -95,6 +96,12 @@ const ArtistDashboard = () => {
   useEffect(() => {
     if (!artistProfile || !user) return;
     const fetchData = async () => {
+      if (artistProfile.avatar_url) {
+        try {
+          const { getArtistAvatarUrl } = await import("@/lib/portfolioMedia");
+          setArtistAvatarUrl(await getArtistAvatarUrl(artistProfile.id));
+        } catch { setArtistAvatarUrl(null); }
+      }
       const [bookingsRes, reelsRes, paymentsRes, consultationsRes, certsRes] = await Promise.all([
         supabase.from("bookings").select("*").eq("artist_id", artistProfile.id).order("created_at", { ascending: false }),
         supabase.from("reels").select("*").eq("artist_id", artistProfile.id).order("created_at", { ascending: false }),
@@ -273,7 +280,7 @@ const ArtistDashboard = () => {
           <p className="text-muted-foreground text-xs mt-1">Artist Dashboard</p>
         </div>
         <div className="flex items-center gap-3 mb-8 p-3 rounded-lg bg-secondary/50">
-          <img src={artistProfile.avatar_url || "https://via.placeholder.com/40"} alt={artistProfile.name} className="w-10 h-10 rounded-full object-cover border border-gold/30" />
+          <img src={artistAvatarUrl || "/placeholder.svg"} alt={artistProfile.name} className="w-10 h-10 rounded-full object-cover border border-gold/30" />
           <div>
             <p className="text-foreground text-sm font-medium">{artistProfile.name}</p>
             <p className="text-gold text-xs">{artistProfile.specialty}</p>
