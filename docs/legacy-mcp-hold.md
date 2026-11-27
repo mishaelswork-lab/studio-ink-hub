@@ -4,7 +4,7 @@ The legacy Lovable MCP generator is intentionally disabled in `vite.config.ts`, 
 
 This is a safety hold, not a production outage: the function was not deployed to Tartspace. The previous generated function referenced a different Supabase project, stale booking pricing and legacy table/column names. Its booking write path bypassed ArtSpace's canonical booking-hold and payment lifecycle, and its cancellation path directly changed booking status.
 
-The dormant source registry under `src/lib/mcp` has been reduced to read-only catalog and owner-scoped read tools, with its artist queries aligned to the current schema. It is not built, deployed, or part of the customer-facing product.
+The dormant source registry under `src/lib/mcp` and its unused `@lovable.dev/mcp-js` dependency have now been removed from this branch. The dependency tree was pruned from the lockfile. The integration is not built, deployed, or part of the customer-facing product.
 
 Do not re-enable MCP generation or deploy an MCP Edge Function until:
 1. The integration is redesigned against the canonical ArtSpace schema and RLS.
