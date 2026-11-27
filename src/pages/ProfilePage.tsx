@@ -34,7 +34,7 @@ const ProfilePage = () => {
     if (!user) return;
     (async () => {
       const [profRes, favsRes] = await Promise.all([
-        supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
+        supabase.from("profiles").select("id,display_name,avatar_url,city,country,created_at").eq("id", user.id).maybeSingle(),
         supabase.from("favorites").select("*").eq("user_id", user.id),
       ]);
       setProfile(profRes.data);
@@ -48,7 +48,7 @@ const ProfilePage = () => {
       const [aRes, rRes, dRes] = await Promise.all([
         artistIds.length ? supabase.from("artists").select("*").in("id", artistIds) : Promise.resolve({ data: [] as any[] }),
         reelIds.length ? supabase.from("reels").select("*, artists(name, avatar_url)").in("id", reelIds) : Promise.resolve({ data: [] as any[] }),
-        designIds.length ? supabase.from("daily_designs").select("*").in("id", designIds) : Promise.resolve({ data: [] as any[] }),
+        designIds.length ? supabase.from("designs").select("*").in("id", designIds) : Promise.resolve({ data: [] as any[] }),
       ]);
       setFavArtists(aRes.data || []);
       setFavReels(rRes.data || []);
