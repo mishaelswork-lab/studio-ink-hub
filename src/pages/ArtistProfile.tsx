@@ -32,7 +32,7 @@ const ArtistProfile = () => {
     if (!id) { setLoading(false); return; }
     const fetchAll = async () => {
       const [{ data: art }, { data: revs }, { data: certData }] = await Promise.all([
-        supabase.from("artists").select("*").eq("id", id).eq("status", "active").eq("available", true).maybeSingle(),
+        supabase.from("artists").select("id,slug,bio,styles,studio_name,city,country,currency,status,verified_at,created_at,name,specialty,hourly_rate,experience_years,avatar_url,available").eq("id", id).eq("status", "active").eq("available", true).maybeSingle(),
         supabase.from("reviews").select("rating, comment, created_at").eq("artist_id", id).order("created_at", { ascending: false }).limit(10),
         supabase.from("artist_certifications").select("*").eq("artist_id", id).order("created_at", { ascending: false }),
       ]);
@@ -51,17 +51,10 @@ const ArtistProfile = () => {
     };
     fetchAll();
 
-    const channel = supabase
-      .channel(`artist-${id}`)
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "artists", filter: `id=eq.${id}` }, (payload) => {
-        if ((payload.new as any).status !== "active" || !(payload.new as any).available) setDbArtist(null);
-        else setDbArtist((prev: any) => ({ ...prev, ...(payload.new as object) }));
-        const wasAvail = (payload.old as any)?.available;
-        const isAvail = (payload.new as any)?.available;
-        if (wasAvail !== isAvail) toast.info(isAvail ? "Artist is now available" : "Artist marked unavailable");
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    // Public artist payloads intentionally exclude internal owner IDs.
+    // Realtime row payloads can contain columns not selected by this query, so
+    // avoid subscribing to full-row changes on this public surface.
+
   }, [id]);
 
   const browseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
