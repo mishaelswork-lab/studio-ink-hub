@@ -1,0 +1,38 @@
+name: ArtSpace CI
+
+on:
+  push:
+    branches:
+      - artspace/security-audit-fixes
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: artspace-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: TypeScript
+        run: npx tsc -b
+      - name: Production build
+        run: npm run build
+      - name: ESLint
+        run: npm run lint
+      - name: Unit tests
+        run: npm run test -- --passWithNoTests
