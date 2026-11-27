@@ -70,8 +70,9 @@ export const FeaturedBoostCard = ({ artistId }: { artistId: string }) => {
                 body: { razorpay_order_id: response.razorpay_order_id, razorpay_payment_id: response.razorpay_payment_id, razorpay_signature: response.razorpay_signature },
               });
               if (verifyError || verification?.success !== true) throw new Error(verification?.error || verifyError?.message || "Payment could not be verified");
-              const expiry = new Date(Date.now() + boostDays * 86400000).toISOString();
-              setExpiresAt(expiry);
+              const { data: activeBoost } = await supabase.from("featured_artists").select("expires_at")
+                .eq("artist_id", artistId).eq("active", true).maybeSingle();
+              setExpiresAt(activeBoost?.expires_at || new Date(Date.now() + boostDays * 86400000).toISOString());
               toast.success("Payment verified. Your featured boost is active.");
               resolve();
             } catch (error) {
