@@ -13,7 +13,7 @@ import type { Database, Json } from "@/integrations/supabase/types";
 
 type ArtistReel = Database["public"]["Tables"]["reels"]["Row"];
 type ArtistPayment = Pick<Database["public"]["Tables"]["payments"]["Row"], "id" | "booking_id" | "amount_minor" | "currency" | "status" | "created_at" | "artist_id" | "payment_type">;
-type ArtistConsultation = Pick<Database["public"]["Tables"]["conversations"]["Row"], "id" | "customer_id" | "artist_id" | "design_request_id" | "created_at"> & { design_description: string; status: string };
+type ArtistConsultation = Pick<Database["public"]["Tables"]["conversations"]["Row"], "id" | "customer_id" | "artist_id" | "design_request_id" | "created_at"> & { design_description: string; status: string; reference_images: Json | null };
 type ArtistCertification = Database["public"]["Tables"]["artist_certifications"]["Row"];
 
 type ArtistBooking = Pick<Database["public"]["Tables"]["bookings"]["Row"], "id" | "customer_id" | "artist_id" | "design_request_id" | "starts_at" | "ends_at" | "status" | "cover_charge_paid" | "hold_expires_at" | "created_at"> & {
@@ -138,13 +138,14 @@ const ArtistDashboard = () => {
       setPayments(paymentsRes.data || []);
       const requestIds = Array.from(new Set((consultationsRes.data || []).map(c => c.design_request_id))).filter(Boolean);
       const { data: requests } = requestIds.length
-        ? await supabase.from("design_requests").select("id,brief,status").in("id", requestIds)
+        ? await supabase.from("design_requests").select("id,brief,status,reference_images").in("id", requestIds)
         : { data: [] as { id: string; brief: string; status: string | null }[] };
       const requestById = new Map((requests || []).map(request => [request.id, request]));
       setConsultations((consultationsRes.data || []).map(c => ({
         ...c,
         design_description: requestById.get(c.design_request_id || "")?.brief || "Design consultation",
         status: requestById.get(c.design_request_id || "")?.status || "open",
+        reference_images: requestById.get(c.design_request_id || "")?.reference_images ?? null,
       })));
       setCerts(certsRes.data || []);
       const [{ data: portfolioRows }, { data: hoursRows }] = await Promise.all([
@@ -507,11 +508,11 @@ const ArtistDashboard = () => {
                     <span className={`px-2.5 py-1 rounded-full text-xs ${c.status === "active" ? "bg-emerald-500/10 text-emerald-400" : c.status === "pending" ? "bg-gold/10 text-gold" : "bg-primary/10 text-primary"}`}>{c.status}</span>
                   </div>
                   <p className="text-muted-foreground text-xs">{new Date(c.created_at).toLocaleDateString()}</p>
-                  {c.reference_images?.length > 0 && (
+                  {Array.isArray(c.reference_images) && c.reference_images.length > 0 && (
                     <div className="flex gap-2 mt-2">
-                      {c.reference_images.slice(0, 3).map((img: string, i: number) => (
-                        <img key={i} src={img} alt="ref" className="w-12 h-12 rounded object-cover border border-border" />
-                      ))}
+                      {c.reference_images.slice(0, 3).map((img, i) => typeof img === "string" ? (
+                        <img key={i} src={img} alt="Reference" className="w-12 h-12 rounded object-cover border border-border" />
+                      ) : null)}
                     </div>
                   )}
                 </Link>
@@ -634,7 +635,7 @@ const ArtistDashboard = () => {
                     <p className="text-foreground text-sm capitalize">{p.payment_type.replace("_", " ")}</p>
                     <p className="text-muted-foreground text-xs">{new Date(p.created_at).toLocaleDateString()}</p>
                   </div>
-                  <span className="text-gold font-medium">₹{p.amount}</span>
+                  <span className="text-gold font-medium">₹{(Number(p.amount_minor || 0) / 100).toFixed(2)}</span>
                 </div>
               ))}
             </div>
