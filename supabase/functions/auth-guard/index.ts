@@ -37,9 +37,11 @@ const anon = createClient(
 );
 
 function clientIp(req: Request) {
+  // Prefer the edge provider's client-IP header over caller-supplied forwarding headers.
   return (
+    req.headers.get("cf-connecting-ip")?.trim() ||
+    req.headers.get("x-real-ip")?.trim() ||
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    req.headers.get("cf-connecting-ip") ||
     "unknown"
   );
 }
