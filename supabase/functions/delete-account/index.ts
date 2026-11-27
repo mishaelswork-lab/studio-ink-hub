@@ -7,7 +7,7 @@ const json = (body: unknown, status = 200) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
-async function removeUserStorage(admin: ReturnType<typeof createClient<any>>, bucket: string, userId: string) {
+async function removeUserStorage(admin: ReturnType<typeof createClient>, bucket: string, userId: string) {
   const paths: string[] = [];
   const walk = async (folder: string): Promise<void> => {
     let offset = 0;
