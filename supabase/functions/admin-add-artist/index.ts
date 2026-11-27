@@ -73,6 +73,17 @@ Deno.serve(async (req) => {
     if (!newUser.user) throw new Error("Account creation failed");
     const userId = newUser.user.id;
 
+    // Production artists.user_id references profiles(id); no auth.users
+    // profile-creation trigger exists in this project, so create it explicitly.
+    const { error: profileError } = await supabaseAdmin.from("profiles").insert({
+      id: userId,
+      display_name: name.trim(),
+    });
+    if (profileError) {
+      await supabaseAdmin.auth.admin.deleteUser(userId);
+      throw new Error("Could not create artist profile");
+    }
+
     // Add artist role
     const { error: roleError } = await supabaseAdmin.from("user_roles").insert({ user_id: userId, role: "artist" });
     if (roleError) {
