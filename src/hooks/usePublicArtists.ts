@@ -9,6 +9,8 @@ type PublicArtist = {
   name: string | null;
   specialty: string | null;
   studio_name: string | null;
+  city: string | null;
+  country: string | null;
   avatar_url: string | null;
   hourly_rate: number;
   available: boolean;
@@ -28,7 +30,7 @@ export function usePublicArtists() {
     staleTime: 60_000,
     queryFn: async (): Promise<PublicArtist[]> => {
       const { data: artists, error } = await supabase.from("artists")
-        .select("id,name,specialty,studio_name,avatar_url,hourly_rate,available,status")
+        .select("id,name,specialty,studio_name,city,country,avatar_url,hourly_rate,available,status")
         .eq("status", "active").eq("available", true);
       if (error) throw error;
       const artistIds = (artists || []).map(a => a.id);
@@ -73,8 +75,25 @@ export function usePublicArtists() {
 }
 
 export function artistStudios(artists: NonNullable<ReturnType<typeof usePublicArtists>["data"]>) {
-  return Array.from(new Set(artists.map(a => a.studioName))).map(name => {
-    const members = artists.filter(a => a.studioName === name);
-    return { id: name, name, location: "Bengaluru", image: members[0]?.portfolio[0] || "/placeholder.svg", rating: members[0]?.rating || 0, reviewCount: members[0]?.reviewCount || 0 };
+  const grouped = new Map<string, PublicArtist[]>();
+  for (const artist of artists) {
+    if (!artist.studio_name?.trim()) continue;
+    const key = [artist.studio_name.trim(), artist.city?.trim() || "", artist.country?.trim() || ""].join("::");
+    grouped.set(key, [...(grouped.get(key) || []), artist]);
+  }
+
+  return Array.from(grouped.entries()).map(([id, members]) => {
+    const reviewCount = members.reduce((sum, member) => sum + member.reviewCount, 0);
+    const ratingTotal = members.reduce((sum, member) => sum + member.rating * member.reviewCount, 0);
+    const city = members[0]?.city?.trim();
+    const country = members[0]?.country?.trim();
+    return {
+      id,
+      name: members[0].studio_name!.trim(),
+      location: [city, country].filter(Boolean).join(", ") || "Location not provided",
+      image: members.find(member => member.portfolio.length > 0)?.portfolio[0] || "/placeholder.svg",
+      rating: reviewCount ? ratingTotal / reviewCount : 0,
+      reviewCount,
+    };
   });
 }
