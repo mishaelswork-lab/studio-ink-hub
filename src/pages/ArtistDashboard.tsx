@@ -111,7 +111,7 @@ const ArtistDashboard = () => {
         supabase.from("bookings").select("*").eq("artist_id", artistProfile.id).order("created_at", { ascending: false }),
         supabase.from("reels").select("*").eq("artist_id", artistProfile.id).order("created_at", { ascending: false }),
         supabase.from("payments").select("id,booking_id,amount_minor,currency,status,created_at,artist_id,payment_type").eq("artist_id", artistProfile.id).eq("status", "captured"),
-        supabase.from("consultations").select("*").eq("artist_id", user.id).order("created_at", { ascending: false }),
+        supabase.from("conversations").select("id,customer_id,artist_id,design_request_id,created_at").eq("artist_id", artistProfile.id).order("created_at", { ascending: false }),
         supabase.from("artist_certifications").select("*").eq("artist_id", artistProfile.id).order("created_at", { ascending: false }),
       ]);
       setBookings(bookingsRes.data || []);
@@ -124,7 +124,16 @@ const ArtistDashboard = () => {
       }));
       setReels(signedReels.filter((reel): reel is NonNullable<typeof reel> => !!reel));
       setPayments(paymentsRes.data || []);
-      setConsultations(consultationsRes.data || []);
+      const requestIds = Array.from(new Set((consultationsRes.data || []).map(c => c.design_request_id))).filter(Boolean);
+      const { data: requests } = requestIds.length
+        ? await supabase.from("design_requests").select("id,brief,status").in("id", requestIds)
+        : { data: [] as { id: string; brief: string; status: string | null }[] };
+      const requestById = new Map((requests || []).map(request => [request.id, request]));
+      setConsultations((consultationsRes.data || []).map(c => ({
+        ...c,
+        design_description: requestById.get(c.design_request_id || "")?.brief || "Design consultation",
+        status: requestById.get(c.design_request_id || "")?.status || "open",
+      })));
       setCerts(certsRes.data || []);
       const [{ data: portfolioRows }, { data: hoursRows }] = await Promise.all([
         supabase.from("portfolio_items").select("id").eq("artist_id", artistProfile.id).order("created_at", { ascending: false }),
