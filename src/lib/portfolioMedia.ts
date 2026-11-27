@@ -19,3 +19,13 @@ export async function getArtistAvatarUrl(artistId: string): Promise<string> {
   }
   return data.signed_url;
 }
+
+export async function getReelMediaUrl(reelId: string): Promise<{ videoUrl: string; thumbnailUrl: string | null }> {
+  const { data, error } = await supabase.functions.invoke("get-reel-media", {
+    body: { reel_id: reelId },
+  });
+  if (error || typeof data?.video_url !== "string") {
+    throw error || new Error("Reel media is unavailable");
+  }
+  return { videoUrl: data.video_url, thumbnailUrl: typeof data.thumbnail_url === "string" ? data.thumbnail_url : null };
+}
