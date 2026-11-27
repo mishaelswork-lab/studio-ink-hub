@@ -116,7 +116,7 @@ Deno.serve(async (req) => {
       if (match) break;
     }
     const media: InstagramMediaItem | undefined = candidates.find(item => {
-      try { return normalizePermalink(item.permalink) === permalink; } catch { return false; }
+      try { return typeof item.permalink === "string" && normalizePermalink(item.permalink) === permalink; } catch { return false; }
     });
     if (!media) throw new Error("This post was not found in the connected Instagram account. Only media owned by that account can be imported.");
     if (media.media_type === "CAROUSEL_ALBUM") {
