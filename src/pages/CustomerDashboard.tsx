@@ -98,21 +98,6 @@ const CustomerDashboard = () => {
     return () => clearInterval(interval);
   }, [bookings, checkReminders]);
 
-  const parseBookingDateTime = (dateStr: string, timeStr: string): Date | null => {
-    try {
-      const date = new Date(dateStr);
-      const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
-      if (!match) return null;
-      let hours = parseInt(match[1]);
-      const mins = parseInt(match[2]);
-      const ampm = match[3].toUpperCase();
-      if (ampm === "PM" && hours !== 12) hours += 12;
-      if (ampm === "AM" && hours === 12) hours = 0;
-      date.setHours(hours, mins, 0, 0);
-      return date;
-    } catch { return null; }
-  };
-
   const activeBookings = bookings.filter(b => b.status === "confirmed" || b.status === "pending");
   const pastBookings = bookings.filter(b => b.status === "completed" || b.status === "cancelled");
   const hasActiveBookings = activeBookings.length > 0;
