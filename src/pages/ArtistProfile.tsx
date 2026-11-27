@@ -7,7 +7,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useFavorite } from "@/hooks/useFavorite";
-import { useBlock } from "@/hooks/useBlock";
+import { useBlockArtist } from "@/hooks/useBlock";
 import { ReportDialog } from "@/components/safety/ReportDialog";
 const CinematicGallery = lazy(() =>
   import("@/components/CinematicGallery").then(m => ({ default: m.CinematicGallery }))
@@ -15,18 +15,24 @@ const CinematicGallery = lazy(() =>
 import { shareLink } from "@/lib/share";
 import { SEO } from "@/lib/seo";
 import { toast } from "sonner";
+import type { Database } from "@/integrations/supabase/types";
+
+type PublicArtist = Pick<Database["public"]["Tables"]["artists"]["Row"], "id" | "slug" | "bio" | "styles" | "studio_name" | "city" | "country" | "currency" | "status" | "verified_at" | "created_at" | "name" | "specialty" | "hourly_rate" | "experience_years" | "avatar_url" | "available">;
+type ArtistReview = Pick<Database["public"]["Tables"]["reviews"]["Row"], "rating" | "comment" | "created_at">;
+type ArtistPortfolioItem = Pick<Database["public"]["Tables"]["portfolio_items"]["Row"], "id" | "media_url" | "caption" | "media_type">;
+type ArtistCertification = Database["public"]["Tables"]["artist_certifications"]["Row"];
 
 const ArtistProfile = () => {
   const { id } = useParams();
   const { user } = useAuth();
-  const [dbArtist, setDbArtist] = useState<any>(null);
-  const [reviews, setReviews] = useState<any[]>([]);
-  const [portfolioItems, setPortfolioItems] = useState<any[]>([]);
-  const [certs, setCerts] = useState<any[]>([]);
+  const [dbArtist, setDbArtist] = useState<PublicArtist | null>(null);
+  const [reviews, setReviews] = useState<ArtistReview[]>([]);
+  const [portfolioItems, setPortfolioItems] = useState<ArtistPortfolioItem[]>([]);
+  const [certs, setCerts] = useState<ArtistCertification[]>([]);
   const [loading, setLoading] = useState(true);
   const { isFavorite, toggle: toggleFav, loading: favLoading } = useFavorite("artist", id);
   const [reportOpen, setReportOpen] = useState(false);
-  const { isBlocked, toggle: toggleBlock, loading: blockLoading } = useBlock(dbArtist?.user_id);
+  const { isBlocked, toggle: toggleBlock, loading: blockLoading } = useBlockArtist(id);
 
   useEffect(() => {
     if (!id) { setLoading(false); return; }
