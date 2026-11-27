@@ -118,20 +118,32 @@ const BookingPage = () => {
     setPaying(true);
 
     try {
-      const { data: booking, error: bookingErr } = await supabase.from("bookings").insert({
-        customer_id: user.id,
-        artist_id: artistDbId,
-        customer_name: user.user_metadata?.display_name || user.email || "Customer",
-        date: form.date,
-        time: form.time,
-        style: `[${form.serviceType}] ${form.style}`,
-        placement: form.placement,
-        size: form.size,
-        description: form.description,
-        total_estimate: artistRate * 2,
-      }).select().single();
+      // Convert the selected India-local appointment time to an explicit
+      // offset timestamp. The database RPC validates availability and creates
+      // a short-lived, idempotent hold; clients must not insert bookings directly.
+      const match = form.time.match(/^(\\d{1,2}):(\\d{2})\\s*(AM|PM)$/i);
+      if (!match) throw new Error("Please select a valid appointment time");
+      let hour = Number(match[1]) % 12;
+      if (match[3].toUpperCase() === "PM") hour += 12;
+      const localStart = new Date(`${form.date}T${String(hour).padStart(2, "0")}:${match[2]}:00+05:30`);
+      if (Number.isNaN(localStart.getTime()) || localStart.getTime() <= Date.now()) {
+        throw new Error("Please choose a future appointment time");
+      }
+      const localEnd = new Date(localStart.getTime() + 2 * 60 * 60 * 1000);
+      const { data: holdRows, error: bookingErr } = await supabase.rpc("create_booking_hold", {
+        p_artist_id: artistDbId,
+        p_starts_at: localStart.toISOString(),
+        p_ends_at: localEnd.toISOString(),
+        p_service_type: form.serviceType,
+        p_brief: `${form.style} — ${form.description}`,
+        p_placement: form.placement,
+        p_size_description: form.size,
+        p_idempotency_key: crypto.randomUUID(),
+      });
 
       if (bookingErr) throw bookingErr;
+      const booking = Array.isArray(holdRows) ? holdRows[0] : holdRows;
+      if (!booking?.booking_id) throw new Error("Could not reserve this appointment slot");
 
       // Referral discounts are validated and consumed server-side when the
       // payment is settled — the browser only supplies the code the user typed.
@@ -139,7 +151,7 @@ const BookingPage = () => {
       const orderRes = await supabase.functions.invoke("create-razorpay-order", {
         body: {
           payment_type: "cover_charge",
-          booking_id: booking.id,
+          booking_id: booking.booking_id,
           referral_code: referralCode || undefined,
         },
       });
