@@ -22,9 +22,6 @@ const BookingPage = () => {
   const [dbArtist, setDbArtist] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
-  const [referralCode, setReferralCode] = useState("");
-  const [referralDiscount, setReferralDiscount] = useState(0);
-  const [referralChecked, setReferralChecked] = useState(false);
   const [form, setForm] = useState({
     serviceType: "Tattoo", date: "", time: "", style: "", placement: "", size: "Medium", description: "",
   });
@@ -54,30 +51,7 @@ const BookingPage = () => {
   const artistStudio = artist.studio_name;
   const artistDbId = dbArtist?.id;
 
-  const applyReferral = async () => {
-    if (!referralCode.trim() || !user) return;
-    const { data } = await supabase
-      .from("referrals")
-      .select("*")
-      .eq("referral_code", referralCode.trim().toUpperCase())
-      .eq("used", false)
-      .maybeSingle();
-
-    if (data && data.referrer_id !== user.id) {
-      setReferralDiscount(data.discount_amount);
-      setReferralChecked(true);
-      toast.success(`₹${data.discount_amount} discount applied!`);
-    } else if (data && data.referrer_id === user.id) {
-      toast.error("You cannot use your own referral code");
-      setReferralChecked(true);
-    } else {
-      toast.error("Invalid or already used referral code");
-      setReferralChecked(true);
-    }
-  };
-
   const baseCover = 49;
-  const coverCharge = Math.max(0, baseCover - referralDiscount);
 
   const sendPushNotification = (title: string, body: string) => {
     if ("Notification" in window && Notification.permission === "granted") {
@@ -149,7 +123,6 @@ const BookingPage = () => {
         body: {
           payment_type: "cover_charge",
           booking_id: booking.booking_id,
-          referral_code: referralCode || undefined,
         },
       });
 
@@ -177,7 +150,7 @@ const BookingPage = () => {
         amount: orderRes.data.amount,
         currency: orderRes.data.currency,
         name: "Tart",
-        description: `Cover Charge - ${artistName}${referralDiscount > 0 ? ` (₹${referralDiscount} off)` : ""}`,
+        description: `Booking cover charge - ${artistName}`,
         order_id: orderRes.data.order_id,
         handler: async (response: any) => {
           const verification = await supabase.functions.invoke("verify-razorpay-payment", {
@@ -274,34 +247,11 @@ const BookingPage = () => {
               <textarea required rows={3} placeholder="Describe your idea in detail..." value={form.description} onChange={e => setForm(p => ({...p, description: e.target.value}))} className="w-full px-3 py-2 rounded-md bg-secondary border border-border text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-gold placeholder:text-muted-foreground resize-none" />
             </div>
 
-            {/* Referral Code */}
-            <div>
-              <label className="text-sm text-muted-foreground mb-1.5 block">Have a referral code?</label>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Enter code e.g. ART1A2B3C"
-                  value={referralCode}
-                  onChange={e => { setReferralCode(e.target.value); setReferralChecked(false); setReferralDiscount(0); }}
-                  className="bg-secondary border-border text-foreground"
-                />
-                <Button type="button" variant="gold-outline" size="sm" onClick={applyReferral} disabled={!referralCode.trim() || referralChecked}>
-                  Apply
-                </Button>
-              </div>
-              {referralDiscount > 0 && <p className="text-emerald-400 text-xs mt-1">✓ ₹{referralDiscount} discount applied</p>}
-            </div>
-
             <div className="bg-secondary/50 rounded-md p-4 border border-border">
               <div className="flex justify-between text-sm mb-1">
                 <span className="text-muted-foreground">Booking Cover Charge</span>
-                <span className="text-foreground font-medium">₹49</span>
+                <span className="text-foreground font-medium">₹49 standard</span>
               </div>
-              {referralDiscount > 0 && (
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-emerald-400">Referral Discount</span>
-                  <span className="text-emerald-400 font-medium">-₹{referralDiscount}</span>
-                </div>
-              )}
               <div className="flex justify-between text-sm mb-1">
                 <span className="text-muted-foreground font-semibold">Total</span>
                 <span className="text-foreground font-bold">₹{coverCharge}</span>
@@ -310,12 +260,12 @@ const BookingPage = () => {
                 <span className="text-muted-foreground">Artist Rate</span>
                 <span className="text-foreground">₹{artistRate}/hr</span>
               </div>
-              <p className="text-muted-foreground text-xs mt-2">Final price will be discussed with the artist after confirmation.</p>
+              <p className="text-muted-foreground text-xs mt-2">Active members receive a 10% cover-charge discount at checkout. Final service pricing is discussed with the artist.</p>
               
             </div>
 
             <Button type="submit" variant="gold" size="lg" className="w-full" disabled={paying}>
-              {paying ? "Processing..." : `Pay ₹${coverCharge} & Book`}
+              {paying ? "Processing..." : `Continue to payment & book`}
             </Button>
           </form>
         </div>
